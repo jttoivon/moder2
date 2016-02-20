@@ -1,0 +1,21 @@
+
+DC-sort
+-------
+
+This archive contains the source code of implementations of
+the difference cover based suffix array construction algorithm
+and the suffix array checkers described in the paper:
+
+S. Burkhardt, J. Kärkkäinen
+Fast Lightweight Suffix Array Construction and Checking
+Proc. 14th Annual Symposium on Combinatorial Pattern Matching
+Springer, June 2003.
+
+The paper and this code are available at
+http://www.mpi-sb.mpg.de/~juha/publications.html
+
+Besides providing implementations of the algorithms is the above
+paper, writing this code was also an experiment in writing STL-like
+gereric code.
+
+Juha Kärkkäinen <juha@mpi-sb.mpg.de>
