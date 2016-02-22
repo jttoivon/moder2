@@ -81,7 +81,7 @@ distcheck: $(distdir).tar.gz
 	@echo "*** Package $(distdir).tar.gz\
           ready for distribution."
 
-check: moder
+check: all
 	./moder --multinomial --prior addone --cob 0-0 data/TFAP2A-head-1000.seq GGGCA > /dev/null
 	@echo "*** ALL TESTS PASSED ***"
 
