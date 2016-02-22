@@ -90,6 +90,7 @@ $(distdir):
 	mkdir -p $(distdir)/CPM03
 	mkdir -p $(distdir)/data	
 	cp README $(distdir)
+	cp COPYING $(distdir)
 	cp Makefile $(distdir)
 	cp heatmap.R $(distdir)
 	cp moder.cpp $(distdir)
