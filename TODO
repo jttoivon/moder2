@@ -1,0 +1,5 @@
+Mention which version of gcc and openmp is required for full support
+   of parallellism.
+
+Add spacek40 so ppm logos and deviations can be visualized.
+
