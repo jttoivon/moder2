@@ -1,5 +1,5 @@
 package = moder
-version = 0.9.0
+version = 0.9.1
 tarname = $(package)
 distdir = $(tarname)-$(version)
 prefix=/usr/local

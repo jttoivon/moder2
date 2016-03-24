@@ -1,4 +1,4 @@
-#!/usr/bin/Rscript
+#!/usr/bin/env Rscript
 
 # FIX
 # - format of the cell text should be possible to give on command line, FIXED
