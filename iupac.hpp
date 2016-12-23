@@ -1,28 +1,10 @@
-/*
-
-    MODER is a program to learn DNA binding motifs from SELEX datasets.
-    Copyright (C) 2016  Jarkko Toivonen
-
-    MODER is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    MODER is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License along
-    with this program; if not, write to the Free Software Foundation, Inc.,
-    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
-*/
 #include <string>
 #include <cassert>
 #include <vector>
 
 typedef std::vector<double> dvector;
+
+extern std::string iupac_chars;
 
 class iupac_class_type
 {
@@ -58,6 +40,7 @@ public:
     return char_to_class[(unsigned char)c] != 0;
   }
 
+  // function from iupac code to the corresponding subset of {A,C,G,T}
   const char*
   operator()(char c)
   {
@@ -90,8 +73,6 @@ iupac_match(char c, char char_class);
 std::string
 complement_set(char char_class);
 
-bool
-is_nucleotide_string(const std::string& str);
 
 bool
 is_iupac_string(const std::string& str);

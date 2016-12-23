@@ -40,7 +40,7 @@ By default these files are written to current directory. This behaviour can be c
 If option '--names name1,name2,...' is given, these names are used to construct the above filenames instead of TF0, TF1,...
 
 Example of running moder:
-./moder --names TFAP2A --outputdir TFAP2A_models --output --multinomial --prior addone --cob 0-0 data/TFAP2A-head-1000.seq GGGCA > result.txt
+./moder --names TFAP2A --outputdir TFAP2A_models --prior addone --cob 0-0 data/TFAP2A-head-1000.seq GGGCA > result.txt
 
 The data file data/TFAP2A-head-1000.seq contains the first 1000 reads from ENA experiment ERX168813 (http://www.ebi.ac.uk/ena/data/view/ERX168813).
 

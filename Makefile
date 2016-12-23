@@ -1,5 +1,5 @@
 package = moder
-version = 0.9.1
+version = 0.9.2
 tarname = $(package)
 distdir = $(tarname)-$(version)
 prefix=/usr/local
@@ -82,7 +82,7 @@ distcheck: $(distdir).tar.gz
           ready for distribution."
 
 check: all
-	./moder --multinomial --prior addone --cob 0-0 data/TFAP2A-head-1000.seq GGGCA > /dev/null
+	./moder --prior addone --cob 0-0 data/TFAP2A-head-1000.seq GGGCA > /dev/null
 	@echo "*** ALL TESTS PASSED ***"
 
 $(distdir):
@@ -122,6 +122,7 @@ $(distdir):
 	cp multinomial_helper.hpp $(distdir)
 	cp suffix_array_wrapper.hpp $(distdir)
 	cp bndm.hpp $(distdir)
+	cp type.hpp $(distdir)
 	cp CPM03/checker.hpp $(distdir)/CPM03
 	cp CPM03/COPYING $(distdir)/CPM03
 	cp CPM03/difference_cover.cpp $(distdir)/CPM03

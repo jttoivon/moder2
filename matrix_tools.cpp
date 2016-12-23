@@ -1,23 +1,3 @@
-/*
-
-    MODER is a program to learn DNA binding motifs from SELEX datasets.
-    Copyright (C) 2016  Jarkko Toivonen
-
-    MODER is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    MODER is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License along
-    with this program; if not, write to the Free Software Foundation, Inc.,
-    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
-*/
 #include "matrix_tools.hpp"
 #include "common.hpp"
 
@@ -127,7 +107,7 @@ write_matrix(FILE* fp, const matrix<double>& m, const std::string& tag,
 }
 
 void
-write_matrix_file(const std::string& matrixfile, const dmatrix& M)
+write_matrix_file(const std::string& matrixfile, const dmatrix& M, std::string format)
 {
   FILE* fp=fopen(matrixfile.c_str(), "w");
   if (fp == NULL) {
@@ -135,7 +115,7 @@ write_matrix_file(const std::string& matrixfile, const dmatrix& M)
     perror("write_matrix_file");
     exit(1);
   }
-  write_matrix(fp, M, "", "%.6f", false); // write used to file
+  write_matrix(fp, M, "", format, false); // write used to file
   fclose(fp);
   
   // This should be conditional to some log level request

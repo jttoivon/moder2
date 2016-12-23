@@ -1,23 +1,3 @@
-/*
-
-    MODER is a program to learn DNA binding motifs from SELEX datasets.
-    Copyright (C) 2016  Jarkko Toivonen
-
-    MODER is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    MODER is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License along
-    with this program; if not, write to the Free Software Foundation, Inc.,
-    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
-*/
 #include "common.hpp"
 #include "iupac.hpp"
 
@@ -29,7 +9,7 @@
 
 #include <boost/tuple/tuple.hpp>
 
-std::vector<std::string> sequences;
+//std::vector<std::string> sequences;
 std::string header;
 
 /*
@@ -38,16 +18,6 @@ boost::tuple<int,int,int,int>
 get_ranges<>(const boost::multi_array<double, 2>& a);
 */
 
-
-//int to_int_array[256];
-
-/*
-std::string
-yesno(bool b)
-{
-  return b ? "yes" : "no";
-}
-*/
 
 double
 cut(double x)
@@ -74,6 +44,7 @@ error(bool b, const std::string& message)
   }
 }
 
+// Number of 1-bits in the range
 int
 bits_in_range(const std::bitset<64>& occ, int begin, int end)
 {
@@ -289,18 +260,24 @@ normalize_map(std::map<big_int, double>& v)
   return;
 }
 
+bool
+is_valid_string(const std::string& str, const character_to_values<bool>& is_valid)
+{
+  for (int i=0; i < str.length(); ++i) {
+    if (not is_valid(str[i]))
+      return false;
+  }
+  return true;
+}
 
 void
-check_data(const std::vector<std::string>& seqs)
+check_data(const std::vector<std::string>& seqs, const std::string& valid_chars)
 {
   assert(seqs.size() != 0);
-
-  //int length = seqs[0].length();
+  character_to_values<bool> is_valid(valid_chars, true);
   for (int i=0; i < seqs.size(); ++i) {
     const std::string& line = seqs[i];
-    //assert(line.length() == length);
-    for (int j=0; j < line.length(); ++j)
-      assert(line[j]=='A' || line[j]=='C' || line[j]=='G' || line[j]=='T');
+    assert(is_valid_string(line, is_valid));
   }
 
 }
@@ -308,16 +285,10 @@ check_data(const std::vector<std::string>& seqs)
 bool
 is_nucleotide_string(const std::string& str)
 {
-  std::string nucs = "ACGT";
+  //std::string nucs = "ACGT";
+  static character_to_values<bool> isnuc("ACGT", true);
   for (int i=0; i < str.length(); ++i) {
-    bool found = false;
-    for (int j=0; j < nucs.length(); ++j) {
-      if (str[i] == nucs[j]) {
-	found = true;
-	break;
-      }
-    }
-    if (not found)
+    if (not isnuc(str[i]))
       return false;
   }
   return true;
@@ -355,6 +326,12 @@ is_palindromic(const std::string& s)
       return false;
   } 
   return true;
+}
+
+int
+palindromic_index(const std::string& s)
+{
+  return hamming_distance(s, reverse_complement(s));
 }
 
 // Reflects over both diagonals, that is rotate 180 degrees. This is NOT the transpose of the matrix
@@ -455,14 +432,15 @@ min_hamming_distance(const std::string& s, const std::string& t)
 std::string
 join(const std::vector<std::string>& v, char c)
 {
-  int l = v.size();
+  int L = v[0].length();
+  int n = v.size();
   std::string temp;
-  temp.reserve(15*l);
-  for (int i=0; i < l-1; ++i) {
+  temp.reserve((L+1)*n);
+  for (int i=0; i < n-1; ++i) {
     temp.append(v[i]);
     temp.push_back(c);
   }
-  temp.append(v[l-1]);
+  temp.append(v[n-1]);
 
   return temp;
 }
@@ -487,11 +465,11 @@ join(const std::vector<std::string>& v, const std::string& sep)
 std::string
 join_rev(const std::vector<std::string>& v, char c)
 {
-
+  int L = v[0].length();
   int lines = v.size();
   assert(lines>0);
   std::string temp;
-  temp.reserve(15*lines);
+  temp.reserve((L+1)*lines);
   for (int i=lines; i>1;) {
     --i;
     temp.append(reverse_complement(v[i]));
@@ -522,61 +500,36 @@ split(const std::string& s, char c)
 
 
 std::pair<int,int>
-read_sequences2(const std::string& filename, std::vector<std::string>& seqs, bool skip_first_line)
+read_sequences(const std::string& filename, std::vector<std::string>& seqs, bool allow_iupac)
 {
   assert(seqs.size() == 0);
   std::ifstream f;
-  std::string line("No header");
+  std::string line;
   int bad_lines = 0;
   f.open(filename.c_str(), std::ios_base::in);
   if (not f.is_open()) {
     std::cerr << "Couldn't open file " << filename << std::endl;
     exit(1);
   }
-  char c = f.get();
-  if (c == '>' or skip_first_line) {
-    f.putback(c);
-    getline(f, line); // remove header line
-  } else 
-    f.putback(c);
 
-  //assert(line[0] == '>');
-  header=line;
   while (getline(f, line)) {
-    bool skip=false;
     if (line.length() == 0) {
       ++bad_lines;
       continue;
     }
-    for (int j=0; j < line.length(); ++j)
-      if (line[j]!='A' && line[j]!='C' && line[j]!='G' && line[j]!='T') {
-	skip=true;
-	break;
-      }
-    if (not skip)
+    if ((allow_iupac and is_iupac_string(line)) || is_nucleotide_string(line))
       seqs.push_back(line);
     else
       ++bad_lines;
   }
   f.close();
 
-  if (seqs.size() == 0) {
-    printf("No valid sequences found! Exiting.\n");
-    exit(1);
-  }
+  error(seqs.size() == 0, "No valid sequences found! Exiting.\n");
   int lines = seqs.size();
 
   return std::make_pair(lines, bad_lines);
 }
 
-
-
-std::pair<int,int>
-read_sequences(const std::string& filename)
-{
-
-  return read_sequences2(filename, sequences);
-}
 
 // x == base^3 * result[0] + base^2 * result[1] + base * result[2] + result[3]
 std::vector<int>
@@ -630,3 +583,7 @@ integer_range(int begin, int end)
 
   return result;
 }
+
+
+
+

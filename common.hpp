@@ -1,23 +1,3 @@
-/*
-
-    MODER is a program to learn DNA binding motifs from SELEX datasets.
-    Copyright (C) 2016  Jarkko Toivonen
-
-    MODER is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    MODER is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License along
-    with this program; if not, write to the Free Software Foundation, Inc.,
-    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
-*/
 #ifndef COMMON_HPP
 #define COMMON_HPP
 
@@ -25,7 +5,6 @@
 #include "data.hpp"
 #include "cob.hpp"
 #include "orientation.hpp"
-//typedef long long int big_int;
 
 #include <cfloat>
 #include <vector>
@@ -165,6 +144,13 @@ reverse(const std::string& s);
 bool
 is_palindromic(const std::string& s);
 
+int
+palindromic_index(const std::string& s);
+
+bool
+is_nucleotide_string(const std::string& str);
+
+
 matrix<double>
 reverse_complement(const matrix<double>& m);
 
@@ -173,6 +159,8 @@ reverse(const matrix<double>& m);
 
 dmatrix
 extend_matrix(const dmatrix& orig, int k);
+
+
 
 //char complement(char c);
 
@@ -219,10 +207,7 @@ normalize_map(std::map<big_int, double>& v);
 
 
 std::pair<int,int>
-read_sequences(const std::string& filename);
-
-std::pair<int,int>
-read_sequences2(const std::string& filename, std::vector<std::string>& seqs, bool skip_first=false);
+read_sequences(const std::string& filename, std::vector<std::string>& seqs, bool allow_iupac=false);
 
 std::string
 join(const std::vector<std::string>& v, char c);
@@ -324,7 +309,7 @@ min_hamming_distance(const std::string& s, const std::string& t);
 
 
 void
-check_data(const std::vector<std::string>& seqs);
+check_data(const std::vector<std::string>& seqs, const std::string& valid_chars="ACGT");
 
 // recalculate matrix m using frequencies of motif nucleotides 
 // in subset [begin,end] of sequences
@@ -506,7 +491,7 @@ template <typename T>
 T
 max_element(const std::vector<T>& array)
 {
-  T max=-INFINITY;
+  T max=-std::numeric_limits<T>::max();
   size_t N = array.size();
   for (size_t i=0; i < N; ++i)
     max = std::max(max, array[i]);
@@ -520,7 +505,7 @@ max_element(const boost::multi_array<T, 2>& a)
 {
   int row_begin, row_end, col_begin, col_end;
   boost::tie(row_begin, row_end, col_begin, col_end) = get_ranges(a);
-  T max = -DBL_MIN;
+  T max = -std::numeric_limits<T>::max();
   for (int r = row_begin; r < row_end; ++r)
     for (int c = col_begin; c < col_end; ++c)
       max = std::max(a[r][c], max);
@@ -565,6 +550,7 @@ max_element(const boost::unordered_map<K, V, H>& m)
   return max;
 }
 
+
 template <typename K, typename V, typename H>
 K
 arg_max(const boost::unordered_map<K, V, H>& m)
@@ -572,6 +558,11 @@ arg_max(const boost::unordered_map<K, V, H>& m)
   if (m.size() == 0)
     throw "Cannot take maximum of an empty container";
 
+  //  K arg_max=m.begin()->first;
+  //  V max=m.begin()->second;
+  //  std::cout << "Tassa" << std::endl;
+  //  std::cout << m.begin()->first << std::endl;
+  //  std::cout << m.begin()->second << std::endl;
   K arg_max=m.begin()->first;
   V max=m.begin()->second;
 
@@ -585,6 +576,7 @@ arg_max(const boost::unordered_map<K, V, H>& m)
   return arg_max;
 }
 
+
 /*
 template <typename K, typename V>
 V
@@ -595,7 +587,7 @@ arg_max(const boost::unordered_map<K,V>& hash)
 */
 
 template <typename T>
-int
+typename std::vector<T>::size_type
 arg_max(const std::vector<T>& array)
 {
   assert(array.size() > 0);
@@ -634,10 +626,10 @@ public:
   prior() : pseudo_counts(4,0) {}
   
   void
-  use_add_one() 
+  use_add_one(double p = 1.0) 
   {
     for (int i=0; i < 4; ++i)
-      pseudo_counts[i] = 1;
+      pseudo_counts[i] = p;
   }
 
   void
@@ -917,3 +909,4 @@ write_cob_file(const std::string& filename, const boost::multi_array<T, 2>& a)
 
 
 #endif // COMMON_HPP
+

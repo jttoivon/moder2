@@ -1,23 +1,6 @@
-/*
+#define TIMING
+#include "timing.hpp"
 
-    MODER is a program to learn DNA binding motifs from SELEX datasets.
-    Copyright (C) 2016  Jarkko Toivonen
-
-    MODER is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    MODER is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License along
-    with this program; if not, write to the Free Software Foundation, Inc.,
-    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
-*/
 #include "multinomial_helper.hpp"
 #include "bndm.hpp"
 #include "common.hpp"
@@ -25,12 +8,10 @@
 #include "iupac.hpp"
 #include "matrix_tools.hpp"
 
-#define TIMING 1
-#include "timing.hpp"
 
 #include <boost/foreach.hpp>
 
-
+extern bool use_palindromic_correction;
 
 // Do not reject sequences with multiple occurrences of query strings.
 // Compute the counts for the multinomial1 matrix
@@ -52,9 +33,9 @@ find_snips_multimer_helper(const std::string& consensus, const std::vector<std::
 
   int k = consensus.length();
   char nucs[] = "ACGT";
-
+  bool is_palindrome = is_palindromic(consensus);
   int consensus_count = BNDM_with_joker(str1, consensus);
-  if (use_two_strands)
+  if (use_two_strands && (count_palindromes_twice || not is_palindrome))
     consensus_count += BNDM_with_joker(str2, consensus);
 
   if (print_alignment) {
@@ -68,11 +49,11 @@ find_snips_multimer_helper(const std::string& consensus, const std::vector<std::
     for (int a=0; a < 4; ++a) {      // iterate through all characters
       if (nucs[a] == consensus[j])   // the consensus count was already computed. NOTE: no iupac_match here, on purpose
 	continue;
-
       temp[j]=nucs[a];
+      is_palindrome = is_palindromic(temp);
       
       result(a,j) = BNDM_with_joker(str1,temp);
-      if (use_two_strands)
+      if (use_two_strands && (count_palindromes_twice || not is_palindrome))
 	result(a,j) += BNDM_with_joker(str2,temp);
 
       if (print_alignment) {
@@ -122,7 +103,7 @@ find_snips_multimer(const std::string& consensus, const std::vector<std::string>
   int seed_count;
   int multinomial_count;
   boost::tie(result, seed_count, multinomial_count) = find_snips_multimer_helper(consensus, sequences);
-  TIME_PRINT("Multinomial-1 algorithm tooks %.2f seconds.\n", t);
+  TIME_PRINT("Multinomial-1 algorithm took %.2f seconds.\n", t);
   printf("Seed count = %i\n", seed_count);
   printf("Total multinomial1 count is %d\n", multinomial_count);
   return result;
@@ -223,6 +204,106 @@ get_n_neighbourhood(const std::string&seed, int n)
   return string_to_tuple;
 }
 
+// Returns a vector with the seed pattern at the first index
+std::vector<std::pair<std::string, std::vector<boost::tuple<int, int> > > >
+get_n_neighbourhood_in_vector(const std::string&seed, int n)
+{
+  std::vector<std::pair<std::string, std::vector<boost::tuple<int, int> > > > result;
+  string_to_tuple_type neigh = get_n_neighbourhood(seed, n);
+  std::pair<std::string, std::vector<boost::tuple<int, int> > > t;
+  string_to_tuple_type::iterator it = neigh.find(seed);   // Make sure that the pair corresponding to the seed is first on the vector
+  result.push_back(*it);
+  neigh.erase(it);
+  BOOST_FOREACH(t, neigh) {
+     result.push_back(t);
+  }
+  return result;
+}
+
+class iupac_probability_in_background
+{
+public:
+  iupac_probability_in_background(const std::vector<double>& bg)
+    : iupac_probabilities(256)
+  {
+    BOOST_FOREACH(char iupac_char, iupac_chars) {
+      BOOST_FOREACH(char c, iupac_class(iupac_char)) {
+	iupac_probabilities[(unsigned char)iupac_char] += bg[to_int(c)];
+      }
+    }
+  }
+
+  double
+  operator()(const std::string& s) {
+    assert(is_iupac_string(s));
+    double result = 1.0;
+    for (int i=0; i < s.length(); ++i)
+      result *= iupac_probabilities[s[i]];
+    return result;
+  }
+  
+private:
+  std::vector<double> iupac_probabilities;
+};
+
+double
+palindromic_correction(const std::string& pattern, const std::string& seed, const std::string& seed_rev)
+{
+  double t=1.5;
+  int hd1=hamming_distance(pattern,seed);
+  int hd2=hamming_distance(pattern, seed_rev);
+  double correction = pow(t, -hd1) /
+    (pow(t, -hd1) + pow(t, -hd2));
+
+  return correction;
+}
+
+boost::tuple<dmatrix,int>
+find_multinomial_n_background(const std::string& seed, const std::vector<std::string>& sequences, const std::vector<double>& bg,
+			      int n, bool use_multimer)
+{
+  const int k = seed.length();
+  const int L = sequences[0].length();
+  assert(n >= 0);
+  assert(n <= k);
+  dmatrix result(4, k);
+
+  string_to_tuple_type string_to_tuple;
+  string_to_tuple = get_n_neighbourhood(seed, n);
+
+  //printf("Number of patterns %lu\n", string_to_tuple.size());
+  unsigned long seed_count=0;
+  unsigned long total_count=0;
+  int lines = sequences.size();
+  int sites = lines * (L-k+1)*2;
+  iupac_probability_in_background iupac_prob(bg);
+  
+  if (use_multimer) {
+    seed_count = sites * iupac_prob(seed);
+    total_count += seed_count;
+
+    std::vector<boost::tuple<int, int> > pairs;
+    std::string pattern;
+    std::string seed_rev = reverse_complement(seed);
+    BOOST_FOREACH(boost::tie(pattern, pairs), string_to_tuple) {
+      unsigned long count = sites * iupac_prob(pattern);
+      if (use_palindromic_correction)
+	count *= palindromic_correction(pattern, seed, seed_rev);
+      
+      if (not iupac_string_match(pattern, seed))
+	total_count += count;
+      int j, a;
+      BOOST_FOREACH(boost::tie(j,a), pairs) {
+	result(a, j) += count;
+      }
+    }
+  } else {  // allow only single occurrence per read
+    error(true, "Not implemented");
+  }
+  return boost::make_tuple(result, total_count);
+} // find_multinomial_n_background
+
+
 
 boost::tuple<dmatrix,int>
 find_multinomial_n_suffix_array(const std::string& seed, const std::vector<std::string>& sequences, const suffix_array& sa, int n, bool use_multimer)
@@ -231,7 +312,7 @@ find_multinomial_n_suffix_array(const std::string& seed, const std::vector<std::
   const int L = sequences[0].length();
   assert(n >= 0);
   assert(n <= k);
-  char nucs[] = "ACGT";
+  //char nucs[] = "ACGT";
   dmatrix result(4, k);
   //code_to_tuple_type code_to_tuple;
 
@@ -243,22 +324,29 @@ find_multinomial_n_suffix_array(const std::string& seed, const std::vector<std::
   unsigned long total_count=0;
   //unsigned long number_of_sites=0;
 
+  std::string seed_rev = reverse_complement(seed);
   if (use_multimer) {
     seed_count = sa.count_iupac(seed);
     total_count += seed_count;
 
     std::vector<boost::tuple<int, int> > pairs;
     std::string pattern;
+    printf("#String\tColumn\tHamming distance\tPalindrome\tCount\tMatches at col\n");
     BOOST_FOREACH(boost::tie(pattern, pairs), string_to_tuple) {
       unsigned long count = sa.count_iupac(pattern);
+      bool is_palindrome = is_palindromic(pattern);
+      int hd = hamming_distance(seed, pattern);
+      if (is_palindrome and use_two_strands and not count_palindromes_twice)
+	count /= 2;
+      if (use_palindromic_correction)
+	count *= palindromic_correction(pattern, seed, seed_rev);
+
       if (not iupac_string_match(pattern, seed))
 	total_count += count;
-      //printf("Pattern %s has count %lu\n", pattern.c_str(), count);
-      for (int i=0; i < pairs.size(); ++i) {
-	int j, a;
-	boost::tie(j,a) = pairs[i];
-	// if (j==4 and count != 0)
-	//   printf("#%s %lu\n", pattern.c_str(), count);
+      int j, a;
+      BOOST_FOREACH(boost::tie(j,a), pairs) {
+	printf("#%s\t%i\t%i\t%s\t%zu\t%s\n", pattern.c_str(), j, hd,
+	       yesno(is_palindrome), count, yesno(seed[j]==pattern[j]));
 	result(a, j) += count;
       }
     }
@@ -267,42 +355,46 @@ find_multinomial_n_suffix_array(const std::string& seed, const std::vector<std::
     int lines = sequences.size();
     std::vector<std::set<int> > hit_positions(lines);
     std::vector<std::vector<iterator> > hit_patterns(lines);
-    int divisor = L + 1;
+    int divisor = L + 1;    // Includes the separator '#'
     std::vector<boost::tuple<int, int> > pairs;
     std::string pattern;
     for (iterator it=string_to_tuple.begin(); it != string_to_tuple.end(); ++it) {
       std::vector<long int> positions;
       pattern = it->first;
+      bool is_palindrome = is_palindromic(pattern);
       sa.locate_iupac(pattern, positions);
       BOOST_FOREACH(int pos, positions) {
 	int i = pos / divisor;  // index of the read containing the pos
 	int j = pos % divisor;
 	if (i >= lines) {       // handle reverse complement
-	  i -= lines;
-	  j = L - j - 1;
+	  i = 2*lines - i - 1;
+	  j = L - (j + k - 1) - 1;
 	}
-	hit_positions[i].insert(j);
-	//	  if (hits[i] == 1)
-	hit_patterns[i].push_back(it);
+	if (hit_positions[i].count(j) < 1 or not is_palindrome or count_palindromes_twice) {
+	  hit_positions[i].insert(j);
+	  //	  if (hits[i] == 1)
+	  hit_patterns[i].push_back(it);
+	}
       }
     }
     for (int i=0; i < lines; ++i) {
-      if (hit_positions[i].size() != 1)
+      if (hit_positions[i].size() != 1)                    // Because hit_positions[i] is a set, this doesn't exclude, for instance, palindromes
 	continue;
       for (int t=0; t < hit_patterns[i].size(); ++t) {
 	boost::tie(pattern, pairs) = *(hit_patterns[i][t]);
 	if (not iupac_string_match(pattern, seed))
 	  total_count += 1;
-	for (int s=0; s < pairs.size(); ++s) {
-	  int j, a;
-	  boost::tie(j,a) = pairs[s];
+	else
+	  ++seed_count;
+	int j, a;
+	BOOST_FOREACH(boost::tie(j,a), pairs) {
 	  result(a, j) += 1;
 	}
       }
     }
-    for (int a=0; a < 4; ++a)             // get the seed count
-      if (iupac_match(nucs[a], seed[0]))
-	seed_count += result(a,0);
+    // for (int a=0; a < 4; ++a)             // get the seed count                      // THIS PROBABLY ISN'T CORRECT, CONTAINS ALSO EXTRA COUNTS, WORKS ONLY WHEN n=1
+    //   if (iupac_match(nucs[a], seed[0]))
+    // 	seed_count += result(a,0);
     total_count += seed_count;
   }
 
