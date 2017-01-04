@@ -1,5 +1,5 @@
 package = moder
-version = 0.9.2
+version = 0.9.3
 tarname = $(package)
 distdir = $(tarname)-$(version)
 prefix=/usr/local
@@ -16,7 +16,7 @@ BOOSTLIB=
 PROGOPT=-lboost_program_options -lboost_system -lboost_filesystem
 endif
 
-CXXFLAGS= -DPACKAGE_VERSION=\"$(version)\" -Wall -Wno-sign-compare -g $(BOOSTINC)
+CXXFLAGS= -std=gnu++11 -DPACKAGE_VERSION=\"$(version)\" -Wall -Wno-sign-compare -g $(BOOSTINC)
 
 NOOPENMP?=0
 ifeq ($(NOOPENMP),0)
@@ -86,6 +86,7 @@ check: all
 	@echo "*** ALL TESTS PASSED ***"
 
 $(distdir):
+#	rm -rf $(distdir)
 	mkdir -p $(distdir)
 	mkdir -p $(distdir)/CPM03
 	mkdir -p $(distdir)/data	
@@ -106,7 +107,9 @@ $(distdir):
 	cp data.cpp $(distdir)
 	cp iupac.cpp $(distdir)
 	cp suffix_array_wrapper.cpp $(distdir)
-	cp iupac.hpp $(distdir)
+	cp huddinge.cpp $(distdir)
+	cp kmer_tools.cpp $(distdir)
+	cp iupac.cpp $(distdir)
 	cp matrix.hpp $(distdir)
 	cp vectors.hpp $(distdir)
 	cp timing.hpp $(distdir)
@@ -123,6 +126,10 @@ $(distdir):
 	cp suffix_array_wrapper.hpp $(distdir)
 	cp bndm.hpp $(distdir)
 	cp type.hpp $(distdir)
+	cp iupac.hpp $(distdir)
+	cp huddinge.hpp $(distdir)
+	cp kmer_tools.hpp $(distdir)
+	cp unordered_map.hpp $(distdir)
 	cp CPM03/checker.hpp $(distdir)/CPM03
 	cp CPM03/COPYING $(distdir)/CPM03
 	cp CPM03/difference_cover.cpp $(distdir)/CPM03
@@ -142,7 +149,7 @@ $(distdir):
 
 
 MODER_OBJS=moder.o common.o  probabilities.o parameters.o matrix_tools.o my_assert.o combinatorics.o\
-	multinomial_helper.o bndm.o orientation.o data.o iupac.o CPM03/difference_cover.o suffix_array_wrapper.o
+	multinomial_helper.o bndm.o orientation.o data.o iupac.o CPM03/difference_cover.o suffix_array_wrapper.o kmer_tools.o huddinge.o
 moder: $(MODER_OBJS)
 	$(CXX) $(CXXFLAGS) $+ -o $@ $(LDFLAGS)
 
@@ -177,7 +184,7 @@ my_assert.o: my_assert.hpp
 #
 #########################
 
-other_units=matrix_tools.o bndm.o common.o  alignment.o parameters.o probabilities.o combinatorics.o my_assert.o  orientation.o multinomial_helper.o data.o iupac.o suffix_array_wrapper.o
+other_units=matrix_tools.o bndm.o common.o  alignment.o parameters.o probabilities.o combinatorics.o my_assert.o  orientation.o multinomial_helper.o data.o iupac.o suffix_array_wrapper.o huddinge.o kmer_tools.o
 
 $(other_units): %.o: %.hpp   # all non-main units depend on their respective header files
 

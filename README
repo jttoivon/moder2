@@ -30,6 +30,11 @@ If you are interested only in the interaction of motifs 0 and 2, and homodimeric
 you can give the following option:
     --cob 0-2,4-4
 
+By default, MODER learns the gap area for dimers having positive gap length (d>=0). It
+can however be restricted with option '--max-gap-learned' that gaps are learned only
+for gaps of length at most the given limit. With option '--max-gap-learned -1'
+the gaps are never learned.
+
 If option '--unbound filename' is given, all the sequences X_i that had background mixing parameter \lambda_i0 larger
 than for any other model's parameter \lambda_ik are dumped to this file, where \lambda_ik = \sum_j z_ikj. In essence, sequences for which the background
 model is the most likely explanation are stored to this file. The purpose of this option is to be able to verify

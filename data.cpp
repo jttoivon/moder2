@@ -1,26 +1,8 @@
-/*
-
-    MODER is a program to learn DNA binding motifs from SELEX datasets.
-    Copyright (C) 2016  Jarkko Toivonen
-
-    MODER is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    MODER is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License along
-    with this program; if not, write to the Free Software Foundation, Inc.,
-    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
-*/
 #include "data.hpp"
+#include "type.hpp"
 #include "common.hpp"
 #include "probabilities.hpp"
+#include "kmer_tools.hpp"
 
 //#include "common.hpp"
 
@@ -33,11 +15,6 @@
 
 #include <boost/foreach.hpp>
 
-#ifdef __int128
-typedef __int128 myint128;
-#else
-typedef __int128_t myint128;           // for old gcc compilers
-#endif
 
 
 // interpret string of nucleid acids as a number in base 4
@@ -268,53 +245,9 @@ remove_duplicate_reads(const std::vector<std::string>& sequences_orig)
 }
 
 
-myint128
-get_even_mask()
-{
-  myint128 x=0;
-  int number_of_bits = sizeof(myint128) * 8;
-  for (int i=0; i < number_of_bits / 2; ++i) {
-    x <<= 2;
-    x += 1;
-  }
-  return x;
-}
 
-myint128 evenmask = get_even_mask();
-myint128 oddmask = evenmask << 1;
 
-// Returns
-//  0 if hd is zero
-//  1 if hd is one
-//  2 if hd is 2 or greater
-int
-hamming_distance_with_bits(myint128 x, myint128 y)
-{
-  myint128 w = x ^ y;
-  myint128 result = ((w & oddmask) >> 1) | (w & evenmask);
-  unsigned long long* p = reinterpret_cast<unsigned long long*>(&result);  // Break down into two 64 bit words
-  int c = __builtin_popcountll(p[0]) + __builtin_popcountll(p[1]); // number of one bits in w
-  return c;
-}
 
-// don't use, this is done better above
-int
-hamming_distance_with_bits_old(myint128 x, myint128 y)
-{
-  myint128 w = x ^ y;
-  unsigned long long* p = reinterpret_cast<unsigned long long*>(&w);  // Break down into two 64 bit words
-  int c = __builtin_popcountll(p[0]) + __builtin_popcountll(p[1]); // number of one bits in w
-  if (c <= 1)
-    return c;
-  else if (c > 2)
-    return 2;
-  else {
-    if ((w&(w>>1) & evenmask) != 0)
-      return 1;
-    else 
-      return 2;
-  }
-}
 
 /*
 template <typename T>
@@ -400,28 +333,28 @@ remove_duplicate_reads_faster(const std::vector<std::string>& sequences_orig, in
   if (L > 64)
     return remove_duplicate_reads_generic(sequences_orig, hamming_distance);
   
-  std::map<myint128, int> read_count;
+  std::map<myuint128, int> read_count;
   BOOST_FOREACH(std::string s, sequences_orig) {
     std::string key = s;
-    ++read_count[dna_to_number<myint128>(key)];
+    ++read_count[dna_to_number<myuint128>(key)];
   }
 
   if (hamming_distance == 0) {
-    myint128 id;
+    myuint128 id;
     int count;
 
     BOOST_FOREACH(boost::tie(id, count), read_count)
-      sequences.push_back(number_to_dna<myint128>(id, L));
+      sequences.push_back(number_to_dna<myuint128>(id, L));
     return sequences;
   }
 
-  std::multimap<int, myint128, std::greater<int> > reads_multimap;
-  myint128 id;
+  std::multimap<int, myuint128, std::greater<int> > reads_multimap;
+  myuint128 id;
   int count;
   BOOST_FOREACH(boost::tie(id, count), read_count) {
     reads_multimap.insert(std::make_pair(count, id));
   }
-  std::vector<std::pair<int, myint128> > reads_vector;
+  std::vector<std::pair<int, myuint128> > reads_vector;
   BOOST_FOREACH(boost::tie(count, id), reads_multimap) {
     reads_vector.push_back(std::make_pair(count, id));
   }
@@ -431,7 +364,7 @@ remove_duplicate_reads_faster(const std::vector<std::string>& sequences_orig, in
   for (int i=0; i < size; ++i) {
     if (deleted[i])
       continue;
-    myint128 current_id = reads_vector[i].second;
+    myuint128 current_id = reads_vector[i].second;
     for (int j=i+1; j < size; ++j) {
       if (deleted[j])
 	continue;
@@ -439,7 +372,7 @@ remove_duplicate_reads_faster(const std::vector<std::string>& sequences_orig, in
 	deleted[j] = true;
       }
     }
-    sequences.push_back(number_to_dna<myint128>(current_id, L));
+    sequences.push_back(number_to_dna<myuint128>(current_id, L));
   }
   /*
   std::vector<std::string> sequences;

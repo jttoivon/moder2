@@ -94,6 +94,7 @@ options=c("-p", "-c", "-s", "-w")
 
 output.format="png"
 usecounts=FALSE
+useintegers=FALSE
 usewidth=FALSE
 title.given=FALSE
 myformat="%.1f"
@@ -111,6 +112,11 @@ while (length(Args) > 0 && substr(Args[1], 1, 1) == "-") {
     else if (option == "-c") {
         usecounts=TRUE
         print("Using counts instead of logodds")
+        Args=Args[-1]
+    }      
+    else if (option == "-i") {
+        useintegers=TRUE
+        print("Use integer cob values by multiplying by 1000")
         Args=Args[-1]
     }      
     else if (option == "-s") {
@@ -209,6 +215,11 @@ if (usewidth) {
    names(cob) <- c(min.value:(cols+min.value-1))
 }
 
+if (useintegers) {
+  cob = cob*1000
+  myformat="%.0f"
+}
+
 cob_matrix <- data.matrix(cob)
 
 #base_size <- 9
@@ -275,11 +286,12 @@ heatmap.pretty <- function(cob_matrix, rows, cols)
 #                         display_numbers=TRUE,
       display_numbers=TRUE, #number_format = "%.5f",  # Change this to command line parameter
       number_format = myformat,
-
+      number_color = "black",
 #      fontsize_number = 8,
 #      fontsize_number = 32,
 
       fontsize = myfontsize,
+      fontsize_number = myfontsize,
 	                 main=title, xlab="Gap length", ylab="Orientation", asp=1.0, las=1,
 			 width=800, height=200)
 #  title(xlab="Gap length", ylab="Orientation")

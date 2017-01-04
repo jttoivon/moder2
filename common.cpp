@@ -1,23 +1,3 @@
-/*
-
-    MODER is a program to learn DNA binding motifs from SELEX datasets.
-    Copyright (C) 2016  Jarkko Toivonen
-
-    MODER is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    MODER is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License along
-    with this program; if not, write to the Free Software Foundation, Inc.,
-    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
-*/
 #include "common.hpp"
 #include "iupac.hpp"
 
@@ -72,6 +52,18 @@ bits_in_range(const std::bitset<64>& occ, int begin, int end)
   for (int j=begin; j < end; ++j)
     count += occ[j];
   return count;
+}
+
+std::string
+print_bitvector(unsigned int x, int number_of_bits)
+{
+  std::string bit_repr(number_of_bits, '-');
+  for (int pos=0; pos < number_of_bits; ++pos) {
+    unsigned char mask = 1u << (number_of_bits-pos-1);
+    bit_repr[pos] = x & mask ? '1' : '0';
+  }
+  
+  return std::string(bit_repr);
 }
 
 std::string
