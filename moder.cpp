@@ -94,7 +94,7 @@ int max_iter = 50;  // was 300
 int minimum_distance_for_learning = 4;
 int global_dmax = 10;
 //int global_max_dist_for_deviation = -1;
-int global_max_dist_for_deviation = 1000;
+int global_max_dist_for_deviation = 4;
 int min_flank = 3;  // On each side of overlapping area of a dimer at least min_flank number of positions
                     // must be reserved. That is the minimum non-overlapping part on each side.
 double ic_threshold = 0.40;
