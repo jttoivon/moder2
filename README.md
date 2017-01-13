@@ -7,11 +7,11 @@ To get full advantage of parallellism the compiler should support openmp 4.0 whi
 Running make in the directory of the distribution should compile 'moder'.
 If wanted, you can install by running the command
 
-   sudo make install
+	sudo make install
 
 or if you want to install to a non-standard location use, for example
 
-   make prefix=$HOME/usr install
+	make prefix=$HOME/usr install
 
 which installs the binary to $HOME/usr/bin.
 Running command 'moder' should give brief instructions on the command line parameters.
@@ -63,11 +63,11 @@ In the directory 'TFAP2A_models' the following files are stored:
 
 If the R package 'pheatmap' is installed, the cob tables can be visualized as follows:
 
-   ./heatmap.R -c TFAP2A_models/TFAP2A-TFAP2A.cob
+	./heatmap.R -c TFAP2A_models/TFAP2A-TFAP2A.cob
 
 creates file TFAP2A_models/TFAP2A-TFAP2A.png.
 
-   ./heatmap.R -c -s TFAP2A_models/TFAP2A-TFAP2A.cob
+	./heatmap.R -c -s TFAP2A_models/TFAP2A-TFAP2A.cob
 	
 creates file TFAP2A_models/TFAP2A-TFAP2A.svg.
 Run ./heatmap.R without parameters to get brief instructions.
