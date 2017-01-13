@@ -1,7 +1,8 @@
 /*
 
     MODER is a program to learn DNA binding motifs from SELEX datasets.
-    Copyright (C) 2016, 2017  Jarkko Toivonen
+    Copyright (C) 2016, 2017  Jarkko Toivonen,
+    Department of Computer Science, University of Helsinki
 
     MODER is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
