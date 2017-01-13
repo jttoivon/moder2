@@ -6,9 +6,13 @@ should be used. At least version 1.49 is known to work.
 To get full advantage of parallellism the compiler should support openmp 4.0 which, for instance, gcc 4.9.0 and later support.
 Running make in the directory of the distribution should compile 'moder'.
 If wanted, you can install by running the command
+
    sudo make install
+
 or if you want to install to a non-standard location use, for example
+
    make prefix=$HOME/usr install
+
 which installs the binary to $HOME/usr/bin.
 Running command 'moder' should give brief instructions on the command line parameters.
 The distribution also includes, for internal use, an implementation of suffix array by Juha Kärkkäinen in directory CPM03.
@@ -45,7 +49,8 @@ By default these files are written to current directory. This behaviour can be c
 If option '--names name1,name2,...' is given, these names are used to construct the above filenames instead of TF0, TF1,...
 
 Example of running moder:
-./moder --names TFAP2A --outputdir TFAP2A_models --prior addone --cob 0-0 data/TFAP2A-head-1000.seq GGGCA > result.txt
+
+	./moder --names TFAP2A --outputdir TFAP2A_models --prior addone --cob 0-0 data/TFAP2A-head-1000.seq GGGCA > result.txt
 
 The data file data/TFAP2A-head-1000.seq contains the first 1000 reads from ENA experiment ERX168813 (http://www.ebi.ac.uk/ena/data/view/ERX168813).
 
@@ -57,8 +62,12 @@ In the directory 'TFAP2A_models' the following files are stored:
    monomer_weights.txt	 Weight for each monomer model, separated by commas
 
 If the R package 'pheatmap' is installed, the cob tables can be visualized as follows:
-./heatmap.R -c TFAP2A_models/TFAP2A-TFAP2A.cob
-creates file TFAP2A_models/TFAP2A-TFAP2A.png
-./heatmap.R -c -s TFAP2A_models/TFAP2A-TFAP2A.cob
-creates file TFAP2A_models/TFAP2A-TFAP2A.svg
+
+   ./heatmap.R -c TFAP2A_models/TFAP2A-TFAP2A.cob
+
+creates file TFAP2A_models/TFAP2A-TFAP2A.png.
+
+   ./heatmap.R -c -s TFAP2A_models/TFAP2A-TFAP2A.cob
+	
+creates file TFAP2A_models/TFAP2A-TFAP2A.svg.
 Run ./heatmap.R without parameters to get brief instructions.
