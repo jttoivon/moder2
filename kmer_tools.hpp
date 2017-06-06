@@ -264,6 +264,39 @@ hamming_distance_with_bits(T x, T y)
 }
 
 
+
+// returns bitstring 000...000111...111 with k trailing ones
+template <typename T>
+T
+trailing_ones(int k)
+{
+  static_assert(std::is_unsigned<T>::value,
+		"trailing_ones requires unsigned parameter type");
+
+  int number_of_bits = sizeof(T) * 8;
+  assert(k <= number_of_bits);
+  assert(k >= 0);
+  return (static_cast<T>(1) << k) - 1;
+}
+
+
+
+// returns bitstring 111...111000...000 with k leading ones
+template <typename T>
+T
+leading_ones(int k)
+{
+  static_assert(std::is_unsigned<T>::value,
+		"leading_ones requires unsigned parameter type");
+
+  int number_of_bits = sizeof(T) * 8;
+  assert(k <= number_of_bits);
+  assert(k >= 0);
+  return ((static_cast<T>(1) << k) - 1) << (number_of_bits-k);
+}
+
+
+
 class kmers
 {
 public:

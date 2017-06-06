@@ -48,6 +48,11 @@ If option '--output' is given, the program writes monomer motifs, cob tables, de
 By default these files are written to current directory. This behaviour can be changed with '--outputdir directory' option.
 If option '--names name1,name2,...' is given, these names are used to construct the above filenames instead of TF0, TF1,...
 
+When option --flanks is given, the program also computes the flanking positions of the actual motif(s).
+This option can be used to check that motif long enough not to leave out any informational positions.
+However, the matrices which include the flanks are not dumped to files, even if the option --output is given, but the
+user has to parse these from the program output.
+
 Example of running moder:
 
 	./moder --names TFAP2A --outputdir TFAP2A_models --prior addone --cob 0-0 data/TFAP2A-head-1000.seq GGGCA > result.txt
