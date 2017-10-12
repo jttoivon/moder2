@@ -509,7 +509,9 @@ print_vector(const std::vector<T>& v, const std::string& sep, int precision)
 }
 
 
-
+template <>
+std::string
+print_vector<bool>(const std::vector<bool>& v);
 
 template <typename T>
 T

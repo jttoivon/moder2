@@ -75,6 +75,21 @@ bits_in_range(const std::bitset<64>& occ, int begin, int end)
   return count;
 }
 
+template <>
+std::string
+print_vector<bool>(const std::vector<bool>& v)
+{
+  if (v.size() == 0)
+    return std::string("[]");
+  std::ostringstream result;
+  result << "[";
+  for (int i=0; i < v.size()-1; ++i)
+    result << yesno(v[i]) << ", ";
+  result << yesno(v[v.size()-1]) << "]";
+
+  return result.str();
+}
+
 std::string
 print_bitvector(unsigned int x, int number_of_bits)
 {

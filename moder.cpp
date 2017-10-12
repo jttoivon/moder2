@@ -97,7 +97,7 @@ int global_dmax = 10;
 //int global_max_dist_for_deviation = -1;
 //int global_max_dist_for_deviation = 4;
 int global_max_dist_for_deviation = 1000;
-int min_flank = 3;  // On each side of overlapping area of a dimer at least min_flank number of positions
+//int min_flank = 3;  // On each side of overlapping area of a dimer at least min_flank number of positions
                     // must be reserved. That is the minimum non-overlapping part on each side.
 double ic_threshold = 0.40;
 double learning_fraction = 0.02;
@@ -1240,16 +1240,17 @@ get_new_spaced_dimer_weights(int j1, int dir, double z, int d,
   int j2 = j1 + d + w1;  // position of the second leg
 
   // first part
-  unsigned int mismatches = iupac_mismatch_positions<unsigned int>(line.substr(j1, w1), seed1);
+  code_t mismatches = iupac_mismatch_positions<code_t>(line.substr(j1, w1), seed1);
   int hd = mypopcount(mismatches);
-  unsigned int positions = 0;
+  code_t positions = 0;
   if (not force_multinomial or hd < hamming_radius)
     positions = ~0;  // update all
   else if (hd == hamming_radius)  // update only mismatch positions
     positions = mismatches;
   else
     positions = 0;   // update nothing
-  for (int pos=0, mask=1<<(w1-1); pos < w1; ++pos, mask>>=1) {
+  code_t mask = 1ull<<(w1-1);
+  for (int pos=0; pos < w1; ++pos, mask>>=1) {
     signal[to_int(line[j1+pos])] += z;
     if (positions & mask)
       weights1(to_int(line[j1+pos]), pos) += z; // update all columns
@@ -1257,16 +1258,17 @@ get_new_spaced_dimer_weights(int j1, int dir, double z, int d,
 
 
   // second part
-  unsigned int mismatches2 = iupac_mismatch_positions<unsigned int>(line.substr(j2, w2), seed2);
+  code_t mismatches2 = iupac_mismatch_positions<code_t>(line.substr(j2, w2), seed2);
   int hd2 = mypopcount(mismatches2);
-  unsigned int positions2 = 0;
+  code_t positions2 = 0;
   if (not force_multinomial or hd2 < hamming_radius)
     positions2 = ~0;  // update all
   else if (hd2 == hamming_radius)  // update only mismatch positions
     positions2 = mismatches2;
   else
     positions2 = 0;   // update nothing
-  for (int pos=0, mask=1<<(w2-1); pos < w2; ++pos,mask>>=1) {
+  mask=1ull<<(w2-1);
+  for (int pos=0; pos < w2; ++pos,mask>>=1) {
     signal[to_int(line[j2+pos])] += z;
     if (positions2 & mask)
       weights2(to_int(line[j2+pos]), pos) += z; // update all columns
@@ -2353,7 +2355,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	  is_fixed_pwm_part_of_cob[my_cob_params[r].tf2] = true;
 	}
       }
-      printf("Is fixed pwm part of a cob: %s\n", print_vector(is_fixed_pwm_part_of_cob).c_str());
+      printf("Is monomer pwm learnt purely modularly: %s\n", print_vector(is_fixed_pwm_part_of_cob).c_str());
 
 
 
@@ -2880,9 +2882,9 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 		if (local_debug) {
 		  printf("Excluded dimer case %s %s %i:", my_cob_params[r].name().c_str(), orients[o], d);
 		  if (too_weak)
-		    printf(" Too weak (%f)", ic);
+		    printf(" Too weak (ic=%f)", ic);
 		  if (too_small)
-		    printf(" Too small (%f)", lambda);
+		    printf(" Too small (lambda=%f)", lambda);
 		  printf("\n");
 		  //			 too_faraway ? "Too far away" : "");
 		}
@@ -3153,7 +3155,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       convergence_criterion_reached = 
 	max_element(fixed_dist) < epsilon and deviation_converged;
 
-      if (convergence_criterion_reached and get_full_flanks)
+      if ((convergence_criterion_reached or round+1 >= max_iter) and get_full_flanks)
 	get_models_with_flanks(sequences,
 			       sequences_rev,
 			       fixed_seed,
@@ -3824,9 +3826,9 @@ int main(int argc, char* argv[])
     }
     error(hamming_distance_overlapping_seeds_N < 0 or hamming_distance_overlapping_seeds_N > 2, "overlap maximize must be either 0, 1 or 2.");
 
-    if (vm.count("min-flank"))
-      min_flank = vm["min-flank"].as< int >();
-    error(min_flank <= 0, "min-flank must be positive.");
+    // if (vm.count("min-flank"))
+    //   min_flank = vm["min-flank"].as< int >();
+    // error(min_flank <= 0, "min-flank must be positive.");
 
     if (vm.count("overlap-combine")) {
       std::string method = vm["overlap-combine"].as<std::string>();
@@ -4087,6 +4089,8 @@ int main(int argc, char* argv[])
 	 yesno(use_positional_background));
   printf("Use two dna strands: %s\n", yesno(use_two_strands));
   printf("Use multinomial model: %s\n", yesno(use_multinomial));
+  if (use_multinomial)
+    printf("Hamming radius is %i\n", hamming_radius);  
   printf("Use pseudo counts: %s\n", yesno(use_pseudo_counts));
   printf("Get full flanks: %s\n", yesno(get_full_flanks));
   printf("Allow extension: %s\n", yesno(allow_extension));
@@ -4141,7 +4145,7 @@ int main(int argc, char* argv[])
     printf("\twith probabilities: ");
     std::vector<double> d = pseudo_counts.get();
     for (int i=0; i < 4; ++i)
-      printf("%.4f ", d[i]);
+      printf("%.4e ", d[i]);
     printf("\n");
   }
 
@@ -4171,7 +4175,7 @@ int main(int argc, char* argv[])
 	if (use_pseudo_counts)
 	  pseudo_counts.add(fixed_M[k]);
 	normalize_matrix_columns(fixed_M[k]);
-	if (use_multinomial)
+	if (use_multinomial and adjust_seeds)
 	  fixedseedlist[k] = string_giving_max_score(fixed_M[k]);
       }
       else
