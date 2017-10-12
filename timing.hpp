@@ -38,6 +38,7 @@ inline double get_cpu_time()
   return clock() * in_seconds;
 }
 
+/*
 inline
 timespec
 get_wall_time()
@@ -62,6 +63,7 @@ subtract_time(timespec& tp_new, timespec& tp_old)
 
   return result; 
 }
+*/
 
 #ifdef TIMING
 
@@ -83,7 +85,8 @@ subtract_time(timespec& tp_new, timespec& tp_old)
 #define TIME_GET(t)		 \
   ((timer_##t##_current_ = get_cpu_time()), (timer_##t##_current_ - timer_##t##_last_))
 
-#WALL_TIME_START(t) \
+/*
+#define WALL_TIME_START(t) \
   timespec timer_##t##_current_, \
   timer_##t##_last_ = get_wall_time()
 
@@ -97,7 +100,7 @@ subtract_time(timespec& tp_new, timespec& tp_old)
   }                                            \
   printf(format, (timer_##t##_current_ - timer_##t##_last_));	\
   timer_##t##_last_ = timer_##t##_current_
-
+*/
 #else
 
 #define TIME_START(t)
