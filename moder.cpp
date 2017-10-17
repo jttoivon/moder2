@@ -85,6 +85,8 @@ typedef boost::tuple<int,int> cob_combination_t;
 typedef std::vector<boost::tuple<int, int, int, int, std::string> > overlapping_dimer_cases_t;
 typedef std::vector<boost::tuple<int, int, int, int> > spaced_dimer_cases_t;
 
+typedef boost::multi_array<dmatrix, 2> cob_of_matrices;
+
 
 bool use_palindromic_correction=false;
 bool use_multimer=true;
@@ -120,6 +122,7 @@ double cob_cutoff = 0.001;  // if an element in a cob table is smaller than this
 bool adjust_seeds = true;
 bool use_multinomial=true;
 bool local_debug = true;
+bool extra_debug = true;   // Even more printing
 bool allow_extension = false;
 bool use_dimers = true;
 bool seeds_given = false;
@@ -1444,7 +1447,7 @@ get_new_spaced_dimer_weights_with_flanks(int j1, int dir, double z, int d,
 }
 
 
-void
+boost::tuple<std::vector<dmatrix>, std::vector<cob_of_matrices> >
 get_models_with_flanks(const std::vector<std::string>& sequences,
 		       const std::vector<std::string>& sequences_rev,
 		       const std::vector<std::string>& fixed_seed,
@@ -1460,11 +1463,10 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
   int lines = sequences.size();
   int L = sequences[0].length();
   
-  typedef boost::multi_array<dmatrix, 2> cob_of_matrices;
 
-  std::vector<dmatrix> new_fixed_PWM;
+  std::vector<dmatrix> flank_fixed_PWM;
 
-  std::vector<cob_of_matrices> dimer_weights;
+  std::vector<cob_of_matrices> flank_dimer_PWM;
       
 
 
@@ -1475,12 +1477,12 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
     int no = my_cob_params[r].number_of_orientations;
     //    int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
     int dmax = my_cob_params[r].dmax;
-    dimer_weights.push_back(cob_of_matrices(boost::extents[no][range(my_cob_params[r].dmin,dmax+1)]));
+    flank_dimer_PWM.push_back(cob_of_matrices(boost::extents[no][range(my_cob_params[r].dmin,dmax+1)]));
   }
 
   // Fixed models
   for (int k=0; k < fixed_p; ++k) { 
-    new_fixed_PWM.push_back(dmatrix(4, 2*L-fixed_w[k]));
+    flank_fixed_PWM.push_back(dmatrix(4, 2*L-fixed_w[k]));
   }
 
 
@@ -1494,7 +1496,7 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
     // const int& k2 = my_cob_params[r].k2;
     for (int o=0; o < no; ++o) {
       for (int d=dmin; d <= dmax; ++d) {
-	  dimer_weights[r][o][d] = dmatrix(4, 2*L - my_cob_params[r].dimer_w[d]);
+	  flank_dimer_PWM[r][o][d] = dmatrix(4, 2*L - my_cob_params[r].dimer_w[d]);
       }
     }
   }
@@ -1529,7 +1531,7 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
 	}
       }
     }  // end for lines
-    new_fixed_PWM[k] = pwm;
+    flank_fixed_PWM[k] = pwm;
   } // for k, fixed PWMs
 
 
@@ -1570,7 +1572,7 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
 	    }
 	  }
 	}  // for i
-	dimer_weights[r][o][d] = pwm;
+	flank_dimer_PWM[r][o][d] = pwm;
       } // for d, overlapping dimer PWMs
     } // for o, overlapping dimer PWMs
 
@@ -1647,7 +1649,7 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
 	    }
 	  }
 	} // for i in lines
-	dimer_weights[r][o][d] = pwm;
+	flank_dimer_PWM[r][o][d] = pwm;
       } // for d, spaced dimer PWMs
     } // for o, spaced dimer PWMs
 
@@ -1656,30 +1658,33 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
 	    
   for (int k=0; k < fixed_p; ++k) {
     if (use_pseudo_counts)
-      pseudo_counts.add(new_fixed_PWM[k]);
-    normalize_matrix_columns(new_fixed_PWM[k]);
-    write_matrix(stdout, new_fixed_PWM[k], to_string("Flank fixed matrix %i:\n", k), "%.6f");
+      pseudo_counts.add(flank_fixed_PWM[k]);
+    normalize_matrix_columns(flank_fixed_PWM[k]);
+    //    write_matrix(stdout, flank_fixed_PWM[k], to_string("Flank fixed matrix %i:\n", k), "%.6f");
   }
   
   for (int r = 0; r < number_of_cobs; ++r) {
     int dmin = my_cob_params[r].dmin;
     int dmax = my_cob_params[r].dmax;
     int no = my_cob_params[r].number_of_orientations;
-    int tf1 = my_cob_params[r].tf1;
-    int tf2 = my_cob_params[r].tf2;
+    //int tf1 = my_cob_params[r].tf1;
+    //int tf2 = my_cob_params[r].tf2;
     for (int o=0; o < no; ++o) {
       for (int d=dmin; d <= dmax; ++d) {
 	if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
 	  continue;
 	if (use_pseudo_counts)
-	  pseudo_counts.add(dimer_weights[r][o][d]);
-	normalize_matrix_columns(dimer_weights[r][o][d]);
-	write_matrix(stdout, dimer_weights[r][o][d], to_string("Flank dimer case matrix %i-%i %s %i:\n", tf1,tf2, orients[o], d), "%.6f");
+	  pseudo_counts.add(flank_dimer_PWM[r][o][d]);
+	normalize_matrix_columns(flank_dimer_PWM[r][o][d]);
+	//	write_matrix(stdout, flank_dimer_PWM[r][o][d], to_string("Flank dimer case matrix %i-%i %s %i:\n", tf1,tf2, orients[o], d), "%.6f");
       }
     }
     
   }
-}
+
+  return boost::make_tuple(flank_fixed_PWM, flank_dimer_PWM);
+
+} // end of get_models_with_flanks
 
 
 
@@ -1762,8 +1767,8 @@ create_overlapping_seed(const std::string& seed1, const std::string& seed2, int 
   //   pattern = combine_seeds_OR(seed1, seed2, d);
   // }
   // else {
-    hd = hamming_distance_overlapping_seeds_N;
-    pattern = combine_seeds_func(seed1, seed2, d);
+  hd = hamming_distance_overlapping_seeds_N;   // this is zero
+  pattern = combine_seeds_func(seed1, seed2, d);
     //  }
   assert(pattern.size() == k1 + k2 + d);
   std::string overlapping_seed;
@@ -1998,6 +2003,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
   std::vector<double> succ_ic(fixed_p);
 
 
+  std::vector<dmatrix> flank_fixed_PWM;
+  std::vector<cob_of_matrices> flank_dimer_PWM;
 
 
   typedef boost::multi_array<double, 2>::extent_range range;
@@ -2813,11 +2820,13 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
 	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
 	  for (int d=0; d <= max_dist_for_deviation; ++d) {
-	    write_matrix(stdout, gap_weights[r][o][d],
-			 to_string("Observed unnormalized gap matrix %s %s %i:\n",
-				   my_cob_params[r].name().c_str(), orients[o], d).c_str(), "%.6f");
 	    double mysum = sum(gap_weights[r][o][d]);
-	    printf("Sum is %e\n", mysum);
+	    if (extra_debug) {
+	      write_matrix(stdout, gap_weights[r][o][d],
+			   to_string("Observed unnormalized gap matrix %s %s %i:\n",
+				     my_cob_params[r].name().c_str(), orients[o], d).c_str(), "%.6f");
+	      printf("Sum is %e\n", mysum);
+	    }
 	    if (mysum == 0.0)
 	      empty_gap[r][o][d]=true;
 	    if (use_pseudo_counts)
@@ -2911,45 +2920,49 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       /////////////////////////////////
       // print overlapping dimer models
       
-      for (int r = 0; r < number_of_cobs; ++r) {
-	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
-	  for (int d=my_cob_params[r].dmin; d < 0; ++d) {
-	    if (my_cob_params[r].dimer_lambdas[o][d] != 0.0) {
-	      printf("\n");
-	      write_matrix(stdout, overlapping_dimer_weights[r][o][d],
-			   to_string("Observed overlapping dimer case matrix %s %s %i:\n", 
-				     my_cob_params[r].name().c_str(), orients[o], d).c_str(), "%.6f");
-	      std::vector<double> ic(my_cob_params[r].dimer_w[d]);
-	      for (int i=0; i < my_cob_params[r].dimer_w[d]; ++i) {
-		ic[i] = information_content(overlapping_dimer_weights[r][o][d].column(i), bg_model);
+      if (extra_debug) {
+	for (int r = 0; r < number_of_cobs; ++r) {
+	  for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
+	    for (int d=my_cob_params[r].dmin; d < 0; ++d) {
+	      if (my_cob_params[r].dimer_lambdas[o][d] != 0.0) {
+		std::vector<double> ic(my_cob_params[r].dimer_w[d]);
+		for (int i=0; i < my_cob_params[r].dimer_w[d]; ++i) {
+		  ic[i] = information_content(overlapping_dimer_weights[r][o][d].column(i), bg_model);
+		}
+		printf("\n");
+		write_matrix(stdout, overlapping_dimer_weights[r][o][d],
+			     to_string("Observed overlapping dimer case matrix %s %s %i:\n", 
+				       my_cob_params[r].name().c_str(), orients[o], d).c_str(), "%.6f");
+		printf("Information content of overlapping dimer by columns\n");
+		printf("%s\n", print_vector(ic, "\t", 2).c_str());
 	      }
-	      printf("Information content of overlapping dimer by columns\n");
-	      printf("%s\n", print_vector(ic, "\t", 2).c_str());
 	    }
 	  }
-	}
-      } // end for r
-
+	} // end for r
+      }
+      
       // print gap models
-      for (int r = 0; r < number_of_cobs; ++r) {
-	int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
-	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
-	  for (int d=0; d <= max_dist_for_deviation; ++d) {
-	    if (my_cob_params[r].dimer_lambdas[o][d] != 0.0) {
-	      printf("\n");
-	      write_matrix(stdout, gap_weights[r][o][d],
-			   to_string("Observed gap matrix %s %s %i:\n", 
-				     my_cob_params[r].name().c_str(), orients[o], d).c_str(), "%.6f");
-	      std::vector<double> ic(my_cob_params[r].dimer_w[d]);
-	      for (int i=0; i < my_cob_params[r].dimer_w[d]; ++i) {
-		ic[i] = information_content(gap_weights[r][o][d].column(i), bg_model);
+      if (extra_debug) {
+	for (int r = 0; r < number_of_cobs; ++r) {
+	  int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
+	  for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
+	    for (int d=0; d <= max_dist_for_deviation; ++d) {
+	      if (my_cob_params[r].dimer_lambdas[o][d] != 0.0) {
+		std::vector<double> ic(my_cob_params[r].dimer_w[d]);
+		for (int i=0; i < my_cob_params[r].dimer_w[d]; ++i) {
+		  ic[i] = information_content(gap_weights[r][o][d].column(i), bg_model);
+		}
+		printf("\n");
+		write_matrix(stdout, gap_weights[r][o][d],
+			     to_string("Observed gap matrix %s %s %i:\n", 
+				       my_cob_params[r].name().c_str(), orients[o], d).c_str(), "%.6f");
+		printf("Information content of gap by columns\n");
+		printf("%s\n", print_vector(ic, "\t", 2).c_str());
 	      }
-	      printf("Information content of gap by columns\n");
-	      printf("%s\n", print_vector(ic, "\t", 2).c_str());
 	    }
 	  }
-	}
-      } // end for r
+	} // end for r
+      }
 
       
       ////////////////////////////
@@ -3029,21 +3042,20 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       }
       
      // Print deviation tables
-
-
-      for (int r = 0; r < number_of_cobs; ++r) {
-	int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
-	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
-	  for (int d=my_cob_params[r].dmin; d <= max_dist_for_deviation; ++d) {
-	    if (my_cob_params[r].dimer_lambdas[o][d] != 0.0) {
-	      write_matrix(stdout, new_deviation[r][o][d], 
-			   to_string("Deviation matrix %s %s %i:\n", my_cob_params[r].name().c_str(),
-				     orients[o], d).c_str(), "%.6f");
+      if (extra_debug) {
+	for (int r = 0; r < number_of_cobs; ++r) {
+	  int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
+	  for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
+	    for (int d=my_cob_params[r].dmin; d <= max_dist_for_deviation; ++d) {
+	      if (my_cob_params[r].dimer_lambdas[o][d] != 0.0) {
+		write_matrix(stdout, new_deviation[r][o][d], 
+			     to_string("Deviation matrix %s %s %i:\n", my_cob_params[r].name().c_str(),
+				       orients[o], d).c_str(), "%.6f");
+	      }
 	    }
 	  }
-	}
-      }  // end for r
-
+	}  // end for r
+      }
 
 
       ///////////////////////
@@ -3156,13 +3168,14 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	max_element(fixed_dist) < epsilon and deviation_converged;
 
       if ((convergence_criterion_reached or round+1 >= max_iter) and get_full_flanks)
-	get_models_with_flanks(sequences,
-			       sequences_rev,
-			       fixed_seed,
-			       fixed_w,
-			       fixed_m,
-			       my_cob_params,
-			       fixed_Z);
+	boost::tie(flank_fixed_PWM, flank_dimer_PWM) =
+	  get_models_with_flanks(sequences,
+				 sequences_rev,
+				 fixed_seed,
+				 fixed_w,
+				 fixed_m,
+				 my_cob_params,
+				 fixed_Z);
 
       if (local_debug) {
  	printf("---------------------------------------------------\n");
@@ -3209,6 +3222,45 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
   printf("%s\n", std::string(40, '*').c_str());
   printf("Results:\n");
+
+  // Print deviations
+  for (int r = 0; r < number_of_cobs; ++r) {
+    int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
+    for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
+      for (int d=my_cob_params[r].dmin; d <= max_dist_for_deviation; ++d) {
+	if (my_cob_params[r].dimer_lambdas[o][d] != 0.0) {
+	  write_matrix(stdout, my_cob_params[r].deviation[o][d], 
+		       to_string("Deviation matrix %s %s %i:\n", my_cob_params[r].name().c_str(),
+				 orients[o], d).c_str(), "%.6f");
+	}
+      }
+    }
+  }  // end for r
+
+  // Print flanks
+
+  if (get_full_flanks) {
+    for (int k=0; k < fixed_p; ++k) {
+      write_matrix(stdout, flank_fixed_PWM[k], to_string("Flank fixed matrix %i:\n", k), "%.6f");
+    }
+  
+    for (int r = 0; r < number_of_cobs; ++r) {
+      int dmin = my_cob_params[r].dmin;
+      int dmax = my_cob_params[r].dmax;
+      int no = my_cob_params[r].number_of_orientations;
+      int tf1 = my_cob_params[r].tf1;
+      int tf2 = my_cob_params[r].tf2;
+      for (int o=0; o < no; ++o) {
+	for (int d=dmin; d <= dmax; ++d) {
+	  if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
+	    continue;
+	  write_matrix(stdout, flank_dimer_PWM[r][o][d], to_string("Flank dimer case matrix %i-%i %s %i:\n", tf1,tf2, orients[o], d), "%.6f");
+	}
+      }
+    
+    }
+  }
+  
   printf("Maximum log likelihood in the beginning: %i\n", 
 	 (int)first_maximum_log_likelihood);
   printf("Maximum log likelihood in the end: %i\n", (int)mll);
