@@ -27,11 +27,6 @@
 //
 ///////////////////////////////
 
-// This algorithm is based on the following article:
-// Bailey, Elkan. 1995. The value of prior knowledge in discovering
-// motifs with MEME. Technical Report CS95-413. Department of Computer Science,
-// University of California, San Diego
-
 
 #define TIMING
 
@@ -130,6 +125,10 @@ bool no_unique = false;
 bool use_output = false; // whether to write model parameters to files
 bool maximize_overlapping_seeds=true;
 bool require_directional_seed = false;
+bool avoid_palindromes = true; // If tf1==tf2, the orientation is HH or TT and the PPM \tau_ht1,ht2,o,d, the
+                                // probability of a sequence is the same in both directions.
+                                // If we recognize this situation, we can try to escape from this palindromicity
+                                // by using temporarily only a single strand.
 int hamming_distance_overlapping_seeds_N=0;
 int hamming_distance_overlapping_seeds_OR=2;
 int hamming_radius = 1; // For learning the model from sequences in the hamming neighbourhood of the seed
@@ -1952,6 +1951,13 @@ reverse_complement_markov_model(const dmatrix& m)
   return result;
 }
 
+bool
+is_almost_palindrome(const dmatrix& m)
+{
+  dmatrix m_rev = reverse_complement(m);
+  return distance(m, m_rev) < 0.001;
+}
+
 // uses the zoops model (zero or one occurrence per sequence)
 // the error rate lambda[p] equals the quantity 1-gamma of the paper
 std::vector<dmatrix>
@@ -2367,16 +2373,22 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
 
 
-      //////////////////////////////////////
+      ///////////////////////////////////////////////////////////////////////////////////
       //
       // Reestimate models
       //
-      //////////////////////////////////////
+      ///////////////////////////////////////////////////////////////////////////////////
 
 
       std::vector<double> dummy(4, 0.0);   // For flanks that are not really computed
 
-      // Fixed models
+      
+      ////////////////////////////
+      //
+      // Monomeric models
+      //
+      ////////////////////////////
+
       // Signal from monomeric models
       for (int k=0; k < fixed_p; ++k) {
 	dmatrix& pwm = is_fixed_pwm_part_of_cob[k] ? new_fixed_PWM2[k] : new_fixed_PWM[k];
@@ -2432,6 +2444,17 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
 	      continue;
 
+	    bool local_use_two_strands;
+	    if (avoid_palindromes and use_two_strands) {
+	      if (is_almost_palindrome(my_cob_params[r].deviation[o][d])) {
+		local_use_two_strands = false;
+		printf("Avoiding palindrome %s %d iteration %i\n", orients[o], d, round);
+	      }
+	    }
+	    else
+	      local_use_two_strands = use_two_strands;
+	    
+
 	    dmatrix temp_dinucleotide_signal(4, 4);
 	    dmatrix temp_dinucleotide_signal_rev(4, 4);
 	    std::vector<double> temp_signal(4, 0.0);
@@ -2453,7 +2476,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 		get_new_weights(j1, +1, z, my_cob_params[r].dimer_w[d], my_cob_params[r].dimer_seeds[o][d], 
 				line, line_rev, pwm, dummy, dummy, use_multinomial, false, temp_signal, temp_dinucleotide_signal);
 
-		if (use_two_strands) {
+		if (local_use_two_strands) {
 		  double z2 = my_cob_params[r].overlapping_dimer_Z[i][o][d][1][j1];
 		  get_new_weights(j1, -1, z2, my_cob_params[r].dimer_w[d], my_cob_params[r].dimer_seeds[o][d], 
 				  line, line_rev, pwm, dummy, dummy, use_multinomial, false, temp_signal_rev, temp_dinucleotide_signal_rev);
@@ -2615,6 +2638,15 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    dmatrix m1(4, dimer_len);
 
 	    m1.fill_with(0.0);
+	    bool local_use_two_strands;
+	    if (avoid_palindromes and use_two_strands and (o == HH or o==TT)) {
+	      if (is_almost_palindrome(my_cob_params[r].deviation[o][d])) {
+		local_use_two_strands = false;
+		printf("Avoiding palindrome %s %d iteration %i\n", orients[o], d, round);
+	      }
+	    }
+	    else
+	      local_use_two_strands = use_two_strands;
 
 	    //std::vector<double>& signal = use_full_signal ? (d >= minimum_distance_for_learning ? fixed_signal_sum : fixed2_signal_sum) : dummy2;
 	    std::vector<double> temp_signal(4, 0.0);
@@ -2653,7 +2685,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      ////////////////
 	      // strand two
 
-	      if (use_two_strands) {
+	      if (local_use_two_strands) {
 		for (int j1=0; j1 < my_cob_params[r].dimer_m[d]; ++j1) {  // iterates through start positions
 		  double z = my_cob_params[r].overlapping_dimer_Z[i][o][d][1][j1];
 		  get_new_gap_weights(j1, -1, z, d, fixed_w[tf1], fixed_w[tf2], 
@@ -2771,7 +2803,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
       printf("\n");
 
-      // Fixed models
+      // Monomer models
       for (int k=0; k < fixed_p; ++k) {
         if (local_debug)
 	  write_matrix(stdout, new_fixed_PWM[k], to_string("Unnormalized fixed matrix %i:\n", k).c_str(), "%.6f");
@@ -4140,6 +4172,7 @@ int main(int argc, char* argv[])
   printf("Use positional model for background: %s\n", 
 	 yesno(use_positional_background));
   printf("Use two dna strands: %s\n", yesno(use_two_strands));
+  printf("Avoid palindromes: %s\n", yesno(avoid_palindromes));
   printf("Use multinomial model: %s\n", yesno(use_multinomial));
   if (use_multinomial)
     printf("Hamming radius is %i\n", hamming_radius);  
@@ -4152,7 +4185,7 @@ int main(int argc, char* argv[])
   printf("Minimum fraction for learning is %f\n", learning_fraction);
   printf("Information content threshold is %f\n", ic_threshold);
   printf("Cob cutoff constant is %f\n", cob_cutoff);
-
+  
   
   printf("Epsilon is %g\n", epsilon);
   printf("Maximum number of iterations is %i\n", max_iter);
