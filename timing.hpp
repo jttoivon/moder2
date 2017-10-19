@@ -38,7 +38,7 @@ inline double get_cpu_time()
   return clock() * in_seconds;
 }
 
-/*
+
 inline
 timespec
 get_wall_time()
@@ -51,19 +51,19 @@ get_wall_time()
 double
 subtract_time(timespec& tp_new, timespec& tp_old)
 {
-  timespec temp = *tp_new;
-  temp.sec -= tp_old->sec;
-  temp.nsec -= tp_old->nsec;
-  if (temp.nsec < 0) {
-    --temp.sec;
-    temp.nsec += 1000000000;
+  timespec temp = tp_new;
+  temp.tv_sec -= tp_old.tv_sec;
+  temp.tv_nsec -= tp_old.tv_nsec;
+  if (temp.tv_nsec < 0) {
+    --temp.tv_sec;
+    temp.tv_nsec += 1000000000;
   }
-  double result = temp.sec;
-  result += temp.nsec / 1000000000;
+  double result = temp.tv_sec;
+  result += temp.tv_nsec / 1000000000.0;
 
   return result; 
 }
-*/
+
 
 #ifdef TIMING
 
@@ -85,22 +85,16 @@ subtract_time(timespec& tp_new, timespec& tp_old)
 #define TIME_GET(t)		 \
   ((timer_##t##_current_ = get_cpu_time()), (timer_##t##_current_ - timer_##t##_last_))
 
-/*
+
 #define WALL_TIME_START(t) \
   timespec timer_##t##_current_, \
   timer_##t##_last_ = get_wall_time()
 
 #define WALL_TIME_PRINT(format,t)		 \
   timer_##t##_current_ = get_wall_time(); \
-  timer_##t##_current_.tv_sec - timer_##t##_last_.tv_sec; \
-  timer_##t##_current_.tv_nsec - timer_##t##_last_.tv_nsec; \
-  if (timer_##t##_current_.tv_nsec < 0) {   \
-    --timer_##t##_current_.tv_sec;           \
-    timer_##t##_current_.tv_nsec += 1000000000;  \
-  }                                            \
-  printf(format, (timer_##t##_current_ - timer_##t##_last_));	\
+  printf(format, subtract_time(timer_##t##_current_, timer_##t##_last_)); \
   timer_##t##_last_ = timer_##t##_current_
-*/
+
 #else
 
 #define TIME_START(t)

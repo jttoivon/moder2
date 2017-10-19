@@ -19,6 +19,7 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
+
 ///////////////////////////////
 //
 // (c) Jarkko Toivonen
@@ -26,7 +27,6 @@
 // email: jarkko.toivonen@cs.helsinki.fi
 //
 ///////////////////////////////
-
 
 #define TIMING
 
@@ -70,10 +70,11 @@
 
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
+#include <boost/tuple/tuple.hpp>
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 
-#include <boost/tuple/tuple.hpp>
+
 
 typedef boost::tuple<int,int> cob_combination_t;
 
@@ -81,6 +82,8 @@ typedef std::vector<boost::tuple<int, int, int, int, std::string> > overlapping_
 typedef std::vector<boost::tuple<int, int, int, int> > spaced_dimer_cases_t;
 
 typedef boost::multi_array<dmatrix, 2> cob_of_matrices;
+
+
 
 
 bool use_palindromic_correction=false;
@@ -117,7 +120,7 @@ double cob_cutoff = 0.001;  // if an element in a cob table is smaller than this
 bool adjust_seeds = true;
 bool use_multinomial=true;
 bool local_debug = true;
-bool extra_debug = true;   // Even more printing
+bool extra_debug = false;   // Even more printing
 bool allow_extension = false;
 bool use_dimers = true;
 bool seeds_given = false;
@@ -125,7 +128,7 @@ bool no_unique = false;
 bool use_output = false; // whether to write model parameters to files
 bool maximize_overlapping_seeds=true;
 bool require_directional_seed = false;
-bool avoid_palindromes = true; // If tf1==tf2, the orientation is HH or TT and the PPM \tau_ht1,ht2,o,d, the
+bool avoid_palindromes = false; // If tf1==tf2, the orientation is HH or TT and the PPM \tau_ht1,ht2,o,d, the
                                 // probability of a sequence is the same in both directions.
                                 // If we recognize this situation, we can try to escape from this palindromicity
                                 // by using temporarily only a single strand.
@@ -2445,7 +2448,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      continue;
 
 	    bool local_use_two_strands;
-	    if (avoid_palindromes and use_two_strands) {
+	    if (avoid_palindromes and use_two_strands and (o == HH or o==TT)) {
 	      if (is_almost_palindrome(my_cob_params[r].deviation[o][d])) {
 		local_use_two_strands = false;
 		printf("Avoiding palindrome %s %d iteration %i\n", orients[o], d, round);
@@ -2634,6 +2637,9 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
 	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
 	  for (int d=0; d <= max_dist_for_deviation; ++d) {
+	    if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
+	      continue;
+	    
 	    int dimer_len = fixed_w[tf1] + d + fixed_w[tf2];
 	    dmatrix m1(4, dimer_len);
 
@@ -3676,6 +3682,7 @@ get_all_cob_combinations(int fixed_p)
 int main(int argc, char* argv[])
 {
   TIME_START(t);
+  WALL_TIME_START(t2);
 #ifdef FE_NOMASK_ENV
   feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);   // These exceptions cause trap to occur
 #endif
@@ -4382,7 +4389,8 @@ int main(int argc, char* argv[])
 			       my_cob_params,
 			       epsilon, extension_threshold, my_gapped_kmer_context);
   
-  TIME_PRINT("Whole program took %.2f seconds\n", t);
+  TIME_PRINT("Whole program took %.2f seconds cpu-time\n", t);
+  WALL_TIME_PRINT("Whole program took %.2f seconds wall-time\n", t2);
 
   return 0;
 }
