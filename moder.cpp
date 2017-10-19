@@ -2637,8 +2637,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
 	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
 	  for (int d=0; d <= max_dist_for_deviation; ++d) {
-	    if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
-	      continue;
+	    //if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
+	    //  continue;
 	    
 	    int dimer_len = fixed_w[tf1] + d + fixed_w[tf2];
 	    dmatrix m1(4, dimer_len);
