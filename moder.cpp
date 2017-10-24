@@ -2394,7 +2394,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
       // Signal from monomeric models
       for (int k=0; k < fixed_p; ++k) {
-	dmatrix& pwm = is_fixed_pwm_part_of_cob[k] ? new_fixed_PWM2[k] : new_fixed_PWM[k];
+	dmatrix pwm(4, fixed_w[k]);
 	std::vector<double>& signal = use_full_signal ? (is_fixed_pwm_part_of_cob[k]?fixed2_signal_sum:fixed_signal_sum) : dummy2;
 
 	dmatrix temp_dinucleotide_signal(4, 4);
@@ -2428,6 +2428,12 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	signal += temp_signal_rev;
 	dinucleotide_signal += temp_dinucleotide_signal;
 	dinucleotide_signal += reverse_complement_markov_model(temp_dinucleotide_signal_rev);
+
+	if (is_fixed_pwm_part_of_cob[k])
+	  new_fixed_PWM2[k] += pwm;
+	else
+	  new_fixed_PWM[k] += pwm;
+
       } // for k, fixed PWMs
 
 
@@ -2448,11 +2454,10 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      continue;
 
 	    bool local_use_two_strands;
-	    if (avoid_palindromes and use_two_strands and (o == HH or o==TT)) {
-	      if (is_almost_palindrome(my_cob_params[r].deviation[o][d])) {
-		local_use_two_strands = false;
-		printf("Avoiding palindrome %s %d iteration %i\n", orients[o], d, round);
-	      }
+	    if (avoid_palindromes and use_two_strands and (o == HH or o==TT) and
+		is_almost_palindrome(my_cob_params[r].deviation[o][d])) {
+	      local_use_two_strands = false;
+	      printf("Avoiding palindrome %s %d iteration %i\n", orients[o], d, round);
 	    }
 	    else
 	      local_use_two_strands = use_two_strands;
@@ -2463,7 +2468,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    std::vector<double> temp_signal(4, 0.0);
 	    std::vector<double> temp_signal_rev(4, 0.0);
 
-	    dmatrix& pwm = overlapping_dimer_weights[r][o][d];
+	    dmatrix pwm(overlapping_dimer_weights[r][o][d].dim());
 	    // This requires gcc 4.9
 #if defined _OPENMP && _OPENMP >= 201307
 #pragma omp declare reduction( + : dmatrix : omp_out+=omp_in ) initializer(omp_priv(omp_orig.dim()))
@@ -2491,6 +2496,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    signal += temp_signal_rev;
 	    dinucleotide_signal += temp_dinucleotide_signal;
 	    dinucleotide_signal += reverse_complement_markov_model(temp_dinucleotide_signal_rev);
+	    overlapping_dimer_weights[r][o][d] = pwm;
 	  } // for d, overlapping dimer PWMs
 	} // for o, overlapping dimer PWMs
 
@@ -2637,19 +2643,18 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
 	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
 	  for (int d=0; d <= max_dist_for_deviation; ++d) {
-	    //if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
-	    //  continue;
+	    if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
+	      continue;
 	    
 	    int dimer_len = fixed_w[tf1] + d + fixed_w[tf2];
 	    dmatrix m1(4, dimer_len);
 
 	    m1.fill_with(0.0);
 	    bool local_use_two_strands;
-	    if (avoid_palindromes and use_two_strands and (o == HH or o==TT)) {
-	      if (is_almost_palindrome(my_cob_params[r].deviation[o][d])) {
-		local_use_two_strands = false;
-		printf("Avoiding palindrome %s %d iteration %i\n", orients[o], d, round);
-	      }
+	    if (avoid_palindromes and use_two_strands and (o == HH or o==TT) and
+		is_almost_palindrome(my_cob_params[r].deviation[o][d])) {
+	      local_use_two_strands = false;
+	      printf("Avoiding palindrome %s %d iteration %i\n", orients[o], d, round);
 	    }
 	    else
 	      local_use_two_strands = use_two_strands;
@@ -2661,8 +2666,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    dmatrix temp_dinucleotide_signal_rev(4, 4);
 	    // This requires gcc 4.9
 #if defined _OPENMP && _OPENMP >= 201307
-	    //	    dmatrix& pwm1 = m1[r];
-	    //	    dmatrix& pwm2 = m2[r];
 #pragma omp declare reduction( + : dmatrix : omp_out+=omp_in ) initializer(omp_priv(omp_orig.dim()))
 #pragma omp declare reduction( + : std::vector<double> : omp_out+=omp_in ) initializer(omp_priv(std::vector<double>(omp_orig.size())))
 #pragma omp parallel for reduction(+:m1, temp_dinucleotide_signal,temp_dinucleotide_signal_rev, temp_signal, temp_signal_rev) schedule(static)
