@@ -128,7 +128,7 @@ bool no_unique = false;
 bool use_output = false; // whether to write model parameters to files
 bool maximize_overlapping_seeds=true;
 bool require_directional_seed = false;
-bool avoid_palindromes = true; // If tf1==tf2, the orientation is HH or TT and the PPM \tau_ht1,ht2,o,d, the
+bool avoid_palindromes = false; // If tf1==tf2, the orientation is HH or TT and the PPM \tau_ht1,ht2,o,d, the
                                 // probability of a sequence is the same in both directions.
                                 // If we recognize this situation, we can try to escape from this palindromicity
                                 // by using temporarily only a single strand.
