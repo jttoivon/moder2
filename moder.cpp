@@ -1965,7 +1965,8 @@ is_almost_palindrome(const dmatrix& m)
 // the error rate lambda[p] equals the quantity 1-gamma of the paper
 std::vector<dmatrix>
 multi_profile_em_algorithm(const std::vector<std::string>& sequences,
-			   std::vector<dmatrix> fixed_PWM, 
+			   std::vector<dmatrix> fixed_PWM,
+			   const std::vector<bool>& keep_monomer_fixed,
 			   dmatrix& bg_model_markov, 
 			   std::vector<double> bg_model,
 			   double background_lambda,
@@ -1974,13 +1975,16 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 			   double epsilon, double extension_ic_threshold,
 			   const gapped_kmer_context& my_gapped_kmer_context)
 {
-
   printf("\nIn multi_profile_em_algorithm:\n");
 
   int number_of_cobs = my_cob_params.size();
   int directions = use_two_strands ? 2 : 1;
 
-  assert(fixed_PWM.size() == fixed_lambda.size());
+  int fixed_p=fixed_PWM.size();                // Number of fixed models
+
+  assert(fixed_p == fixed_lambda.size());
+  assert(fixed_p == keep_monomer_fixed.size());
+
 
   typedef BinOp<int>::type func_ptr;
   //typedef const int& (*func_ptr)(const int&, const int&);
@@ -2001,7 +2005,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
   int L=sequences[0].length();
   int lines = sequences.size();
 
-  int fixed_p=fixed_PWM.size();                // Number of fixed models
 
   std::vector<int> fixed_w(fixed_p);
   std::vector<int> fixed_m(fixed_p);
@@ -2722,9 +2725,11 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
 
       
-
-
+      /////////////////////////
+      //
       // Re-estimate background
+      //
+      /////////////////////////
       
       std::vector<double> total_signal_sum(4, 0.0);
 
@@ -2806,9 +2811,12 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       }
 
 
-
+      
+      ///////////////////////////////////////////////////////////////////////////
+      //
       // Normalize PWMs, compute ICs for PWM positions and for flanking positions
-
+      //
+      ///////////////////////////////////////////////////////////////////////////
 
       printf("\n");
 
@@ -2879,8 +2887,20 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       } // end for r
 
 
-      // Adjust seeds
+      
+      for (int k=0; k < fixed_p; ++k) {
+	if (keep_monomer_fixed[k]) {
+	  new_fixed_PWM[k] = fixed_PWM[k];
+	}	  
+      }
 
+      
+      ///////////////
+      //
+      // Adjust seeds
+      //
+      ///////////////
+      
       if (use_multinomial and adjust_seeds) {
 
 	for (int k=0; k < fixed_p; ++k) {
@@ -2912,8 +2932,13 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	my_cob_params[r].update_oriented_matrices(new_fixed_PWM, fixed_seed);
 	my_cob_params[r].compute_expected_matrices(new_fixed_PWM);
       }
-
+      
+      //////////////////////
+      //
       // Prune dimeric cases
+      //
+      //////////////////////
+      
       for (int r = 0; r < number_of_cobs; ++r) {
 	const int& w1 = my_cob_params[r].k1;
 	//	const int& w2 = my_cob_params[r].k2;
@@ -3709,7 +3734,8 @@ int main(int argc, char* argv[])
   std::vector<cob_combination_t> cob_combinations;
 
   std::vector<std::string> sequences;
-
+  std::vector<bool> keep_monomer_fixed;
+  
   combine_seeds_func = combine_seeds_methods[default_combine_method].function;
 
   int number_of_threads=1;
@@ -3733,6 +3759,7 @@ int main(int argc, char* argv[])
   nonhidden.add_options()
     ("help",                           "Produce help message")
     ("matrices",                          "Matrix filenames are given as parameters instead of seeds")
+    ("keep-monomer-fixed",            po::value<std::string>(), "A list of indices of monomers to keep fixed during EM algorithms. You can also specify 'all' as parameter, default: all monomers are free.")
     ("disable-multinomial",                    m("Use plain alignment of sequences instead of the multinomial model", not use_multinomial).c_str())
     ("directional-seed",                    m("Are overlapping seeds required to be non-palindromic", require_directional_seed).c_str())
     ("hamming-radius", po::value<int>(),     m("Hamming radius", hamming_radius).c_str())
@@ -4117,7 +4144,26 @@ int main(int argc, char* argv[])
     */
     fixed_lambda.assign(fixed_p, 0.0);  // Will be assigned later
 
-   
+    if (vm.count("keep-monomer-fixed")) {
+      std::string param = vm["keep-monomer-fixed"].as< std::string >();
+      if (param == "all") 
+	keep_monomer_fixed.assign(fixed_p, true);
+      else {
+	keep_monomer_fixed.assign(fixed_p, false);
+	std::vector<std::string> param_list = split(param, ',');
+	BOOST_FOREACH(std::string s, param_list) {
+	  int tf = atoi(s);
+	  if (tf < 0 || tf >= fixed_p) {
+	    fprintf(stderr, "Parameter %s to option --keep-monomer-fixed has to be an integer in the range [0,%i)\n", s.c_str(), fixed_p);
+	    exit(1);
+	  }
+	  keep_monomer_fixed[tf] = true;
+	}
+      }
+    }
+    else
+      keep_monomer_fixed.assign(fixed_p, false);
+
     if (vm.count("epsilon")) {
       epsilon    = vm["epsilon"].as< double >();
       error(epsilon <= 0.0, "Epsilon must be positive real number.");
@@ -4253,6 +4299,7 @@ int main(int argc, char* argv[])
   // assert(is_palindromic_matrix(positional_background));
   // write_matrix(stdout, positional_background, "Positional background probility matrix:\n", "%10lf");
 
+  printf("Keep monomer fixed: %s\n", print_vector(keep_monomer_fixed).c_str());
 
   // initial motifs
   std::vector<dmatrix> fixed_M(fixed_p);
@@ -4385,7 +4432,8 @@ int main(int argc, char* argv[])
   // run the algorithm
   std::vector<dmatrix> res=
     multi_profile_em_algorithm(sequences, 
-			       fixed_M, 
+			       fixed_M,
+			       keep_monomer_fixed,
 			       background_probability_matrix, background_probabilities, 
 			       background_lambda, 
 			       fixed_lambda, fixedseedlist, 
