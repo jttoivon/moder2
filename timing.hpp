@@ -48,6 +48,7 @@ get_wall_time()
   return tp;
 }
 
+inline
 double
 subtract_time(timespec& tp_new, timespec& tp_old)
 {
