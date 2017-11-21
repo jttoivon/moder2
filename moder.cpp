@@ -74,7 +74,7 @@
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 
-
+typedef long double FloatType;
 
 typedef boost::tuple<int,int> cob_combination_t;
 
@@ -529,8 +529,8 @@ iupac_mismatch_positions(const std::string& str, const std::string& pattern)
 }
 
 
-typedef boost::multi_array<double, 4> array_4d_type; // for Z variable, indices are (i,k,dir,j)
-typedef boost::multi_array<double, 5> array_5d_type; // for Z variable, indices are (i,o,d,dir,j)
+typedef boost::multi_array<FloatType, 4> array_4d_type; // for Z variable, indices are (i,k,dir,j)
+typedef boost::multi_array<FloatType, 5> array_5d_type; // for Z variable, indices are (i,o,d,dir,j)
 
 
 struct cob_params_t
@@ -698,7 +698,7 @@ struct cob_params_t
   std::vector<boost::tuple<std::string,std::string> > oriented_dimer_seeds;
 };
 
-
+/*
 
 // This computes the expected log likelihood of the INCOMPLETE data. that is: E log P(X|total model)
 double
@@ -794,8 +794,9 @@ incomplete_data_maximum_log_likelihood(const std::vector<dmatrix>& PWM,
   } // end for i
 
   return result;
-} // end incomplete_data_log_likelihoo
+} // end incomplete_data_log_likelihood
 
+*/
 
 void
 print_math_error(int retval)
@@ -864,9 +865,9 @@ complete_data_log_likelihood(const std::vector<dmatrix>& PWM,
     for (int k=0; k < p; ++k) {
       for (int j=0; j < m[k]; ++j) {
 	feclearexcept(FE_ALL_EXCEPT);
-	temp += log2(compute_probability(line, line_rev, j, 1, PWM[k], q, q2) * lambda[k] / (double)m[k] / 2.0) * fixed_Z[i][k][0][j];
+	temp += log2(compute_probability<FloatType>(line, line_rev, j, 1, PWM[k], q, q2) * lambda[k] / (double)m[k] / 2.0) * fixed_Z[i][k][0][j];
 	if (use_two_strands)
-	  temp += log2(compute_probability(line, line_rev, j, -1, PWM[k], q, q2) * lambda[k] / (double)m[k] / 2.0) * fixed_Z[i][k][1][j];
+	  temp += log2(compute_probability<FloatType>(line, line_rev, j, -1, PWM[k], q, q2) * lambda[k] / (double)m[k] / 2.0) * fixed_Z[i][k][1][j];
 	int retval = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
 	if (retval) {
 	  print_math_error(retval);
@@ -891,13 +892,13 @@ complete_data_log_likelihood(const std::vector<dmatrix>& PWM,
 	  for (int j=0; j < m; ++j) {
 	    if (my_cob_params[r].dimer_lambdas[o][d] > 0.0) {
 	      feclearexcept(FE_ALL_EXCEPT);
-	      temp += log2(compute_dimer_probability(line, line_rev,
+	      temp += log2(compute_dimer_probability<FloatType>(line, line_rev,
 						     j, +1,
 						     my_cob_params[r].oriented_dimer_matrices[o].get<0>(), 
 						     my_cob_params[r].oriented_dimer_matrices[o].get<1>(), 
 						     d, q, q2) * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0) * my_cob_params[r].spaced_dimer_Z[i][o][d][0][j];
 	      if (use_two_strands)
-		temp += log2(compute_dimer_probability(line, line_rev,
+		temp += log2(compute_dimer_probability<FloatType>(line, line_rev,
 						       j, -1,
 						       my_cob_params[r].oriented_dimer_matrices[o].get<0>(), 
 						       my_cob_params[r].oriented_dimer_matrices[o].get<1>(), 
@@ -920,9 +921,9 @@ complete_data_log_likelihood(const std::vector<dmatrix>& PWM,
 	  for (int j=0; j < m; ++j) {
 	    if (my_cob_params[r].dimer_lambdas[o][d] > 0.0) {
 	      feclearexcept(FE_ALL_EXCEPT);
-	      temp += log2(compute_probability(line, line_rev, j, +1, model, q, q2) * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0) * my_cob_params[r].overlapping_dimer_Z[i][o][d][0][j];
+	      temp += log2(compute_probability<FloatType>(line, line_rev, j, +1, model, q, q2) * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0) * my_cob_params[r].overlapping_dimer_Z[i][o][d][0][j];
 	      if (use_two_strands)
-		temp += log2(compute_probability(line, line_rev, j, -1, model, q, q2) * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0) * my_cob_params[r].overlapping_dimer_Z[i][o][d][1][j];
+		temp += log2(compute_probability<FloatType>(line, line_rev, j, -1, model, q, q2) * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0) * my_cob_params[r].overlapping_dimer_Z[i][o][d][1][j];
 	      int retval = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
 	      if (retval) {
 		print_math_error(retval);
@@ -940,7 +941,7 @@ complete_data_log_likelihood(const std::vector<dmatrix>& PWM,
 
     feclearexcept(FE_ALL_EXCEPT);
     if (lambda_bg > 0.0)
-      temp += log2(compute_background_probability(line, q, q2) * lambda_bg) * (1.0 - sum_of_Zs);
+      temp += log2(compute_background_probability<FloatType>(line, q, q2) * lambda_bg) * (1.0 - sum_of_Zs);
     int retval = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
     if (retval) {
       print_math_error(retval);
@@ -963,7 +964,7 @@ complete_data_log_likelihood(const std::vector<dmatrix>& PWM,
 
 // This is for monomer cases
 void
-expectation_Z_dir_j(boost::multi_array<double, 4>& Z, int i, int k,
+expectation_Z_dir_j(boost::multi_array<FloatType, 4>& Z, int i, int k,
 		    const std::string& line,
 		    const std::string& line_rev,
 		    int m, double lambda, const dmatrix& PWM, 
@@ -971,11 +972,11 @@ expectation_Z_dir_j(boost::multi_array<double, 4>& Z, int i, int k,
 		    const std::vector<double>& bg_model_rev,
 		    const dmatrix& bg_model_markov, const dmatrix& bg_model_markov_rev)
 {
-  double lambda_per_pos = lambda/m;
+  FloatType lambda_per_pos = lambda/m;
   if (use_two_strands)
     lambda_per_pos /= 2;
   for (int j=0; j < m; ++j) {
-    double p1 = compute_probability(line, line_rev, j, 1, PWM, bg_model, bg_model_markov);
+    FloatType p1 = compute_probability<FloatType>(line, line_rev, j, 1, PWM, bg_model, bg_model_markov);
     assert(p1 >= 0);
 
     // f_j
@@ -987,7 +988,7 @@ expectation_Z_dir_j(boost::multi_array<double, 4>& Z, int i, int k,
       printf("Expectation, sequence %i, pos %i, monomer model %i\n", i, j, k);
     }
     if (use_two_strands) {
-      double p2 = compute_probability(line, line_rev, j, -1, PWM, bg_model_rev, bg_model_markov_rev);
+      FloatType p2 = compute_probability<FloatType>(line, line_rev, j, -1, PWM, bg_model_rev, bg_model_markov_rev);
       assert(p2 >= 0);
       feclearexcept(FE_ALL_EXCEPT);
       Z[i][k][1][j]=p2*lambda_per_pos;   // reverse complement
@@ -1002,7 +1003,7 @@ expectation_Z_dir_j(boost::multi_array<double, 4>& Z, int i, int k,
 
 //This is for overlapping dimer cases
 void
-expectation_Z_dir_j_overlapping(boost::multi_array<double, 5>& Z, int i, int o, int d,
+expectation_Z_dir_j_overlapping(boost::multi_array<FloatType, 5>& Z, int i, int o, int d,
 		    const std::string& line,
 		    const std::string& line_rev,
 		    int m, double lambda, const dmatrix& PWM, 
@@ -1017,11 +1018,11 @@ expectation_Z_dir_j_overlapping(boost::multi_array<double, 5>& Z, int i, int o, 
 	Z[i][o][d][1][j]=0.0;
     }
   }
-  double lambda_per_pos = lambda/m;
+  FloatType lambda_per_pos = lambda/m;
   if (use_two_strands)
     lambda_per_pos /= 2;
   for (int j=0; j < m; ++j) {
-    double p1 = compute_probability(line, line_rev, j, 1, PWM, bg_model, bg_model_markov);
+    FloatType p1 = compute_probability<FloatType>(line, line_rev, j, 1, PWM, bg_model, bg_model_markov);
     assert(p1 >= 0);
 
     // f_j
@@ -1034,7 +1035,7 @@ expectation_Z_dir_j_overlapping(boost::multi_array<double, 5>& Z, int i, int o, 
     }
 
     if (use_two_strands) {
-      double p2 = compute_probability(line, line_rev, j, -1, PWM, bg_model_rev, bg_model_markov_rev);
+      FloatType p2 = compute_probability<FloatType>(line, line_rev, j, -1, PWM, bg_model_rev, bg_model_markov_rev);
       assert(p2 >= 0);
       feclearexcept(FE_ALL_EXCEPT);
       Z[i][o][d][1][j]=p2*lambda_per_pos;   // reverse complement
@@ -1050,7 +1051,7 @@ expectation_Z_dir_j_overlapping(boost::multi_array<double, 5>& Z, int i, int o, 
 
 //This is for spaced dimer cases
 void
-expectation_Z_dir_j_spaced(boost::multi_array<double, 5>& Z, int i,
+expectation_Z_dir_j_spaced(boost::multi_array<FloatType, 5>& Z, int i,
 			   int o, int d,
 			   const std::string& line,
 			   const std::string& line_rev,
@@ -1068,11 +1069,11 @@ expectation_Z_dir_j_spaced(boost::multi_array<double, 5>& Z, int i,
 	Z[i][o][d][1][j]=0.0;
     }
   }
-  double lambda_per_pos = lambda/m;
+  FloatType lambda_per_pos = lambda/m;
   if (use_two_strands)
     lambda_per_pos /= 2;
   for (int j=0; j < m; ++j) {
-    double p1 = compute_dimer_probability(line, line_rev, j, 1, PWM1, PWM2, d, bg_model, bg_model_markov);
+    FloatType p1 = compute_dimer_probability<FloatType>(line, line_rev, j, 1, PWM1, PWM2, d, bg_model, bg_model_markov);
     assert(p1 <= 1.0);
     assert(p1 >= 0);
 
@@ -1085,7 +1086,7 @@ expectation_Z_dir_j_spaced(boost::multi_array<double, 5>& Z, int i,
       printf("Expectation, sequence %i, pos %i, spaced model %s %i\n", i, j, orients[o], d);
     }
     if (use_two_strands) {
-      double p2 = compute_dimer_probability(line, line_rev, j, -1, PWM1, PWM2, d, bg_model_rev, bg_model_markov_rev);
+      FloatType p2 = compute_dimer_probability<FloatType>(line, line_rev, j, -1, PWM1, PWM2, d, bg_model_rev, bg_model_markov_rev);
       assert(p2 >= 0);
       assert(p2 <= 1.0);
       feclearexcept(FE_ALL_EXCEPT);
@@ -1102,10 +1103,10 @@ expectation_Z_dir_j_spaced(boost::multi_array<double, 5>& Z, int i,
 
 
 
-double
-sum_Z_dir_j(const boost::multi_array<double, 5>& Z, int i, int o, int d, int m)
+FloatType
+sum_Z_dir_j(const boost::multi_array<FloatType, 5>& Z, int i, int o, int d, int m)
 {
-  double sum = 0.0;
+  FloatType sum = 0.0;
 
   for (int j=0; j < m; ++j) {
     sum += Z[i][o][d][0][j];
@@ -1118,10 +1119,10 @@ sum_Z_dir_j(const boost::multi_array<double, 5>& Z, int i, int o, int d, int m)
   return sum;
 }
 
-double
-sum_Z_dir_j(const boost::multi_array<double, 4>& Z, int i, int k, int m)
+FloatType
+sum_Z_dir_j(const boost::multi_array<FloatType, 4>& Z, int i, int k, int m)
 {
-  double sum = 0.0;
+  FloatType sum = 0.0;
 
   for (int j=0; j < m; ++j) {
     sum += Z[i][k][0][j];
@@ -1138,7 +1139,7 @@ sum_Z_dir_j(const boost::multi_array<double, 4>& Z, int i, int k, int m)
 
 
 void
-normalize_Z_dir_j(boost::multi_array<double, 4>& Z, int i, int k, int m, double divisor)
+normalize_Z_dir_j(boost::multi_array<FloatType, 4>& Z, int i, int k, int m, FloatType divisor)
 {
   for (int j=0; j < m; ++j) {
     Z[i][k][0][j] /= divisor;
@@ -1158,7 +1159,7 @@ normalize_Z_dir_j(boost::multi_array<double, 4>& Z, int i, int k, int m, double 
 }
 
 void
-normalize_Z_dir_j(boost::multi_array<double, 5>& Z, int i, int o, int d, int m, double divisor)
+normalize_Z_dir_j(boost::multi_array<FloatType, 5>& Z, int i, int o, int d, int m, FloatType divisor)
 {
   for (int j=0; j < m; ++j) {
     Z[i][o][d][0][j] /= divisor;
@@ -1723,12 +1724,12 @@ reestimate_dimer_lambdas(const int lines,
   return total_sum;
 }
 
-double
+FloatType
 reestimate_PWM_lambdas(int lines, int p, const std::vector<int>& m, const array_4d_type& Z, std::vector<double>& lambda)
 {
-  double total_sum = 0.0;
+  FloatType total_sum = 0.0;
   for (int k=0; k < p; ++k) {
-    double k_sum = 0.0;
+    FloatType k_sum = 0.0;
 #pragma omp parallel for shared(lines,m,use_two_strands,Z,k) reduction(+:k_sum) schedule(static)
     for (int i = 0; i < lines; ++i) {
       for (int j=0; j < m[k]; ++j) 
@@ -1991,7 +1992,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
   typedef boost::multi_array<dmatrix, 2> cob_of_matrices;
 
-  typedef boost::multi_array<double, 4> array_4d_type;  // for Z variable, indices are (i,k,dir,j)
+  typedef boost::multi_array<FloatType, 4> array_4d_type;  // for Z variable, indices are (i,k,dir,j)
 
   std::vector<std::string> sequences_rev(sequences.size());
   for (int i=0; i < sequences.size(); ++i)
@@ -2146,7 +2147,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	//printf("Processing sequence %i\n", i);
 
 	// f_0
-	double background = compute_background_probability(line, bg_model, bg_model_markov);
+	FloatType background = compute_background_probability<FloatType>(line, bg_model, bg_model_markov);
 	background *= background_lambda;
 
 	// Fixed models
@@ -2184,9 +2185,9 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	} // end for r
 
 	// compute the sum
-	double fixed_sum = 0.0;
-	double overlapping_sum = 0.0;
-	double spaced_sum = 0.0;
+	FloatType fixed_sum = 0.0;
+	FloatType overlapping_sum = 0.0;
+	FloatType spaced_sum = 0.0;
 
 	// Fixed models
 	for (int k=0; k < fixed_p; ++k) 
@@ -2205,7 +2206,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      spaced_sum += sum_Z_dir_j(my_cob_params[r].spaced_dimer_Z, i, o, d, my_cob_params[r].dimer_m[d]);
 	}
 
-	double normalizing_constant = fixed_sum + overlapping_sum + spaced_sum + background;
+	FloatType normalizing_constant = fixed_sum + overlapping_sum + spaced_sum + background;
 	//	printf("Dividing term is %e\n", sum);
 	
 

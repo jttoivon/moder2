@@ -645,7 +645,7 @@ private:
     int number_of_sequences = pow(4, k);
     for (code_t code=0; code < number_of_sequences; ++code) {
       if (f.get(code) > d)
-	a[code][k][1] = compute_bernoulli_probability(code, k, q);
+	a[code][k][1] = compute_bernoulli_probability<double>(code, k, q);
     }
   }
 
@@ -735,7 +735,7 @@ public:
     code_t code = dna_to_number(u);
     code_t code_rev = reverse_2bitstring(code, k);
     double p = 0.0;
-    double div = compute_bernoulli_probability(code, k, q);
+    double div = compute_bernoulli_probability<double>(code, k, q);
     for (int l1=2*k-epsilon; l1 <= cluster_len - (k-epsilon); ++l1) {
       p += prefix.get(code, l1, 0) * suffix.get(code_rev, cluster_len - l1 + k, 0) / div;
     }
@@ -771,7 +771,7 @@ public:
     unsigned long long number_of_partial_sequences = pow(4, l);
     code_t maskk = ((code_t)1 << (2*k)) - 1;
     for (code_t code=0; code < number_of_partial_sequences; ++code) {
-      double p = compute_bernoulli_probability(code, l, q);
+      double p = compute_bernoulli_probability<double>(code, l, q);
       for (int shift=1; shift <= k - epsilon; ++shift) {
 	if (f.get((code >> shift) & maskk) <= d) {
 	  p = 0.0;
@@ -782,7 +782,7 @@ public:
     }
     
     for (code_t code=0; code < number_of_partial_sequences; ++code) {
-      double p = compute_bernoulli_probability(code, k-epsilon, q);  // Note! The center part is not included in the probability
+      double p = compute_bernoulli_probability<double>(code, k-epsilon, q);  // Note! The center part is not included in the probability
       for (int shift=0; shift < k - epsilon; ++shift) {
 	if (f.get((code >> shift) & maskk) <= d) {
 	  p = 0.0;
