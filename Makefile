@@ -26,12 +26,20 @@ else
 endif
 
 DEBUG?=0
+OBJDIR=.
+PRGPREFIX=
 ifeq ($(DEBUG),1)
 #    CFLAGS =-g3 -gdwarf2 -DDEBUG
 	CXXFLAGS +=-O0
+	OBJDIR=debug
+	PRGPREFIX=debug_
+	RESULT:=$(shell mkdir -p $(OBJDIR))
 else
 ifeq ($(DEBUG),2)
 	CXXFLAGS+=-O0 -pg
+	OBJDIR=debug
+	PRGPREFIX=debug_
+	RESULT:=$(shell mkdir -p $(OBJDIR))
 else
 	CXXFLAGS+=-O3
 endif
@@ -47,22 +55,29 @@ CXX=g++
 #CXX=$(HOME)/usr/bin/g++
 
 LDFLAGS=$(BOOSTLIB) $(PROGOPT) #-L$(HOME)/usr/lib #-B/usr/bin/ld.gold
+export CXXFLAGS
+export LDFLAGS
 
-all: CPM03 $(PROGRAMS)
+all: $(addprefix $(OBJDIR)/$(PRGPREFIX), $(PROGRAMS)) CPM03
 
 
 .PHONY: CPM03
 CPM03:
 	@$(MAKE) -C CPM03 all
 
-test: test/test_suffix_array_wrapper
+# .PHONY: test
+# test:
+# 	$(MAKE) -C test all
+# test/test_suffix_array_wrapper
+
+
 
 
 install: all
 	install -d $(prefix)/bin
 	install -d $(docdir)
 	install -m 0755 moder $(prefix)/bin
-	install -m 0644 README $(docdir)
+	install -m 0644 README.md $(docdir)
 
 dist: $(distdir).tar.gz
 
@@ -90,7 +105,7 @@ $(distdir):
 	mkdir -p $(distdir)
 	mkdir -p $(distdir)/CPM03
 	mkdir -p $(distdir)/data	
-	cp README $(distdir)
+	cp README.md $(distdir)
 	cp COPYING $(distdir)
 	cp Makefile $(distdir)
 	cp heatmap.R $(distdir)
@@ -149,49 +164,52 @@ $(distdir):
 
 
 MODER_OBJS=moder.o common.o  probabilities.o parameters.o matrix_tools.o my_assert.o combinatorics.o\
-	multinomial_helper.o bndm.o orientation.o data.o iupac.o CPM03/difference_cover.o suffix_array_wrapper.o kmer_tools.o huddinge.o
-moder: $(MODER_OBJS)
-	$(CXX) $(CXXFLAGS) $+ -o $@ $(LDFLAGS)
-
+	multinomial_helper.o bndm.o orientation.o data.o iupac.o suffix_array_wrapper.o kmer_tools.o huddinge.o
+$(PRGPREFIX)moder: $(addprefix $(OBJDIR)/, $(MODER_OBJS)) CPM03/difference_cover.o
+	$(CXX) $(CXXFLAGS) $(addprefix $(OBJDIR)/, $(MODER_OBJS)) CPM03/difference_cover.o -o $@ $(LDFLAGS)
 
 
 
 
 # test programs
 
-TEST_SUFFIX_ARRAY_WRAPPER_OBJS=CPM03/difference_cover.o suffix_array_wrapper.o iupac.o common.o test/test_suffix_array_wrapper.o
-test/test_suffix_array_wrapper: $(TEST_SUFFIX_ARRAY_WRAPPER_OBJS)
-	$(CXX) $(CXXFLAGS) $(TEST_SUFFIX_ARRAY_WRAPPER_OBJS) -o test/test_suffix_array_wrapper $(LDFLAGS)
+#TEST_SUFFIX_ARRAY_WRAPPER_OBJS=CPM03/difference_cover.o suffix_array_wrapper.o iupac.o common.o test_suffix_array_wrapper.o
+#test/test_suffix_array_wrapper: $(TEST_SUFFIX_ARRAY_WRAPPER_OBJS)
+#	$(CXX) $(CXXFLAGS) $(TEST_SUFFIX_ARRAY_WRAPPER_OBJS) -o test/test_suffix_array_wrapper $(LDFLAGS)
 
 .PHONY: dist FORCE distcheck
 
 
-########################
+####################################
 #
-# main compilation units
+# dependencies of compilation units
 #
-########################
+####################################
+
+# Automatically create dependency files (*.d)
+$(OBJDIR)/%.d: %.cpp
+	@set -e; rm -f $@; \
+         $(CXX) -MM $(CPPFLAGS) $< > $@.$$$$; \
+         sed 's,\($*\)\.o[ :]*,'$(OBJDIR)'/\1.o $@ : ,g' < $@.$$$$ > $@; \
+         rm -f $@.$$$$
+
+-include $(addprefix $(OBJDIR)/, $(MODER_OBJS:.o=.d))
 
 
-# additional dependencies
-my_assert.o: my_assert.hpp
+$(OBJDIR)/%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+#TESTCXXFLAGS=$(CXXFLAGS) -I. -O0
+#test/%.o: test/%.cpp
+#	$(CXX) $(TESTCXXFLAGS) -c $< -o $@
 
 
 
-#########################
-#
-# other compilation units
-#
-#########################
-
-other_units=matrix_tools.o bndm.o common.o  alignment.o parameters.o probabilities.o combinatorics.o my_assert.o  orientation.o multinomial_helper.o data.o iupac.o suffix_array_wrapper.o huddinge.o kmer_tools.o
-
-$(other_units): %.o: %.hpp   # all non-main units depend on their respective header files
 
 
 .PHONY: clean
 clean:
-	rm -f *.o $(PROGRAMS)
+	rm -f $(OBJDIR)/*.o $(addprefix $(PRGPREFIX), $(PROGRAMS))
 	@$(MAKE) -C CPM03 clean
 
 .PHONY: showprograms
