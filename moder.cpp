@@ -861,12 +861,22 @@ complete_data_log_likelihood(const std::vector<dmatrix>& PWM,
     const std::string& line_rev = sequences_rev[i];
     double temp = 0.0;
     double sum_of_Zs=0.0;
+
+    /////////////////////
+    // Monomer models
+    
     for (int k=0; k < p; ++k) {
       for (int j=0; j < fixed_m[i][k]; ++j) {
 	feclearexcept(FE_ALL_EXCEPT);
-	temp += log2(compute_probability<FloatType>(line, line_rev, j, 1, PWM[k], q, q2) * lambda[k] / (double)fixed_m[i][k] / 2.0) * fixed_Z[i][k][0][j];
+	temp +=
+	  log2(compute_probability<FloatType>(line, line_rev, j, 1, PWM[k], q, q2)
+	       * lambda[k] / (double)fixed_m[i][k] / 2.0)
+	  * fixed_Z[i][k][0][j];
 	if (use_two_strands)
-	  temp += log2(compute_probability<FloatType>(line, line_rev, j, -1, PWM[k], q, q2) * lambda[k] / (double)fixed_m[i][k] / 2.0) * fixed_Z[i][k][1][j];
+	  temp +=
+	    log2(compute_probability<FloatType>(line, line_rev, j, -1, PWM[k], q, q2)
+		 * lambda[k] / (double)fixed_m[i][k] / 2.0)
+	    * fixed_Z[i][k][1][j];
 	int retval = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
 	if (retval) {
 	  print_math_error(retval);
@@ -891,17 +901,23 @@ complete_data_log_likelihood(const std::vector<dmatrix>& PWM,
 	  for (int j=0; j < m; ++j) {
 	    if (my_cob_params[r].dimer_lambdas[o][d] > 0.0) {
 	      feclearexcept(FE_ALL_EXCEPT);
-	      temp += log2(compute_dimer_probability<FloatType>(line, line_rev,
-						     j, +1,
-						     my_cob_params[r].oriented_dimer_matrices[o].get<0>(), 
-						     my_cob_params[r].oriented_dimer_matrices[o].get<1>(), 
-						     d, q, q2) * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0) * my_cob_params[r].spaced_dimer_Z[i][o][d][0][j];
+	      temp +=
+		log2(compute_dimer_probability<FloatType>(line, line_rev,
+							  j, +1,
+							  my_cob_params[r].oriented_dimer_matrices[o].get<0>(), 
+							  my_cob_params[r].oriented_dimer_matrices[o].get<1>(), 
+							  d, q, q2)
+		     * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0)
+		* my_cob_params[r].spaced_dimer_Z[i][o][d][0][j];
 	      if (use_two_strands)
-		temp += log2(compute_dimer_probability<FloatType>(line, line_rev,
-						       j, -1,
-						       my_cob_params[r].oriented_dimer_matrices[o].get<0>(), 
-						       my_cob_params[r].oriented_dimer_matrices[o].get<1>(), 
-						       d, q, q2) * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0) * my_cob_params[r].spaced_dimer_Z[i][o][d][1][j];
+		temp +=
+		  log2(compute_dimer_probability<FloatType>(line, line_rev,
+							    j, -1,
+							    my_cob_params[r].oriented_dimer_matrices[o].get<0>(), 
+							    my_cob_params[r].oriented_dimer_matrices[o].get<1>(), 
+							    d, q, q2)
+		       * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0)
+		  * my_cob_params[r].spaced_dimer_Z[i][o][d][1][j];
 	      int retval = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
 	      if (retval) {
 		print_math_error(retval);
@@ -920,9 +936,15 @@ complete_data_log_likelihood(const std::vector<dmatrix>& PWM,
 	  for (int j=0; j < m; ++j) {
 	    if (my_cob_params[r].dimer_lambdas[o][d] > 0.0) {
 	      feclearexcept(FE_ALL_EXCEPT);
-	      temp += log2(compute_probability<FloatType>(line, line_rev, j, +1, model, q, q2) * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0) * my_cob_params[r].overlapping_dimer_Z[i][o][d][0][j];
+	      temp +=
+		log2(compute_probability<FloatType>(line, line_rev, j, +1, model, q, q2)
+		     * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0)
+		* my_cob_params[r].overlapping_dimer_Z[i][o][d][0][j];
 	      if (use_two_strands)
-		temp += log2(compute_probability<FloatType>(line, line_rev, j, -1, model, q, q2) * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0) * my_cob_params[r].overlapping_dimer_Z[i][o][d][1][j];
+		temp +=
+		  log2(compute_probability<FloatType>(line, line_rev, j, -1, model, q, q2)
+		       * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0)
+		  * my_cob_params[r].overlapping_dimer_Z[i][o][d][1][j];
 	      int retval = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
 	      if (retval) {
 		print_math_error(retval);
@@ -1010,14 +1032,13 @@ expectation_Z_dir_j_overlapping(boost::multi_array<FloatType, 5>& Z, int i, int 
 		    const std::vector<double>& bg_model_rev,
 		    const dmatrix& bg_model_markov, const dmatrix& bg_model_markov_rev)
 {
-  if (m == 0)
-    return;               // the dimer does not fit on this line
-  if (lambda == 0.0) {
+  if (lambda == 0.0 or m == 0) { // the dimer does not fit on this line
     for (int j=0; j < m; ++j) {
       Z[i][o][d][0][j]=0.0;
       if (use_two_strands)
 	Z[i][o][d][1][j]=0.0;
     }
+    return;
   }
   FloatType lambda_per_pos = lambda/m;
   if (use_two_strands)
@@ -1063,12 +1084,13 @@ expectation_Z_dir_j_spaced(boost::multi_array<FloatType, 5>& Z, int i,
 			   const std::vector<double>& bg_model_rev,
 			   const dmatrix& bg_model_markov, const dmatrix& bg_model_markov_rev)
 {
-  if (lambda == 0.0) {
+  if (lambda == 0.0 or m == 0) {
     for (int j=0; j < m; ++j) {
       Z[i][o][d][0][j]=0.0;
       if (use_two_strands)
 	Z[i][o][d][1][j]=0.0;
     }
+    return;
   }
   FloatType lambda_per_pos = lambda/m;
   if (use_two_strands)
