@@ -528,6 +528,19 @@ iupac_mismatch_positions(const std::string& str, const std::string& pattern)
   return result;
 }
 
+template <typename T, typename F>
+matrix<T>
+log2(const matrix<F>& orig)
+{
+  matrix<T> result(orig.dim());
+  int rows=orig.get_rows();
+  int cols=orig.get_columns();
+  for (int i=0; i < rows; ++i)
+    for (int j=0; j < cols; ++j)
+      result(i, j) = log2l(orig(i, j));
+
+  return result;
+}
 
 typedef boost::multi_array<FloatType, 4> array_4d_type; // for Z variable, indices are (i,k,dir,j)
 typedef boost::multi_array<FloatType, 5> array_5d_type; // for Z variable, indices are (i,o,d,dir,j)
@@ -822,6 +835,8 @@ double
 complete_data_log_likelihood(const std::vector<dmatrix>& PWM, 
 			     const std::vector<double>& q, 
 			     const dmatrix& q2, 
+			     const std::vector<double>& q_rev, 
+			     const dmatrix& q2_rev, 
 			     const std::vector<double>& lambda, 
 			     double lambda_bg, std::vector<cob_params_t>& my_cob_params,
 			     const array_4d_type& fixed_Z,
@@ -836,8 +851,22 @@ complete_data_log_likelihood(const std::vector<dmatrix>& PWM,
   //  int L=sequences[0].length();
   int number_of_cobs = my_cob_params.size();
 
-
-  typedef boost::multi_array<dmatrix, 2> cob_of_matrices_t;
+  FloatType l2 = log2l(2);
+  FloatType log_lambda_bg = log2l(lambda_bg);
+  std::vector<FloatType> log_q(4);
+  std::vector<FloatType> log_q_rev(4);
+  std::vector<double> log_lambda(p);
+  std::vector<matrix<FloatType> > log_PWM;
+  for (int i=0; i < 4; ++i) {
+    log_q[i] = log2l(q[i]);
+    log_q_rev[i] = log2l(q_rev[i]);
+  }
+  for (int i=0; i < p; ++i) {
+    log_lambda[i] = log2l(lambda[i]);
+    log_PWM.push_back(log2<FloatType>(PWM[i]));
+  }
+  boost::multi_array<matrix<FloatType>, 3> log_oriented_dimer_matrices(boost::extents[number_of_cobs][4][2]);
+  typedef boost::multi_array<matrix<FloatType>, 2> cob_of_matrices_t;
   typedef cob_of_matrices_t::extent_range range;
   std::vector<cob_of_matrices_t> overlapping_models;
   for (int r=0; r < number_of_cobs; ++r) {
@@ -850,8 +879,10 @@ complete_data_log_likelihood(const std::vector<dmatrix>& PWM,
     
     overlapping_models.push_back(cob_of_matrices_t(boost::extents[number_of_orientations][range(dmin, max_dist_for_deviation+1)]));
     for (int o=0; o < number_of_orientations; ++o) {
+      log_oriented_dimer_matrices[r][o][0] = log2<FloatType>(my_cob_params[r].oriented_dimer_matrices[o].get<0>());
+      log_oriented_dimer_matrices[r][o][1] = log2<FloatType>(my_cob_params[r].oriented_dimer_matrices[o].get<1>());
       for (int d=dmin; d <= max_dist_for_deviation; ++d) {
-	overlapping_models[r][o][d] = my_cob_params[r].expected_overlapping_dimer_PWMs[o][d] + my_cob_params[r].deviation[o][d];
+	overlapping_models[r][o][d] = log2<FloatType>(my_cob_params[r].expected_overlapping_dimer_PWMs[o][d] + my_cob_params[r].deviation[o][d]);
       }
     }
   }
@@ -869,13 +900,13 @@ complete_data_log_likelihood(const std::vector<dmatrix>& PWM,
       for (int j=0; j < fixed_m[i][k]; ++j) {
 	feclearexcept(FE_ALL_EXCEPT);
 	temp +=
-	  log2(compute_probability<FloatType>(line, line_rev, j, 1, PWM[k], q, q2)
-	       * lambda[k] / (double)fixed_m[i][k] / 2.0)
+	  (compute_log_probability<FloatType>(line, line_rev, j, 1, log_PWM[k], log_q, q2)
+	   + log_lambda[k] - log(fixed_m[i][k]) - l2)
 	  * fixed_Z[i][k][0][j];
 	if (use_two_strands)
 	  temp +=
-	    log2(compute_probability<FloatType>(line, line_rev, j, -1, PWM[k], q, q2)
-		 * lambda[k] / (double)fixed_m[i][k] / 2.0)
+	    (compute_log_probability<FloatType>(line, line_rev, j, -1, log_PWM[k], log_q_rev, q2_rev)
+	     + log_lambda[k] - log(fixed_m[i][k]) - l2)
 	    * fixed_Z[i][k][1][j];
 	int retval = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
 	if (retval) {
@@ -898,25 +929,28 @@ complete_data_log_likelihood(const std::vector<dmatrix>& PWM,
       for (int o=0; o < number_of_orientations; ++o) {
 	for (int d=max_dist_for_deviation+1; d <= dmax; ++d) {       // spaced dimers
 	  int m = my_cob_params[r].dimer_m[i][d];
+	  if (m <= 0)
+	    continue;
+	  FloatType log_m = log2l(m);
 	  for (int j=0; j < m; ++j) {
 	    if (my_cob_params[r].dimer_lambdas[o][d] > 0.0) {
 	      feclearexcept(FE_ALL_EXCEPT);
 	      temp +=
-		log2(compute_dimer_probability<FloatType>(line, line_rev,
+		(compute_log_dimer_probability<FloatType>(line, line_rev,
 							  j, +1,
-							  my_cob_params[r].oriented_dimer_matrices[o].get<0>(), 
-							  my_cob_params[r].oriented_dimer_matrices[o].get<1>(), 
-							  d, q, q2)
-		     * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0)
+							  log_oriented_dimer_matrices[r][o][0], 
+							  log_oriented_dimer_matrices[r][o][0], 
+							  d, log_q, q2)
+		 + log2l(my_cob_params[r].dimer_lambdas[o][d]) - log_m - l2)
 		* my_cob_params[r].spaced_dimer_Z[i][o][d][0][j];
 	      if (use_two_strands)
 		temp +=
-		  log2(compute_dimer_probability<FloatType>(line, line_rev,
+		  (compute_log_dimer_probability<FloatType>(line, line_rev,
 							    j, -1,
-							    my_cob_params[r].oriented_dimer_matrices[o].get<0>(), 
-							    my_cob_params[r].oriented_dimer_matrices[o].get<1>(), 
-							    d, q, q2)
-		       * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0)
+							    log_oriented_dimer_matrices[r][o][0], 
+							    log_oriented_dimer_matrices[r][o][1], 
+							    d, log_q_rev, q2_rev)
+		   + log2l(my_cob_params[r].dimer_lambdas[o][d]) - log_m - l2)
 		  * my_cob_params[r].spaced_dimer_Z[i][o][d][1][j];
 	      int retval = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
 	      if (retval) {
@@ -932,18 +966,21 @@ complete_data_log_likelihood(const std::vector<dmatrix>& PWM,
 
 	for (int d=dmin; d <= max_dist_for_deviation; ++d) {        // overlapping dimers
 	  int m = my_cob_params[r].dimer_m[i][d];
-	  const dmatrix& model = overlapping_models[r][o][d];
+	  if (m <= 0)
+	    continue;
+	  FloatType log_m = log2l(m);
+	  const matrix<FloatType>& model = overlapping_models[r][o][d];
 	  for (int j=0; j < m; ++j) {
 	    if (my_cob_params[r].dimer_lambdas[o][d] > 0.0) {
 	      feclearexcept(FE_ALL_EXCEPT);
 	      temp +=
-		log2(compute_probability<FloatType>(line, line_rev, j, +1, model, q, q2)
-		     * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0)
+		(compute_log_probability<FloatType>(line, line_rev, j, +1, model, log_q, q2)
+		 + log2l(my_cob_params[r].dimer_lambdas[o][d]) - log_m - l2)
 		* my_cob_params[r].overlapping_dimer_Z[i][o][d][0][j];
 	      if (use_two_strands)
 		temp +=
-		  log2(compute_probability<FloatType>(line, line_rev, j, -1, model, q, q2)
-		       * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0)
+		  (compute_log_probability<FloatType>(line, line_rev, j, -1, model, log_q_rev, q2_rev)
+		   + log2l(my_cob_params[r].dimer_lambdas[o][d]) - log_m - l2)
 		  * my_cob_params[r].overlapping_dimer_Z[i][o][d][1][j];
 	      int retval = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
 	      if (retval) {
@@ -962,7 +999,7 @@ complete_data_log_likelihood(const std::vector<dmatrix>& PWM,
 
     feclearexcept(FE_ALL_EXCEPT);
     if (lambda_bg > 0.0)
-      temp += log2(compute_background_probability<FloatType>(line, q, q2) * lambda_bg) * (1.0 - sum_of_Zs);
+      temp += (compute_log_background_probability<FloatType>(line, log_q, q2) + log_lambda_bg) * (1.0 - sum_of_Zs);
     int retval = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
     if (retval) {
       print_math_error(retval);
@@ -3267,8 +3304,13 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	printf("Intermediate average information content of fixed models: %s\n", print_vector(fixed_av_ic).c_str());
       }
 
+      bg_model_rev = std::vector<double>(bg_model.rbegin(), bg_model.rend()); // use this model when considering the reverse strand
+      bg_model_markov_rev = reverse_complement_markov_model(bg_model_markov);
 
-      mll = complete_data_log_likelihood(fixed_PWM, bg_model, bg_model_markov, fixed_lambda, background_lambda, my_cob_params, fixed_Z, sequences, sequences_rev, fixed_w, fixed_m);
+      mll = complete_data_log_likelihood(fixed_PWM,
+					 bg_model, bg_model_markov,
+					 bg_model_rev, bg_model_markov_rev,
+					 fixed_lambda, background_lambda, my_cob_params, fixed_Z, sequences, sequences_rev, fixed_w, fixed_m);
       if (local_debug)
 	printf("Log likelihood is %f\n", mll);
 
