@@ -58,7 +58,7 @@ LDFLAGS=$(BOOSTLIB) $(PROGOPT) #-L$(HOME)/usr/lib #-B/usr/bin/ld.gold
 export CXXFLAGS
 export LDFLAGS
 
-all: $(addprefix $(OBJDIR)/$(PRGPREFIX), $(PROGRAMS)) CPM03
+all: CPM03 $(addprefix $(OBJDIR)/$(PRGPREFIX), $(PROGRAMS))
 
 
 .PHONY: CPM03
@@ -91,7 +91,9 @@ FORCE:
 
 distcheck: $(distdir).tar.gz
 	gzip -cd $+ | tar xvf -
-	$(MAKE) -C $(distdir) all check clean
+	$(MAKE) -C $(distdir) all
+	$(MAKE) -C $(distdir) check
+	$(MAKE) -C $(distdir) clean
 	rm -rf $(distdir)
 	@echo "*** Package $(distdir).tar.gz\
           ready for distribution."
@@ -157,6 +159,7 @@ $(distdir):
 	cp CPM03/suffixsort.hpp $(distdir)/CPM03
 	cp CPM03/test-suffixsort.cpp $(distdir)/CPM03
 	cp CPM03/timing.hpp $(distdir)/CPM03
+	cp CPM03/dependencies.mk $(distdir)/CPM03
 	cp data/TFAP2A-head-1000.seq $(distdir)/data
 
 

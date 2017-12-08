@@ -31,6 +31,6 @@ OBJS = $(OBJS1)
 SOURCES = $(OBJS:.o=.cpp)
 
 depend:
-	$(CXX) -M $(SOURCES) > dependencies.mk
+	$(CXX) -MM $(SOURCES) > dependencies.mk
 
 -include dependencies.mk
