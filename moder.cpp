@@ -1299,7 +1299,7 @@ void
 get_new_weights(int j1, int dir, double z, int w, const std::string& seed,
 		const std::string& line_orig, const std::string& line_rev_orig,
 		dmatrix& weights, std::vector<double>& pred_flank, std::vector<double>& succ_flank,
-		bool force_multinomial, bool compute_flanks, std::vector<double>& signal, dmatrix& dinucleotide_signal)
+		bool force_multinomial, bool compute_flanks)
 {
   assert(seed.length() == w);
   typedef myuint128 bitstring_t;
@@ -1320,7 +1320,7 @@ get_new_weights(int j1, int dir, double z, int w, const std::string& seed,
   //  printf("HD is %i %i %s %s\n", hd, mismatches, print_bitvector(mismatches).c_str(), print_bitvector(positions).c_str());
   bitstring_t mask = static_cast<bitstring_t>(1)<<(w-1);
   for (int pos=0; pos < w; ++pos, mask>>=1) {
-    signal[to_int(line[j1+pos])] += z;
+    //signal[to_int(line[j1+pos])] += z;
     if (positions & mask)
       weights(to_int(line[j1+pos]), pos) += z; // update columns of pwm marked by bit vector positions
   }
@@ -1331,10 +1331,10 @@ get_new_weights(int j1, int dir, double z, int w, const std::string& seed,
       succ_flank[to_int(line[j1+w])] += z;
   }
 
-  if (use_markov_background) {
-    for (int pos2=0; pos2 < w-1; ++pos2)
-      dinucleotide_signal(to_int(line[j1+pos2]), to_int(line[j1+pos2+1])) += z;
-  }
+  // if (use_markov_background) {
+  //   for (int pos2=0; pos2 < w-1; ++pos2)
+  //     dinucleotide_signal(to_int(line[j1+pos2]), to_int(line[j1+pos2+1])) += z;
+  // }
 
 }
 
@@ -1345,8 +1345,7 @@ get_new_spaced_dimer_weights(int j1, int dir, double z, int d,
 			     const std::string& line_orig, const std::string& line_rev_orig,
 			     dmatrix& weights1, dmatrix& weights2, 
 			     //			    std::vector<double>& pred_flank, std::vector<double>& succ_flank,
-			     bool force_multinomial, std::vector<double>& signal,
-			     dmatrix& dinucleotide_signal)//, bool compute_flanks)
+			     bool force_multinomial)
 {
   assert(seed1.length() == w1);
   assert(seed2.length() == w2);
@@ -1373,7 +1372,6 @@ get_new_spaced_dimer_weights(int j1, int dir, double z, int d,
     positions = 0;   // update nothing
   code_t mask = 1ull<<(w1-1);
   for (int pos=0; pos < w1; ++pos, mask>>=1) {
-    signal[to_int(line[j1+pos])] += z;
     if (positions & mask)
       weights1(to_int(line[j1+pos]), pos) += z; // update all columns
   }
@@ -1391,21 +1389,11 @@ get_new_spaced_dimer_weights(int j1, int dir, double z, int d,
     positions2 = 0;   // update nothing
   mask=1ull<<(w2-1);
   for (int pos=0; pos < w2; ++pos,mask>>=1) {
-    signal[to_int(line[j2+pos])] += z;
     if (positions2 & mask)
       weights2(to_int(line[j2+pos]), pos) += z; // update all columns
   }
 
   
-  if (use_markov_background) {
-    // first part
-    for (int pos2=0; pos2 < w1-1; ++pos2)
-      dinucleotide_signal(to_int(line[j1+pos2]), to_int(line[j1+pos2+1])) += z;
-    // second part
-    for (int pos2=0; pos2 < w2-1; ++pos2)
-      dinucleotide_signal(to_int(line[j2+pos2]), to_int(line[j2+pos2+1])) += z;
-  }
-
 }
 
 void
@@ -1415,8 +1403,7 @@ get_new_gap_weights(int j1, int dir, double z, int d,
 		    const std::string& line_orig, const std::string& line_rev_orig,
 		    dmatrix& weights1,
 		    //			    std::vector<double>& pred_flank, std::vector<double>& succ_flank,
-		    bool force_multinomial, std::vector<double>& signal,
-		    dmatrix& dinucleotide_signal)//, bool compute_flanks)
+		    bool force_multinomial)//, bool compute_flanks)
 {
   assert(seed1.length() == w1);
   assert(seed2.length() == w2);
@@ -1444,12 +1431,12 @@ get_new_gap_weights(int j1, int dir, double z, int d,
   //    positions = mismatches;
   else
     positions = 0;   // update nothing
-  int first = w1-1;
-  int last = w1+d;
+  int first = w1-1;  // last position of the first half-site
+  int last = w1+d;   // first position of the second half-site
   bitstring_t mask = static_cast<bitstring_t>(1)<<(d+w2);
   for (int pos=first; pos <= last; ++pos, mask>>=1) {
-    if (pos != first and pos != last)
-      signal[to_int(line[j1+pos])] += z;
+    //    if (pos != first and pos != last)
+    //      signal[to_int(line[j1+pos])] += z;
     if (positions & mask)
       weights1(to_int(line[j1+pos]), pos) += z; // update all columns
   }
@@ -2340,7 +2327,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      log_dimer_lambda[r][o][d] = 0.0;
 	}
       }
-  
+
 #pragma omp parallel for shared(lines,sequences,bg_model,bg_model_markov,use_two_strands) schedule(static)
       for (int i=0; i < lines; ++i) {
 	const std::string& line = sequences[i];
@@ -2600,45 +2587,52 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       // Monomeric models
       //
       ////////////////////////////
-
+      int dirs[2] = {1, -1};
+      int maxdir = use_two_strands ? 2 : 1;
+      
       // Signal from monomeric models
       for (int k=0; k < fixed_p; ++k) {
 	dmatrix pwm(4, fixed_w[k]);
 	std::vector<double>& signal = use_full_signal ? (is_fixed_pwm_part_of_cob[k]?fixed2_signal_sum:fixed_signal_sum) : dummy2;
 
 	dmatrix temp_dinucleotide_signal(4, 4);
-	dmatrix temp_dinucleotide_signal_rev(4, 4);
+	//	dmatrix temp_dinucleotide_signal_rev(4, 4);
 	std::vector<double> temp_signal(4, 0.0);
-	std::vector<double> temp_signal_rev(4, 0.0);
+	//	std::vector<double> temp_signal_rev(4, 0.0);
 
+	int w = fixed_w[k];
 	// This requires at least gcc 4.9
 	// clang (at least not 3.8) does not support 'declare reduction' even
 	// though it defines _OPENMP to 201307 (that is openmp 4.0).
 #if defined(_OPENMP) && (_OPENMP >= 201307) && !defined(__clang__)
 #pragma omp declare reduction( + : dmatrix : omp_out+=omp_in ) initializer(omp_priv(omp_orig.dim()))
 #pragma omp declare reduction( + : std::vector<double, std::allocator<double> > : omp_out+=omp_in ) initializer(omp_priv(std::vector<double>(omp_orig.size())))
-#pragma omp parallel for shared(lines,sequences,use_two_strands) reduction(+:pwm,temp_dinucleotide_signal,temp_dinucleotide_signal_rev,temp_signal,temp_signal_rev) schedule(static)
+#pragma omp parallel for shared(lines,sequences,use_two_strands) reduction(+:pwm,temp_dinucleotide_signal,temp_signal) schedule(static)
 #endif
 	for (int i = 0; i < lines; ++i) {
 	  const std::string& line = sequences[i];
 	  const std::string& line_rev = sequences_rev[i];
 	  for (int j1=0; j1 < fixed_m[i][k]; ++j1) {  // iterates through start positions
-	    double z = fixed_Z[i][k][0][j1];
-	    get_new_weights(j1, +1, z, fixed_w[k], fixed_seed[k], line, line_rev, pwm, 
-			    dummy, dummy, use_multinomial, false, temp_signal, temp_dinucleotide_signal);
+	    for (int dir=0; dir < maxdir; ++dir) {
+	      double z = fixed_Z[i][k][dir][j1];
+	      get_new_weights(j1, dirs[dir], z, fixed_w[k], fixed_seed[k], line, line_rev, pwm, 
+			      dummy, dummy, use_multinomial, false);
 
-	    if (use_two_strands) {
-	      double z2 = fixed_Z[i][k][1][j1];
-	      get_new_weights(j1, -1, z2, fixed_w[k], fixed_seed[k], line, line_rev, pwm, 
-			      dummy, dummy, use_multinomial, false, temp_signal_rev, temp_dinucleotide_signal_rev);
+	      for (int pos=0; pos < w; ++pos)
+		temp_signal[to_int(line[j1+pos])] += z;
+	      
+	      if (use_markov_background) {
+		for (int pos2=0; pos2 < w-1; ++pos2)
+		  temp_dinucleotide_signal(to_int(line[j1+pos2]), to_int(line[j1+pos2+1])) += z;
+	      }
 	    }
 	  }
 	}  // end for lines
-	std::reverse(temp_signal_rev.begin(), temp_signal_rev.end());
+	//	std::reverse(temp_signal_rev.begin(), temp_signal_rev.end());
 	signal += temp_signal;
-	signal += temp_signal_rev;
+	//	signal += temp_signal_rev;
 	dinucleotide_signal += temp_dinucleotide_signal;
-	dinucleotide_signal += reverse_complement_markov_model(temp_dinucleotide_signal_rev);
+	//	dinucleotide_signal += reverse_complement_markov_model(temp_dinucleotide_signal_rev);
 
 	if (is_fixed_pwm_part_of_cob[k])
 	  new_fixed_PWM2[k] += pwm;
@@ -2673,11 +2667,11 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    else
 	      local_use_two_strands = use_two_strands;
 	    
-
+	    int w = my_cob_params[r].dimer_w[d];
 	    dmatrix temp_dinucleotide_signal(4, 4);
-	    dmatrix temp_dinucleotide_signal_rev(4, 4);
+	    //	    dmatrix temp_dinucleotide_signal_rev(4, 4);
 	    std::vector<double> temp_signal(4, 0.0);
-	    std::vector<double> temp_signal_rev(4, 0.0);
+	    //	    std::vector<double> temp_signal_rev(4, 0.0);
 
 	    dmatrix pwm(overlapping_dimer_weights[r][o][d].dim());
 	    // This requires gcc 4.9
@@ -2686,29 +2680,33 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 #if defined(_OPENMP) && (_OPENMP >= 201307) && !defined(__clang__)
 #pragma omp declare reduction( + : dmatrix : omp_out+=omp_in ) initializer(omp_priv(omp_orig.dim()))
 #pragma omp declare reduction( + : std::vector<double, std::allocator<double> > : omp_out+=omp_in ) initializer(omp_priv(std::vector<double>(omp_orig.size())))	
-#pragma omp parallel for reduction(+:pwm,temp_dinucleotide_signal,temp_dinucleotide_signal_rev,temp_signal,temp_signal_rev) schedule(static)
+#pragma omp parallel for reduction(+:pwm,temp_dinucleotide_signal,temp_signal) schedule(static)
 #endif
 	    for (int i = 0; i < lines; ++i) {
 	      const std::string& line = sequences[i];
 	      const std::string& line_rev = sequences_rev[i];
 
 	      for (int j1=0; j1 < my_cob_params[r].dimer_m[i][d]; ++j1) {  // iterates through start positions
-		double z = my_cob_params[r].overlapping_dimer_Z[i][o][d][0][j1];
-		get_new_weights(j1, +1, z, my_cob_params[r].dimer_w[d], my_cob_params[r].dimer_seeds[o][d], 
-				line, line_rev, pwm, dummy, dummy, use_multinomial, false, temp_signal, temp_dinucleotide_signal);
+		for (int dir=0; dir < maxdir; ++dir) {
+		  double z = my_cob_params[r].overlapping_dimer_Z[i][o][d][dir][j1];
+		  get_new_weights(j1, dirs[dir], z, my_cob_params[r].dimer_w[d], my_cob_params[r].dimer_seeds[o][d], 
+				  line, line_rev, pwm, dummy, dummy, use_multinomial, false);
 
-		if (local_use_two_strands) {
-		  double z2 = my_cob_params[r].overlapping_dimer_Z[i][o][d][1][j1];
-		  get_new_weights(j1, -1, z2, my_cob_params[r].dimer_w[d], my_cob_params[r].dimer_seeds[o][d], 
-				  line, line_rev, pwm, dummy, dummy, use_multinomial, false, temp_signal_rev, temp_dinucleotide_signal_rev);
-		}
-	      }
+		  for (int pos=0; pos < w; ++pos)
+		    temp_signal[to_int(line[j1+pos])] += z;
+	      
+		  if (use_markov_background) {
+		    for (int pos2=0; pos2 < w-1; ++pos2)
+		      temp_dinucleotide_signal(to_int(line[j1+pos2]), to_int(line[j1+pos2+1])) += z;
+		  }
+		} // for dir
+	      } // for j1
 	    }  // for i
-	    std::reverse(temp_signal_rev.begin(), temp_signal_rev.end());
+	      //	    std::reverse(temp_signal_rev.begin(), temp_signal_rev.end());
 	    signal += temp_signal;
-	    signal += temp_signal_rev;
+	    //	    signal += temp_signal_rev;
 	    dinucleotide_signal += temp_dinucleotide_signal;
-	    dinucleotide_signal += reverse_complement_markov_model(temp_dinucleotide_signal_rev);
+	    //	    dinucleotide_signal += reverse_complement_markov_model(temp_dinucleotide_signal_rev);
 	    overlapping_dimer_weights[r][o][d] = pwm;
 	  } // for d, overlapping dimer PWMs
 	} // for o, overlapping dimer PWMs
@@ -2737,11 +2735,13 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    m1.fill_with(0.0);
 	    m2.fill_with(0.0);
 
+	    int w1 = fixed_w[tf1];
+	    int w2 = fixed_w[tf2];
 	    std::vector<double>& signal = use_full_signal ? (d >= minimum_distance_for_learning ? fixed_signal_sum : fixed2_signal_sum) : dummy2;
 	    std::vector<double> temp_signal(4, 0.0);
-	    std::vector<double> temp_signal_rev(4, 0.0);
+	    //	    std::vector<double> temp_signal_rev(4, 0.0);
 	    dmatrix temp_dinucleotide_signal(4, 4);
-	    dmatrix temp_dinucleotide_signal_rev(4, 4);
+	    //	    dmatrix temp_dinucleotide_signal_rev(4, 4);
 	    // This requires gcc 4.9
 	    // clang (at least not 3.8) does not support 'declare reduction' even
 	    // though it defines _OPENMP to 201307 (that is openmp 4.0).
@@ -2750,55 +2750,55 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    //	    dmatrix& pwm2 = m2[r];
 #pragma omp declare reduction( + : dmatrix : omp_out+=omp_in ) initializer(omp_priv(omp_orig.dim()))
 #pragma omp declare reduction( + : std::vector<double> : omp_out+=omp_in ) initializer(omp_priv(std::vector<double>(omp_orig.size())))
-#pragma omp parallel for reduction(+:m1,m2, temp_dinucleotide_signal,temp_dinucleotide_signal_rev, temp_signal, temp_signal_rev) schedule(static)
+#pragma omp parallel for reduction(+:m1,m2, temp_dinucleotide_signal,temp_signal) schedule(static)
 #endif	    
 	    for (int i = 0; i < lines; ++i) {
 	      const std::string& line = sequences[i];
 	      const std::string& line_rev = sequences_rev[i];
 
 
-
-	      ////////////////
-	      // strand one
-
 	      for (int j1=0; j1 < my_cob_params[r].dimer_m[i][d]; ++j1) {  // iterates through start positions
-		double z = d <= my_cob_params[r].max_dist_for_deviation ?
-		  my_cob_params[r].overlapping_dimer_Z[i][o][d][0][j1] : 
-		  my_cob_params[r].spaced_dimer_Z[i][o][d][0][j1];
-		get_new_spaced_dimer_weights(j1, +1, z, d, fixed_w[tf1], fixed_w[tf2], 
-					     my_cob_params[r].oriented_dimer_seeds[o].get<0>(), 
-					     my_cob_params[r].oriented_dimer_seeds[o].get<1>(),
-					     line, line_rev, 
-					     //     spaced_dimer_weights_a[r][o][d], spaced_dimer_weights_b[r][o][d],
-					     m1, m2,
-					     //pred_flank[k], succ_flank[k], true,
-					     use_multinomial, temp_signal, temp_dinucleotide_signal);
-	      }
+		int j2 = j1 + d + w1;  // position of the second leg
 
-	      ////////////////
-	      // strand two
-
-	      if (use_two_strands) {
-		for (int j1=0; j1 < my_cob_params[r].dimer_m[i][d]; ++j1) {  // iterates through start positions
+		for (int dir=0; dir < maxdir; ++dir) {
 		  double z = d <= my_cob_params[r].max_dist_for_deviation ?
-		    my_cob_params[r].overlapping_dimer_Z[i][o][d][1][j1] : 
-		    my_cob_params[r].spaced_dimer_Z[i][o][d][1][j1];
-		  get_new_spaced_dimer_weights(j1, -1, z, d, fixed_w[tf1], fixed_w[tf2], 
+		    my_cob_params[r].overlapping_dimer_Z[i][o][d][dir][j1] : 
+		    my_cob_params[r].spaced_dimer_Z[i][o][d][dir][j1];
+		  get_new_spaced_dimer_weights(j1, dirs[dir], z, d, fixed_w[tf1], fixed_w[tf2], 
 					       my_cob_params[r].oriented_dimer_seeds[o].get<0>(), 
 					       my_cob_params[r].oriented_dimer_seeds[o].get<1>(),
 					       line, line_rev, 
+
+					       //     spaced_dimer_weights_a[r][o][d], spaced_dimer_weights_b[r][o][d],
 					       m1, m2,
-					       //       spaced_dimer_weights_a[r][o][d], spaced_dimer_weights_b[r][o][d],
 					       //pred_flank[k], succ_flank[k], true,
-					       use_multinomial, temp_signal_rev, temp_dinucleotide_signal_rev);
+					       use_multinomial);
+
+		  for (int pos=0; pos < w1; ++pos)
+		    temp_signal[to_int(line[j1+pos])] += z;
+
+		  for (int pos=0; pos < w2; ++pos)
+		    temp_signal[to_int(line[j2+pos])] += z;
+
+  
+		  if (use_markov_background) {
+		    // first part
+		    for (int pos2=0; pos2 < w1-1; ++pos2)
+		      temp_dinucleotide_signal(to_int(line[j1+pos2]), to_int(line[j1+pos2+1])) += z;
+		    // second part
+		    for (int pos2=0; pos2 < w2-1; ++pos2)
+		      temp_dinucleotide_signal(to_int(line[j2+pos2]), to_int(line[j2+pos2+1])) += z;
+		  }
+
 		}
 	      }
+
 	    } // for i in lines
-	    std::reverse(temp_signal_rev.begin(), temp_signal_rev.end());
+	    //	    std::reverse(temp_signal_rev.begin(), temp_signal_rev.end());
 	    signal += temp_signal;
-	    signal += temp_signal_rev;
+	    //	    signal += temp_signal_rev;
 	    dinucleotide_signal += temp_dinucleotide_signal;
-	    dinucleotide_signal += reverse_complement_markov_model(temp_dinucleotide_signal_rev);
+	    //	    dinucleotide_signal += reverse_complement_markov_model(temp_dinucleotide_signal_rev);
 	    boost::tuple<dmatrix,dmatrix>& temp = 
 	      d >= minimum_distance_for_learning ? spaced_dimer_weights_sum[r] : spaced_dimer_weights2_sum[r];
 
@@ -2874,60 +2874,46 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    else
 	      local_use_two_strands = use_two_strands;
 
+
+	    int w1 = fixed_w[tf1];
 	    //std::vector<double>& signal = use_full_signal ? (d >= minimum_distance_for_learning ? fixed_signal_sum : fixed2_signal_sum) : dummy2;
 	    std::vector<double> temp_signal(4, 0.0);
-	    std::vector<double> temp_signal_rev(4, 0.0);
+	    //	    std::vector<double> temp_signal_rev(4, 0.0);
 	    dmatrix temp_dinucleotide_signal(4, 4);
-	    dmatrix temp_dinucleotide_signal_rev(4, 4);
+	    //	    dmatrix temp_dinucleotide_signal_rev(4, 4);
 	    // This requires gcc 4.9
 	    // clang (at least not 3.8) does not support 'declare reduction' even
 	    // though it defines _OPENMP to 201307 (that is openmp 4.0).
 #if defined(_OPENMP) && (_OPENMP >= 201307) && !defined(__clang__)
 #pragma omp declare reduction( + : dmatrix : omp_out+=omp_in ) initializer(omp_priv(omp_orig.dim()))
 #pragma omp declare reduction( + : std::vector<double> : omp_out+=omp_in ) initializer(omp_priv(std::vector<double>(omp_orig.size())))
-#pragma omp parallel for reduction(+:m1, temp_dinucleotide_signal,temp_dinucleotide_signal_rev, temp_signal, temp_signal_rev) schedule(static)
+#pragma omp parallel for reduction(+:m1, temp_dinucleotide_signal, temp_signal) schedule(static)
 #endif	    
 	    for (int i = 0; i < lines; ++i) {
 	      const std::string& line = sequences[i];
 	      const std::string& line_rev = sequences_rev[i];
 
-
-
-	      ////////////////
-	      // strand one
-
 	      for (int j1=0; j1 < my_cob_params[r].dimer_m[i][d]; ++j1) {  // iterates through start positions
-		double z = my_cob_params[r].overlapping_dimer_Z[i][o][d][0][j1];
-		get_new_gap_weights(j1, +1, z, d, fixed_w[tf1], fixed_w[tf2], 
-					     my_cob_params[r].oriented_dimer_seeds[o].get<0>(), 
-					     my_cob_params[r].oriented_dimer_seeds[o].get<1>(),
-					     line, line_rev, 
-					     //     spaced_dimer_weights_a[r][o][d], spaced_dimer_weights_b[r][o][d],
-					     m1,
-					     //pred_flank[k], succ_flank[k], true,
-					     use_multinomial, temp_signal, temp_dinucleotide_signal);
-	      }
+		for (int dir=0; dir < maxdir; ++dir) {
+		  double z = my_cob_params[r].overlapping_dimer_Z[i][o][d][dir][j1];
+		  get_new_gap_weights(j1, dirs[dir], z, d, fixed_w[tf1], fixed_w[tf2], 
+				      my_cob_params[r].oriented_dimer_seeds[o].get<0>(), 
+				      my_cob_params[r].oriented_dimer_seeds[o].get<1>(),
+				      line, line_rev, 
+				      m1,
+				      use_multinomial);
+		  int first = w1; 
+		  int last = w1+d;
+		  for (int pos=first; pos < last; ++pos)
+		    temp_signal[to_int(line[j1+pos])] += z;
 
-	      ////////////////
-	      // strand two
+		} // for dir
 
-	      if (local_use_two_strands) {
-		for (int j1=0; j1 < my_cob_params[r].dimer_m[i][d]; ++j1) {  // iterates through start positions
-		  double z = my_cob_params[r].overlapping_dimer_Z[i][o][d][1][j1];
-		  get_new_gap_weights(j1, -1, z, d, fixed_w[tf1], fixed_w[tf2], 
-					       my_cob_params[r].oriented_dimer_seeds[o].get<0>(), 
-					       my_cob_params[r].oriented_dimer_seeds[o].get<1>(),
-					       line, line_rev, 
-					       m1,
-					       //       spaced_dimer_weights_a[r][o][d], spaced_dimer_weights_b[r][o][d],
-					       //pred_flank[k], succ_flank[k], true,
-					       use_multinomial, temp_signal_rev, temp_dinucleotide_signal_rev);
-		}
-	      }
+	      } // for j1
 	    } // for i in lines
-	    std::reverse(temp_signal_rev.begin(), temp_signal_rev.end());
+	      //	    std::reverse(temp_signal_rev.begin(), temp_signal_rev.end());
 	    gap_signal_sum += temp_signal;
-	    gap_signal_sum += temp_signal_rev;
+	    //	    gap_signal_sum += temp_signal_rev;
 	    //gap_dinucleotide_signal += temp_dinucleotide_signal;
 	    //gap_dinucleotide_signal += reverse_complement_markov_model(temp_dinucleotide_signal_rev);
 	    gap_weights[r][o][d] = m1;
