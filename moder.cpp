@@ -2757,10 +2757,12 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      const std::string& line_rev = sequences_rev[i];
 
 
-	      for (int j1=0; j1 < my_cob_params[r].dimer_m[i][d]; ++j1) {  // iterates through start positions
-		int j2 = j1 + d + w1;  // position of the second leg
+	      for (int dir=0; dir < maxdir; ++dir) {
+		int first = dir == 0 ? 0 : w2 + d;
+		int second = dir == 0 ? w1+d : 0;
+		for (int j1=0; j1 < my_cob_params[r].dimer_m[i][d]; ++j1) {  // iterates through start positions
+		  //		  int j2 = j1 + d + w1;  // position of the second leg
 
-		for (int dir=0; dir < maxdir; ++dir) {
 		  double z = d <= my_cob_params[r].max_dist_for_deviation ?
 		    my_cob_params[r].overlapping_dimer_Z[i][o][d][dir][j1] : 
 		    my_cob_params[r].spaced_dimer_Z[i][o][d][dir][j1];
@@ -2775,19 +2777,19 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 					       use_multinomial);
 
 		  for (int pos=0; pos < w1; ++pos)
-		    temp_signal[to_int(line[j1+pos])] += z;
+		    temp_signal[to_int(line[j1+first+pos])] += z;
 
 		  for (int pos=0; pos < w2; ++pos)
-		    temp_signal[to_int(line[j2+pos])] += z;
+		    temp_signal[to_int(line[j1+second+pos])] += z;
 
   
 		  if (use_markov_background) {
 		    // first part
 		    for (int pos2=0; pos2 < w1-1; ++pos2)
-		      temp_dinucleotide_signal(to_int(line[j1+pos2]), to_int(line[j1+pos2+1])) += z;
+		      temp_dinucleotide_signal(to_int(line[j1+first+pos2]), to_int(line[j1+first+pos2+1])) += z;
 		    // second part
 		    for (int pos2=0; pos2 < w2-1; ++pos2)
-		      temp_dinucleotide_signal(to_int(line[j2+pos2]), to_int(line[j2+pos2+1])) += z;
+		      temp_dinucleotide_signal(to_int(line[j1+second+pos2]), to_int(line[j1+second+pos2+1])) += z;
 		  }
 
 		}
@@ -2876,6 +2878,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
 
 	    int w1 = fixed_w[tf1];
+	    int w2 = fixed_w[tf2];
 	    //std::vector<double>& signal = use_full_signal ? (d >= minimum_distance_for_learning ? fixed_signal_sum : fixed2_signal_sum) : dummy2;
 	    std::vector<double> temp_signal(4, 0.0);
 	    //	    std::vector<double> temp_signal_rev(4, 0.0);
@@ -2893,8 +2896,10 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      const std::string& line = sequences[i];
 	      const std::string& line_rev = sequences_rev[i];
 
-	      for (int j1=0; j1 < my_cob_params[r].dimer_m[i][d]; ++j1) {  // iterates through start positions
-		for (int dir=0; dir < maxdir; ++dir) {
+	      for (int dir=0; dir < maxdir; ++dir) {
+		int first = dir == 0 ? w1 : w2;  // in the second strand the binding sites are in different order 
+		int last = first+d;
+		for (int j1=0; j1 < my_cob_params[r].dimer_m[i][d]; ++j1) {  // iterates through start positions
 		  double z = my_cob_params[r].overlapping_dimer_Z[i][o][d][dir][j1];
 		  get_new_gap_weights(j1, dirs[dir], z, d, fixed_w[tf1], fixed_w[tf2], 
 				      my_cob_params[r].oriented_dimer_seeds[o].get<0>(), 
@@ -2902,14 +2907,11 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 				      line, line_rev, 
 				      m1,
 				      use_multinomial);
-		  int first = w1; 
-		  int last = w1+d;
 		  for (int pos=first; pos < last; ++pos)
 		    temp_signal[to_int(line[j1+pos])] += z;
 
-		} // for dir
-
-	      } // for j1
+		} // for j1
+	      } // for dir
 	    } // for i in lines
 	      //	    std::reverse(temp_signal_rev.begin(), temp_signal_rev.end());
 	    gap_signal_sum += temp_signal;
