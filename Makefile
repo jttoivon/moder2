@@ -166,10 +166,14 @@ $(distdir):
 # programs
 
 
-MODER_OBJS=moder.o common.o  probabilities.o parameters.o matrix_tools.o my_assert.o combinatorics.o\
+MODER_OBJS=all_pairs_huddinge.o common.o  probabilities.o parameters.o matrix_tools.o my_assert.o combinatorics.o\
 	multinomial_helper.o bndm.o orientation.o data.o iupac.o suffix_array_wrapper.o kmer_tools.o huddinge.o
 $(PRGPREFIX)moder: $(addprefix $(OBJDIR)/, $(MODER_OBJS)) CPM03/difference_cover.o
 	$(CXX) $(CXXFLAGS) $(addprefix $(OBJDIR)/, $(MODER_OBJS)) CPM03/difference_cover.o -o $@ $(LDFLAGS)
+
+
+ALL_PAIRS_HUDDINGE_OBJS=all_pairs_huddinge.o common.o  probabilities.o parameters.o matrix_tools.o my_assert.o combinatorics.o\
+	multinomial_helper.o bndm.o orientation.o data.o iupac.o suffix_array_wrapper.o kmer_tools.o huddinge.o
 
 
 
