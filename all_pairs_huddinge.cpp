@@ -137,7 +137,7 @@ int hamming_radius = 1; // For learning the model from sequences in the hamming 
 
 std::string unbound; // Filename where to store the sequences that had greatest probability under background model
 std::vector<std::string> names;
-std::string outputdir = ".";
+std::string outputfile = "huddinge.dists";
 
 
 int main(int argc, char* argv[])
@@ -182,7 +182,7 @@ int main(int argc, char* argv[])
     ("help",                           "Produce help message")
     ("output", m("Write model parameters to files", use_output).c_str())
     ("names", po::value<string>(),     "Names for the monomer models. Comma separated list. Default: TF0,TF1, ...")
-    ("outputdir", po::value<string>(), m("Directory where to put the learned matrices", outputdir).c_str())
+    ("outputfile", po::value<string>(), m("Output file for distances", outputfile).c_str())
     ("number-of-threads", po::value<int>(), m("Number of threads", number_of_threads).c_str())
     ("single-strand", m("Only consider binding sites in forward strand", not use_two_strands).c_str())
     ("unique", po::value<std::string>(), "Uniqueness of sequences. Either off, unique, 1, 2, 3, ..., default: off")
@@ -249,9 +249,10 @@ int main(int argc, char* argv[])
     if (vm.count("output")) 
       use_output = true;
 
-    if (vm.count("outputdir")) {
-      outputdir = vm["outputdir"].as< string >();
-      use_output = true;
+    if (vm.count("outputfile")) {
+      outputfile = vm["outputfile"].as< string >();
+    } else {
+      error(vm.count("outputfile"), "Must give output file.");
     }
 
 
@@ -289,38 +290,60 @@ int main(int argc, char* argv[])
   }
   printf("Using %zu sequences\n", sequences.size());
 
-  const int N= sequences.size();
+  const unsigned int N= sequences.size();
 
-  boost::numeric::ublas::symmetric_matrix<int> huddinge_dists(N,N);
-  //std::vector<int> huddinge_dists(N*(N-1)/2);
+  //boost::numeric::ublas::symmetric_matrix<int> huddinge_dists(N,N);
+  unsigned char *huddinge_dists;
+  size_t dist_size = (size_t)(N*((N-1.0)/2.0));
 
-#pragma omp parallel for schedule(dynamic,2)
-  for(int i = 1; i<N; i++) {
-    for(int j = 0; j<i; j++) {
-      //int idx = i*(i-1)/2 + j;
+  printf("%lu - %g = %g == 0??\n",dist_size,(double)N*(N-1.0)/2.0, (double)dist_size - (double)N*(N-1.0)/2.0);
+  assert(fabs( (double)dist_size - (double)N*(N-1.0)/2.0) <0.01) ;
+
+  huddinge_dists = (unsigned char*)malloc(dist_size);
+
+  if(huddinge_dists==NULL) {
+  std::cerr << "Couldn't allocate "<<dist_size <<" bytes ("<<(dist_size/(1024.*1024.0*1024.0))
+	    <<" GB) for pairwise distances of "<< N <<" sequences"<<std::endl;
+  exit(2);
+  }
+
+#pragma omp parallel for schedule(guided)
+  for(long unsigned int i = 1; i<N; i++) {
+    long unsigned int idx;
+    if(i%2==0) {  // idx=i*(i-1)/2 + j without huge multiplication
+      idx = (i>>1)*(i-1);
+    } else {
+      idx = i*((i-1)>>1);
+    }
+
+    if((i%1000)==0 ) {
+      printf("Sequence %lu '%s' at idx %lu. Still %lu to go. Error %g.\n",i,sequences[i].c_str(),
+	     idx, dist_size -idx,
+     	     (double)idx-(i*(i-1.0)/2.0));
+    }
+
+
+    for(long unsigned int j = 0; j<i; j++,idx++) {
       int d = huddinge_distance(sequences[i],sequences[j]);
-      //huddinge_dists[idx] = d;
-      huddinge_dists(i,j) = d;
+        huddinge_dists[idx] = (unsigned char)d;
     }
   }
 
-  printf("Writing %g distances\n",(double)N*(N-1)/2);
+  printf("Writing %g distances\n",(double)N*(N-1.0)/2.0);
   // Output format:
   // Number N of sequences
   // List of N sequences, each on it's own row
   // N*(N-1)/2 rows with format i<tab>j<tab>hudding distance between sequences i and j
-  std::cerr << N <<'\n';
-  for(int i = 0; i<N; i++) {
-    std::cerr << sequences[i] <<'\n';
-  }
-  for(int i = 1; i<N; i++) {
-    for(int j = 0; j<i; j++) {
-      //int idx = i*(i-1)/2 + j;
-      //std::cerr << idx <<'\t' <<sequences[i]<<'\t' <<sequences[j]<<'\t' <<huddinge_dists[idx] <<'\n';
-      std::cerr << i << '\t' << j << '\t' << huddinge_dists(i,j) <<'\n';
-    }
-  }
+  std::ofstream fout;
+  fout.open(outputfile);
 
+  fout << N <<'\n';
+  for(int i = 0; i<N; i++) {
+    fout << sequences[i] <<'\n';
+  }
+  fout.write((const char*)huddinge_dists,dist_size);
+  fout.close();
+  free(huddinge_dists);
   
   TIME_PRINT("Whole program took %.2f seconds cpu-time\n", t);
   WALL_TIME_PRINT("Whole program took %.2f seconds wall-time\n", t2);

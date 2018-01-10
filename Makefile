@@ -1,5 +1,5 @@
-package = moder
-version = 0.9.3
+package = all_pairs_huddinge
+version = 0.0.1
 tarname = $(package)
 distdir = $(tarname)-$(version)
 prefix=/usr/local
@@ -49,7 +49,7 @@ endif
 
 # -I /usr/include/x86_64-linux-gnu/c++/4.7/
 
-PROGRAMS=moder
+PROGRAMS=all_pairs_huddinge
 
 CXX=g++
 #CXX=$(HOME)/usr/bin/g++
@@ -76,7 +76,7 @@ CPM03:
 install: all
 	install -d $(prefix)/bin
 	install -d $(docdir)
-	install -m 0755 moder $(prefix)/bin
+	install -m 0755 all_pairs_huddinge $(prefix)/bin
 	install -m 0644 README.md $(docdir)
 
 dist: $(distdir).tar.gz
@@ -99,7 +99,7 @@ distcheck: $(distdir).tar.gz
           ready for distribution."
 
 check: all
-	./moder --prior addone --cob 0-0 data/TFAP2A-head-1000.seq GGGCA > /dev/null
+	./all_pairs_huddinge  data/TFAP2A-head-1000.seq  > /dev/null
 	@echo "*** ALL TESTS PASSED ***"
 
 $(distdir):
@@ -111,7 +111,6 @@ $(distdir):
 	cp COPYING $(distdir)
 	cp Makefile $(distdir)
 	cp heatmap.R $(distdir)
-	cp moder.cpp $(distdir)
 	cp common.cpp $(distdir)
 	cp probabilities.cpp $(distdir)
 	cp parameters.cpp $(distdir)
@@ -166,14 +165,23 @@ $(distdir):
 # programs
 
 
-MODER_OBJS=all_pairs_huddinge.o common.o  probabilities.o parameters.o matrix_tools.o my_assert.o combinatorics.o\
+#ALL_PAIRS_HUDDINGE_OBJS=all_pairs_huddinge.o common.o  probabilities.o parameters.o matrix_tools.o my_assert.o combinatorics.o\
 	multinomial_helper.o bndm.o orientation.o data.o iupac.o suffix_array_wrapper.o kmer_tools.o huddinge.o
-$(PRGPREFIX)moder: $(addprefix $(OBJDIR)/, $(MODER_OBJS)) CPM03/difference_cover.o
-	$(CXX) $(CXXFLAGS) $(addprefix $(OBJDIR)/, $(MODER_OBJS)) CPM03/difference_cover.o -o $@ $(LDFLAGS)
+
+#$(PRGPREFIX)all_pairs_huddinge: $(addprefix $(OBJDIR)/, $(ALL_PAIRS_HUDDINGE_OBJS)) CPM03/difference_cover.o
+#	$(CXX) $(CXXFLAGS) $(addprefix $(OBJDIR)/, $(ALL_PAIRS_HUDDINGE_OBJS)) CPM03/difference_cover.o -o $@ $(LDFLAGS)
+
+
 
 
 ALL_PAIRS_HUDDINGE_OBJS=all_pairs_huddinge.o common.o  probabilities.o parameters.o matrix_tools.o my_assert.o combinatorics.o\
 	multinomial_helper.o bndm.o orientation.o data.o iupac.o suffix_array_wrapper.o kmer_tools.o huddinge.o
+ALL_PAIRS_HUDDINGE_OBJS=all_pairs_huddinge.o common.o  probabilities.o parameters.o matrix_tools.o my_assert.o combinatorics.o\
+	multinomial_helper.o bndm.o orientation.o data.o iupac.o suffix_array_wrapper.o kmer_tools.o huddinge.o
+
+$(PRGPREFIX)all_pairs_huddinge: $(addprefix $(OBJDIR)/, $(ALL_PAIRS_HUDDINGE_OBJS))
+	$(CXX) $(CXXFLAGS) $(addprefix $(OBJDIR)/, $(ALL_PAIRS_HUDDINGE_OBJS)) -o $@ $(LDFLAGS)
+
 
 
 
@@ -200,7 +208,7 @@ $(OBJDIR)/%.d: %.cpp
          sed 's,\($*\)\.o[ :]*,'$(OBJDIR)'/\1.o $@ : ,g' < $@.$$$$ > $@; \
          rm -f $@.$$$$
 
--include $(addprefix $(OBJDIR)/, $(MODER_OBJS:.o=.d))
+-include $(addprefix $(OBJDIR)/, $(ALL_PAIRS_HUDDINGE_OBJS:.o=.d))
 
 
 $(OBJDIR)/%.o: %.cpp
