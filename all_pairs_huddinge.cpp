@@ -296,7 +296,6 @@ int main(int argc, char* argv[])
   unsigned char *huddinge_dists;
   size_t dist_size = (size_t)(N*((N-1.0)/2.0));
 
-  printf("%lu - %g = %g == 0??\n",dist_size,(double)N*(N-1.0)/2.0, (double)dist_size - (double)N*(N-1.0)/2.0);
   assert(fabs( (double)dist_size - (double)N*(N-1.0)/2.0) <0.01) ;
 
   huddinge_dists = (unsigned char*)malloc(dist_size);
@@ -333,7 +332,7 @@ int main(int argc, char* argv[])
   // Output format:
   // Number N of sequences
   // List of N sequences, each on it's own row
-  // N*(N-1)/2 rows with format i<tab>j<tab>hudding distance between sequences i and j
+  // N*(N-1)/2 bytes with hudding distance between sequences i<j where idx = (i*(i-1)/2 +j
   std::ofstream fout;
   fout.open(outputfile);
 

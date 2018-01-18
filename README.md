@@ -3,9 +3,13 @@ Computing pairwise huddinge distances
 
 This is a program for computing all pairwise huddinge distances for
 input sequences. The output is streamed to stderr with 1st line giving
-number N of sequences studied, next N lines give the sequences
-themselves, and the last N(N-1)/2 lines give i and j and huddinge
-distance between sequence i and sequence j.
+number N of sequences studied and the next N lines give the sequences
+themselves. Finally there is N(N-1)/2 bytes of huddinge distances
+between pairs of sequences. The distance between sequences i > j is
+provided by k:th (unsigned) byte where k=i*(i-1)/2 + j.
+
+MODER command line option `--unique` can still be used to remove
+sequences close in hamming distance.
 
 
 Installing and pre-requisities
