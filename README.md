@@ -1,78 +1,134 @@
 Installing and pre-requisities
 ==============================
 
-As the only dependency, moder requires Boost library, which is normally installed on Linux machines. Relatively recent version
+MODER is implemented in C++ and has been tested in Linux platform.
+As the only external dependency, the MODER requires the Boost library, which is normally installed on Linux machines. Relatively recent version
 should be used. At least version 1.49 is known to work.
-To get full advantage of parallellism the compiler should support openmp 4.0 which, for instance, gcc 4.9.0 and later support.
-Running make in the directory of the distribution should compile 'moder'.
-If wanted, you can install by running the command
+To get full advantage of parallellism the compiler should support openmp 4.0 which, for instance, gcc 4.9.0 and later supports.
+Running `make` in the directory of the distribution should compile MODER.
+You can also install MODER by running the command
 
 	sudo make install
 
-or if you want to install to a non-standard location use, for example
+If you want to install to a non-standard location, use for example
 
 	make prefix=$HOME/usr install
 
 which installs the binary to $HOME/usr/bin.
-Running command 'moder' should give brief instructions on the command line parameters.
-The distribution also includes, for internal use, an implementation of suffix array by Juha Kärkkäinen in directory CPM03.
+Running command `moder` should give brief instructions on the command line parameters.
+The packaged also includes, for internal use, an implementation of suffix array by Juha Kärkkäinen in directory CPM03.
+For visualization of pfm models, the package
+includes a modified version of a program called spacek40 by Jussi Taipale.
 
 Running
 =======
 
-The input file to moder should consists of sequences separated by new lines. If you give a fasta file as
-parameter, it ignores the header lines (ones that begin with '>'). If a fasta sequence is split on
-several lines, then moder considers these as separate sequences. So, using a fasta file at the moment
-is not recommended. Also, currently sequences containing non-base characters, such as 'N', are ignored.
+The generic form of running MODER is as follows
 
-By default, no pseudo counts are used. Option '--prior addone' uses pseudo count 1. Option
-'--prior dirichlet' uses pseudo count 0.01 times the initial background frequency of the corresponding nucleotide.
+    moder [ options ] inputfile monomer0,monomer1,...
 
-Use the option '--cob' to specify which cob tables you want to compute. For instance, if you have given
+The input file to MODER should consist of sequences separated by 'new line' characters.
+That is, each sequence should appear on its own line. If you give a fasta file as
+parameter, it ignores the header lines (ones that begin with `>`). If a fasta sequence is split on
+several lines, then MODER considers these as separate sequences. So, using a fasta file at the moment
+is not recommended. Moreover, currently sequences containing non-base characters, such as `N`, are ignored.
+
+The second parameter is a comma separated list of initial values for monomer models. These
+can be given either as IUPAC sequences or as matrices. In the latter case, the option
+`--matrices` should be given.
+
+By default, dirichlet pseudo counts are used, before the count matrices are normalized. Option
+`--prior dirichlet` uses pseudo count 0.01 times the initial background frequency of the corresponding nucleotide.
+Option `--prior addone` uses pseudo count 0.000001.
+The option `--prior none` disables the use of pseudo counts.
+
+Use the option `--cob` to specify which cob tables you want to compute. For instance, if you have given
 seeds for five monomeric binding motifs, then these are referred to with indices 0, 1, 2, 3, and 4.
 If you are interested only in the interaction of motifs 0 and 2, and homodimeric cases of motif 4, then
 you can give the following option:
     --cob 0-2,4-4
+The option `--cob all` can be given to generate all possible cob combinations. For example,
+in the case of two monomeric binding motifs, this creates three cob tables: 0-0,1-1,0-1.
 
-By default, MODER learns the gap area for dimers having positive gap length (d>=0). It
-can however be restricted with option '--max-gap-learned' that gaps are learned only
-for gaps of length at most the given limit. With option '--max-gap-learned -1'
-the gaps are never learned.
+The dimeric cases with non-negative distance between the half-sites, contain position
+that do not belong to either monomer model
+By default, MODER learns also this gap area from the data. It
+can however be restricted with option `--max-gap-learned` that gaps are learned only
+for gaps of length at most the given limit. With option `--max-gap-learned -1`
+the gaps are not learned. When gap positions are not learned from the data, they are filled
+with uniform distribution.
 
-If option '--unbound filename' is given, all the sequences X_i that had background mixing parameter \lambda_i0 larger
-than for any other model's parameter \lambda_ik are dumped to this file, where \lambda_ik = \sum_j z_ikj. In essence, sequences for which the background
+If option `--unbound filename` is given, all the sequences X_i for which the posterior probability of the background model \theta_0 is higher
+than the posterior probability of any other model \theta_k are dumped to this file. In essence, sequences for which the background
 model is the most likely explanation are stored to this file. The purpose of this option is to be able to verify
-later whether the supposed background sequences contain any interesting signal or not.
+later whether the supposed background sequences contain any remaining signal or not.
 
-If option '--output' is given, the program writes monomer motifs, cob tables, deviation matrices and monomer weights to separate files.
-By default these files are written to current directory. This behaviour can be changed with '--outputdir directory' option.
-If option '--names name1,name2,...' is given, these names are used to construct the above filenames instead of TF0, TF1,...
+If option `--output` is given, the program writes monomer motifs, cob tables, deviation matrices and monomer weights to separate files.
+By default these files are written to current directory. This behaviour can be changed with `--outputdir directory` option.
+If option `--names name1,name2,...` is given, these names are used to construct the above filenames instead of TF0, TF1,...
 
-When option --flanks is given, the program also computes the flanking positions of the actual motif(s).
-This option can be used to check that motif long enough not to leave out any informational positions.
+If option `--flanks` is given, the program also computes a model including the flanking positions of the actual motif(s).
+This option can be used to check that motif is long enough not to leave out any informational positions.
 However, the matrices which include the flanks are not dumped to files, even if the option --output is given, but the
-user has to parse these from the program output.
+user has to parse these from the program output (or use the `to_html.py` utility described below).
 
-Example of running moder:
+The option `--number-of-threads n` instructs MODER to use 'n' parallel OpenMP threads to speed up execution time.
 
-	./moder --names TFAP2A --outputdir TFAP2A_models --prior addone --cob 0-0 data/TFAP2A-head-1000.seq GGGCA > result.txt
+**Example of running MODER:**
 
-The data file data/TFAP2A-head-1000.seq contains the first 1000 reads from ENA experiment ERX168813 (http://www.ebi.ac.uk/ena/data/view/ERX168813).
+	./moder --names TFAP2A --outputdir TFAP2A_models --cob 0-0 data/TFAP2A-head-1000.seq GGGCA > result.txt
 
-After the program has run, the full, unparsed result, is in file 'result.txt'.
-In the directory 'TFAP2A_models' the following files are stored:
-   *.pfm	 	 The pfm model of monomer motifs
-   *.cob	     	 The cob table of a transcription factor pair, or of a pair of binding profiles
-   *.deviation	     	 Correction table kappa for each detected overlapping dimeric case
-   monomer_weights.txt	 Weight for each monomer model, separated by commas
+The data file data/TFAP2A-head-1000.seq included in this package contains the first 1000 reads from ENA experiment
+ERX168813 (http://www.ebi.ac.uk/ena/data/view/ERX168813).
 
-If the R package 'pheatmap' is installed, the cob tables can be visualized as follows:
+After the program has run, the full, unparsed result, will be in file 'result.txt'.
+In the directory `TFAP2A_models` the following files are stored:
 
-	./heatmap.R -c TFAP2A_models/TFAP2A-TFAP2A.cob
+* \*.pfm	 	 The pfm model of monomer motifs
+* \*.cob	     	 The cob table of a transcription factor pair, or of a pair of binding profiles
+* \*.dev	     	 Correction table kappa for each detected overlapping/gapped dimeric case
+* monomer_weights.txt	 Weight for each monomer model, separated by commas
 
-creates file TFAP2A_models/TFAP2A-TFAP2A.png.
+Run `moder` without parameters to get description of all possible command line parameters.
 
-	./heatmap.R -c -s TFAP2A_models/TFAP2A-TFAP2A.cob
+Visualizing pfms and cob tables
+===============================
+
+Use the program `myspacek40` to visualize a pfm file to an image.
+
+	./myspacek40 -paths -noname --logo monomer.0.pfm monomer.0.svg
 	
-creates file TFAP2A_models/TFAP2A-TFAP2A.svg.
-Run ./heatmap.R without parameters to get brief instructions.
+The `myspacek40` program only supports svg output, but this format can
+easily be converted to other formats using external tools.
+
+If the python packages `numpy` and `matplotlib` are installed, the cob tables can be visualized as follows:
+
+	./heatmap.py TFAP2A_models/TFAP2A-TFAP2A.cob
+
+shows the visualization on display, and
+
+	./heatmap.py TFAP2A_models/TFAP2A-TFAP2A.cob TFAP2A-TFAP2A.png
+	
+creates file `TFAP2A_models/TFAP2A-TFAP2A.png`. The extension of the output file
+determines the format.
+Run `./heatmap.py` without parameters to get more instructions.
+
+Creating an html report of the results
+======================================
+
+If output of the above example of running MODER is stored in file `result.txt`, then
+an html report can be generated using the command
+
+        ./to_html.py TFAP2A result.txt
+
+This creates a directory named `result.report` that contains all the model component (\*.pfm, \*.cob, \*.dev)
+in numerical form and also visualized form. The directory also contains the html report
+`index.html` that can be viewed using a web browser.
+
+The first parameter to `to_html.py` should be a comma separated list of factor names,
+with as many factor names as there were seeds given to MODER. An exception to this rule
+is when all the seeds given to MODER are just different profiles of the same transcription factor.
+Then, if the first parameter is, for example, 'TF', the report generator will automatically create profile names
+TFa,TFb,TFc, etc, for each seed given to MODER.
+
+All the images in the html page are clickable and reveal more information.

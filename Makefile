@@ -17,6 +17,7 @@ PROGOPT=-lboost_program_options -lboost_system -lboost_filesystem
 endif
 
 CXXFLAGS= -std=gnu++11 -DPACKAGE_VERSION=\"$(version)\" -Wall -Wno-sign-compare -g $(BOOSTINC)
+CFLAGS= -Wall -Wno-sign-compare -g
 
 NOOPENMP?=0
 ifeq ($(NOOPENMP),0)
@@ -58,7 +59,7 @@ LDFLAGS=$(BOOSTLIB) $(PROGOPT) #-L$(HOME)/usr/lib #-B/usr/bin/ld.gold
 export CXXFLAGS
 export LDFLAGS
 
-all: CPM03 $(addprefix $(OBJDIR)/$(PRGPREFIX), $(PROGRAMS))
+all: CPM03 $(addprefix $(OBJDIR)/$(PRGPREFIX), $(PROGRAMS)) myspacek40
 
 
 .PHONY: CPM03
@@ -110,7 +111,10 @@ $(distdir):
 	cp README.md $(distdir)
 	cp COPYING $(distdir)
 	cp Makefile $(distdir)
+	cp myspacek40.c $(distdir)
 	cp heatmap.R $(distdir)
+	cp heatmap.py $(distdir)
+	cp to_html.py $(distdir)
 	cp moder.cpp $(distdir)
 	cp common.cpp $(distdir)
 	cp probabilities.cpp $(distdir)
@@ -172,6 +176,8 @@ $(PRGPREFIX)moder: $(addprefix $(OBJDIR)/, $(MODER_OBJS)) CPM03/difference_cover
 	$(CXX) $(CXXFLAGS) $(addprefix $(OBJDIR)/, $(MODER_OBJS)) CPM03/difference_cover.o -o $@ $(LDFLAGS)
 
 
+myspacek40: myspacek40.c
+	gcc $(CFALGS) $+ -o $@ -lm
 
 
 # test programs

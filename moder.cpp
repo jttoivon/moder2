@@ -54,6 +54,7 @@
 #include <sys/stat.h>
 #include <cstdio>
 #include <cmath>
+#include <ctime>
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -1903,9 +1904,8 @@ create_overlapping_seed(const std::string& seed1, const std::string& seed2, int 
 }
 
 
-// Here a sequence is considered as background if for the background lambda the following hold:
-// \lambda_bg > \lambda_k, for all monomer profiles, and
-// \lambda_bg > \lambda_k1k2od, for all k_1, k_2, o, and d.
+// Here a sequence is considered as background if the posterior probability of background model
+// is higher than the posterior probability of any other model
 void
 print_background_sequences(const std::vector<std::string>& sequences, 
 			   const array_4d_type& fixed_Z, 
@@ -1973,6 +1973,7 @@ print_background_sequences(const std::vector<std::string>& sequences,
 
 
     double background = 1.0 - total_sum;
+    // Is the posterior probability of any monomeric model higher than the posterior probability of the bg model
     for (int k=0; k < fixed_p; ++k) {
       double p = 0.0;
       for (int dir=0; dir < 2; ++dir) {
@@ -1983,6 +1984,7 @@ print_background_sequences(const std::vector<std::string>& sequences,
       if (p >= background)
 	goto my_exit;
     }
+    // Is the posterior probability of any dimeric model higher than the posterior probability of the bg model
     for (int r=0; r < number_of_cobs; ++r) {
       int number_of_orientations = my_cob_params[r].number_of_orientations;
       int dmin = my_cob_params[r].dmin;
@@ -1990,9 +1992,10 @@ print_background_sequences(const std::vector<std::string>& sequences,
       int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
       for (int o=0; o < number_of_orientations; ++o) {
 
+	// dimeric models with deviation
 	for (int d=dmin; d <= max_dist_for_deviation; ++d) {
 	  double p = 0.0;
-	  for (int dir=0; dir < 2; ++dir) {
+	  for (int dir=0; dir < 2; ++dir) {                                      // KORJAA TÄMÄ, USE TWO STRANDS
 	    for (int j=0; j < my_cob_params[r].dimer_m[i][d]; ++j) {
 	      p += my_cob_params[r].overlapping_dimer_Z[i][o][d][dir][j];
 	    }
@@ -2001,6 +2004,7 @@ print_background_sequences(const std::vector<std::string>& sequences,
 	    goto my_exit;
 	}  // end for d
 
+	// dimeric models without deviation
 	for (int d=max_dist_for_deviation+1; d <= dmax; ++d) {
 	  double p = 0.0;
 	  for (int dir=0; dir < 2; ++dir) {
@@ -3564,7 +3568,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      excluded.push_back(to_string("%s %i", orients[o], d));
 	    } else {
 	      if (use_output) {
-		write_matrix_file(to_string("%s/%s-%s.%s.%i.deviation", outputdir.c_str(), names[cp.tf1].c_str(), names[cp.tf2].c_str(),
+		write_matrix_file(to_string("%s/%s-%s.%s.%i.dev", outputdir.c_str(), names[cp.tf1].c_str(), names[cp.tf2].c_str(),
 					    orients[o], d),
 				  cp.deviation[o][d]);
 	      }
@@ -3909,9 +3913,11 @@ int main(int argc, char* argv[])
   feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);   // These exceptions cause trap to occur
 #endif
 
-  if (argc > 1)
+  if (argc > 1) {
+    printf("Command line was: ");
     print_command_line(argc, argv);
-
+  }
+  
   use_two_strands = true;
   bool dmin_given = false;
   bool dmax_given = false;
@@ -3926,6 +3932,7 @@ int main(int argc, char* argv[])
   double epsilon = 0.01;
   double extension_threshold = 2.00;
   std::vector<cob_combination_t> cob_combinations;
+  string prior_parameter = "dirichlet";
 
   std::vector<std::string> sequences;
   std::vector<bool> keep_monomer_fixed;
@@ -3988,9 +3995,8 @@ int main(int argc, char* argv[])
     ("output", m("Write model parameters to files", use_output).c_str())
     ("names", po::value<string>(),     "Names for the monomer models. Comma separated list. Default: TF0,TF1, ...")
     ("outputdir", po::value<string>(), m("Directory where to put the learned matrices", outputdir).c_str())
-    ("number-of-threads", po::value<int>(), m("Number of threads", number_of_threads).c_str())
-    ("prior", po::value<std::string>(), 
-     "Choose either addone or dirichlet prior")
+    ("number-of-threads", po::value<int>(), m("Number of parallel threads", number_of_threads).c_str())
+    ("prior", po::value<std::string>(), m("Choose either addone or dirichlet prior, or none for no pseudo-counts", prior_parameter).c_str())
     ("single-strand", m("Only consider binding sites in forward strand", not use_two_strands).c_str())
     ("unique", po::value<std::string>(), "Uniqueness of sequences. Either off, unique, 1, 2, 3, ..., default: off")
     ("quiet", m("Don't print intermediate results", not local_debug).c_str())
@@ -4018,7 +4024,6 @@ int main(int argc, char* argv[])
   overlapping_dimer_cases_t overlapping_dimer_cases;
   spaced_dimer_cases_t spaced_dimer_cases;
 
-  string prior_parameter;
   po::variables_map vm;
   int fixed_p = 0; // number of fixed models
   // int overlapping_dimer_p = 0; // number of overlapping models
@@ -4096,8 +4101,11 @@ int main(int argc, char* argv[])
       prior_parameter = vm["prior"].as< string >();
       if (prior_parameter == "addone" || prior_parameter == "dirichlet")
 	use_pseudo_counts=true;
+      else if (prior_parameter == "none") {
+	use_pseudo_counts=false;
+      }
       else {
-	error(true, to_string("Invalid prior: %s\n", prior_parameter.c_str()));
+	error(true, to_string("Invalid prior: %s.\nAllowed options are addone, dirichlet, or none\n", prior_parameter.c_str()));
       }
     }   
 
@@ -4106,7 +4114,6 @@ int main(int argc, char* argv[])
       number_of_threads = vm["number-of-threads"].as< int >();
     }
     omp_set_num_threads(number_of_threads);
-    printf("Using %i openmp threads.\n", number_of_threads);
 #endif
 
     if (vm.count("hamming-radius"))
@@ -4376,6 +4383,17 @@ int main(int argc, char* argv[])
     exit(1);
   }
 
+
+  char hostname[200+1];
+  hostname[200] = 0;
+  gethostname(hostname, 200);
+  time_t now;
+  time(&now);
+  printf("Starting program at %s", asctime(localtime(&now))); 
+  printf("MODER version %s\n", PACKAGE_VERSION);
+  printf("Running on host: %s\n", hostname);
+  printf("Using %i openmp threads.\n", number_of_threads);
+  
   if (combine_seeds_func == combine_seeds_OR)
     printf("Using OR combine function.\n");
   else if (combine_seeds_func == combine_seeds_AND)
@@ -4425,7 +4443,8 @@ int main(int argc, char* argv[])
     if (L[i] > Lmax)
       Lmax = L[i];
   }
-  printf("Sequence length is %i\n", Lmin);
+  printf("Minimum sequence length is %i\n", Lmin);
+  printf("Maximum sequence length is %i\n", Lmax);
   printf("Use markov model for background: %s\n", 
 	 yesno(use_markov_background));
   printf("Use positional model for background: %s\n", 
@@ -4588,7 +4607,8 @@ int main(int argc, char* argv[])
     
     // Make sure these are within reasonable limits
     dmin = std::max(-mink + 1, dmin);
-    dmax = std::min(dmax, Lmax - k1 - k2);
+    //    dmax = std::min(dmax, Lmax - k1 - k2);
+    dmax = std::min(dmax, Lmin - k1 - k2);
     max_dist_for_deviation = std::min(max_dist_for_deviation, dmax);
     cob_params_t cp = create_cob(cob_combination, fixedseedlist, fixed_M, dimer_lambda_fraction, 
 				 overlapping_dimer_cases,

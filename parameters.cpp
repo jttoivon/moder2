@@ -22,7 +22,7 @@
 bool use_markov_background=false;
 bool use_positional_background=false;
 bool use_two_strands=false;
-bool use_pseudo_counts=false;
+bool use_pseudo_counts=true;
 bool use_submotif=false;
 bool use_em=true;
 bool reestimate_error_rate=true;
