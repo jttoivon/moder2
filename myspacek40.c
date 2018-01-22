@@ -734,36 +734,6 @@ short int Svg_logo(char *filename, short int number_of_pwms, struct normalized_p
 /* GENERATES LOGO */
   for (top_position = 20; current_pwm < number_of_pwms; current_pwm++) {
 
-/* GENERATES SHAPE HEATMAP, DINUCLEOTIDE LINE AND BASE DEPENDENCY HEATMAP */
-/*     if (current_pwm == 3) */
-/*       if (d != '\0') { */
-/* 	offset = Svg_dinucleotide_heatmap(outfile, 0, current_pwm * 120 - 40, d, bd_signal, bd_expected) - 350; */
-/* 	/\* Dinucleotide_line(outfile, n[current_pwm], 0, current_pwm * 120 - 120,1); *\/ */
-/* 	offset = Svg_base_dependency_heatmap(outfile, (*n[current_pwm]).seed, 0, current_pwm * 120 + offset, bd_signal, bd_expected, n) - 500; */
-/*       } */
-
-/* /\* DRAWS PIECHART *\/ */
-/*     if (current_pwm == 0) */
-/*       if (cm != '\0') { */
-/* 	double *hitcounts; */
-/* 	hitcounts = malloc(sizeof(double) * 4 + 5); */
-/* 	hitcounts[0] = (*cm[1]).one_hit_matches; */
-/* 	hitcounts[1] = (*cm[1]).two_hit_matches; */
-/* 	hitcounts[2] = (*cm[1]).number_of_total_matches - (*cm[1]).one_hit_matches - (*cm[1]).two_hit_matches; */
-/* 	char *hitnames[] = { "One hit", "Two hits", "More hits" }; */
-/* 	char *hitcolors[] = { "lightgreen", "lightsalmon", "red" }; */
-/* 	Svg_piechart(outfile, "hit_piechart", 100, 60 + current_pwm + offset, 50, hitcounts, hitnames, hitcolors, 0, 2); */
-/* 	free(hitcounts); */
-/*       } */
-
-/* /\* PRINTS SPACING HEATMAPS *\/ */
-/*     if (current_pwm == 6) */
-/*       if (cm != '\0') { */
-/* 	Svg_heatmap(outfile, 180, current_pwm * 120 + offset, -1, -1, -1, cm[0]); */
-/* 	Svg_heatmap(outfile, 180, current_pwm * 120 + 150 + offset, -1, -1, -1, cm[1]); */
-/* 	Svg_heatmap(outfile, 180, current_pwm * 120 + 300 + offset, 0, 1, -1, cm[2]); */
-/* 	offset += 470; */
-/*       } */
 
     if (cm != '\0')
       fprintf(outfile, "<g id=\"group%i\" transform=\"translate(%i, %i)\" >", current_pwm, 0 + contacts * 20, current_pwm * 120 + offset);
@@ -1200,11 +1170,8 @@ int main(int argc, char *argv[])
   repeat_report[3] = "Odd_Palindrome";
   repeat_report[4] = "Even_Palindrome";
 
-  /* long int *last_kmer; */
-  /* last_kmer = malloc(sizeof(long int) * 100 + 5); */
 
-  //  double pvalue;
-  //  short int shortcounter;
+
   long int counter;
   long int counter2;
   long int counter3;
@@ -1234,65 +1201,15 @@ int main(int argc, char *argv[])
     number_of_sequences_with_no_hits[counter] = 0;
   }
   short int firstnoncommandposition = 0;
-  //  short int print_counts = 0;
-  //  short int extendedoutput = 0;
-  //  short int remove_non_unique = 0;
-  //  short int print_input_sequences = 0;
-  //  short int print_p_values = 0;
-  //  short int output_all_gap_lengths_in_one_line = 0;
+
   char *linecommand;
-  //  short int too_long_kmer = 8;
-  //  short int shortest_kmer = 8;
 
-  //  short int kmer_length;
-  //  long int line = 0;
-  //  long int current_kmer;
-  /* short int current_kmer_length; */
-  /* short int current_gap_position; */
-  /* short int current_gap_length; */
-
-  /* short int *kmermatch_position; */
-  /* kmermatch_position = malloc(sizeof(short int) * 2 + 5); */
-  //  long int *observed_count_p;
-  /* char *plotfilename; */
-  /* plotfilename = malloc(1000); */
   seed_story = malloc(10000 * sizeof(char) + 5);
   strcpy(seed_story, "\n");
   char *current_sequence = malloc(1000);
   strcpy(current_sequence, "INITIALVALUE");
   char *tempstring = malloc(10000);
-  /* __uint128_t current_sequence_value_ULL; */
-  /* __uint128_t forward_sequence_value_ULL; */
-  /* __uint128_t deleted_sequence_value_ULL; */
-  /* __uint128_t position_value; */
-  //  char *forward_lc = "acgt";
-  //  char *dnareverse = "TGCA";
-  //  signed short int position;
-  //  short int start_position;
-  //  short int end_position;
-  //  short int nucleotide_value;
-  //  short int kmer_count = 1;
-  /* long int kmer_incidence; */
-  /* long int kmer2_incidence; */
-  /* double max_incidence; */
-  /* long int total_incidence; */
-  /* float current_fold_expected; */
-  /* short int nucleotide; */
-  /* short int max_nucleotide; */
-  /* long int max_kmer_count; */
-  /* long int test_kmer; */
-  /* long int test_kmer_count; */
-  /* short int iupac_bits; */
-  /* short int represents_n_nucleotides; */
-  /* long int represents_n_kmers; */
-  /* long int top_normalized_count; */
-  //  double kmer_length_difference_cutoff = 0.35;
-  //  double iupac_cutoff = 0.25;
-  //  short int position2;
-  //  short int localmaxes = 0;
 
-  //  __uint128_t query_sequence_value = 2 * 64 + 3 * 4;	/* SEQUENCE: GATA */
-  //  short int query_sequence_length = 4;
 
   /* FORWARD AND REVERSE NUCLEOTIDE COUNT PWM STRUCTURES */
   struct count_pwm *nc;
@@ -1300,34 +1217,7 @@ int main(int argc, char *argv[])
   count_pwm_init(&nc[0], "EMPTY", max_Nlength, 0);
   count_pwm_init(&nc[1], "EMPTY", max_Nlength, 0);
 
-  //  short int print_nucleotides = 0;
-  //  short int print_frequencies = 0;
-  //  char text1;
-  //  long int charcounter;
-  //  short int deletion_size = 1;
-  //  short int Nmer_position;
-  //  short int too_long_nmer_position;
 
-  //  double minimum_kmer_count = 1;
-  //  short int strand;
-
-  //  short int non_unique_flag = 0;
-  //  short int current_sorted_list = 0;
-  //  short number_of_unordered_sequences = 0;
-  //  struct sequence_incidence_table *index_position;
-  /* struct sequence_incidence_table **sorted_list; */
-  /* sorted_list = malloc(sizeof(struct sequence_incidence_table *) * 2 + 5); */
-  /* struct sequence_incidence_table *unordered_list; */
-  /* unordered_list = malloc(4000); */
-  /* struct sequence_incidence_table **sorted_index; */
-  /* sorted_index = malloc(sizeof(struct sequence_incidence_table *) * 4098 + 10); */
-  //  short int current_sequence_contains_match = 0;
-
-  //  long int current_number_of_different_sequences = 0;
-
-  //  long int matches_to_filter = 0;
-
-  //  short int eof_reached;
 
   double **flank_kmer_expected_count;
   long int *palindromic_hits;
@@ -1343,15 +1233,12 @@ int main(int argc, char *argv[])
       flank_kmer_expected_count[file_number][counter] = 0;
     }
   }
-  //  long int *match_orientations = '\0';
-  //  short int match_length = 0;
+
 
   /* VARIABLES AND STRUCTURES FOR HIT POSITION DATA GENERATION */
   struct hit_position_matrix hit_position;
   hit_position_matrix_init(&hit_position, "hit positions", max_Nlength, 0);
-  //  short int correct_position = 1;
-  //  char limit_hits_to_strand = 'N';
-  //  short int limit_hits_to_position = 0;
+
   char *exclude_strand;
   exclude_strand = malloc(sizeof(char *) * max_Nlength + 5);
   short int *exclude_position;
@@ -1362,43 +1249,13 @@ int main(int argc, char *argv[])
   }
 
   /* FLAGS */
-  //  short int xyplot = 0;
-  /* long int max_counts = 0; */
-  /* short int max_spacing = 0; */
-  /* short int max_orientation = 0; */
-  //  short int flank_with_pwm = 0;
-  //  short int even_background = 0;
-  //  short int only_palindromes = 0;
-  /* short int palindrome_correction = 1; */
-  //  short int information_content_output = 0;
-  //  short int count_also_spaced_kmers = 1;
-  //  short int dinucleotide_properties = 0;
-  /* short int searchstring_is_palindrome = 0; */
-  //  short int flank = 0;
-  //  short int kmer_table = 0;
-  //  short int multinomial = 0;
-  //  short int complex_background = 1;
-  /* short int center_spaced_kmer_table = 0; */
+
   short int svg_only = 0;
-  //  short int match_filter = 0;
-  //  short int modeldistance = 0;
+
   short int difference_logo = 0;
   short int negative_values_allowed = 0;
   short int offset = 0;
-  //  short int lowpaircount = 0;
-  //  short int expected_observed_plot = 0;
-  //  short int number_of_heatmap_rows = 20;
-  //  short int iterate_seed = 0;
-  /* short int remember_iterate_seed = 0; */
-  //  short int end_trim_seed = 0;
-  //  short int same_seed_size = 0;
-  /* short int max_seed_size = 0; */
-  /* short int auto_seed = 1; */
-  /* short int seed_from_local_max_number = 1; */
 
-  /* long int *signal_kmer_count_p; */
-  /* long int *background_kmer_count_p; */
-  /* long int *kmer_count_p_memory; */
 
   char *user_specified_output_file;
   user_specified_output_file = malloc(1000);
@@ -1411,10 +1268,6 @@ int main(int argc, char *argv[])
   max_align_score[0][1] = 0;
   max_align_score[1][0] = 0;
   max_align_score[1][1] = 0;
-  /* char *forward; */
-  /* forward = dnaforward; */
-  //  char *nucleotide_bitiupac = dna_bitiupac;
-  //  char *nucleotide_iupac = dna_iupac;
 
   COMMAND = malloc(5000);
   strcpy(COMMAND, "");
@@ -1430,14 +1283,7 @@ int main(int argc, char *argv[])
       linecommand = argv[1 + firstnoncommandposition];
 
       if (linecommand[0] == '-' && linecommand[1] != '\0') {
-	/* if (strcmp(linecommand, "--pwm") == 0) { */
-	/*   flank_with_pwm = 1; */
-	/*   flank = 1; */
-	/* } */
-	/* if (strcmp(linecommand, "--f") == 0) { */
-	/*   flank = 1; */
-	/*   kmer_count = 0; */
-	/* } */
+
 	if (strcmp(linecommand, "--logo") == 0)
 	  svg_only = 1;
 	if (strcmp(linecommand, "--difflogo") == 0) {
@@ -1445,28 +1291,10 @@ int main(int argc, char *argv[])
 	  difference_logo = 1;
 	  paths = 1;
 	}
-	/* if (strcmp(linecommand, "--dist") == 0) */
-	/*   modeldistance = 1; */
-	/* if (strcmp(linecommand, "--pwmalign") == 0) */
-	/*   pwm_align = 1; */
-	/* if (strcmp(linecommand, "-editdist") == 0) { */
-	/*   lowpaircount = 1; */
-	/*   count_also_spaced_kmers = 1; */
-	/* }; */
+
 	if (strcmp(linecommand, "-paths") == 0)
 	  paths = 1;
-	/* if (strcmp(linecommand, "-barcodelogo") == 0) */
-	/*   barcodelogo = 1; */
-	/* if (strcmp(linecommand, "-heightscaledbars") == 0) */
-	/*   scale_bars = 1; */
-	/* if (strcmp(linecommand, "-maxheightscaledbars") == 0) { */
-	/*   scale_bars = 1; */
-	/*   max_scale_bar = 1; */
-	/* } */
-	/* if (strcmp(linecommand, "-colorscaledbars") == 0) */
-	/*   gray_bars = 1; */
-	/* if (strcmp(linecommand, "-label") == 0) */
-	/*   barcodelogolabels = 1; */
+
 	if (strcmp(linecommand, "-neg") == 0) {
 	  negative_values_allowed = 1;
 	  paths = 1;
@@ -1483,194 +1311,6 @@ int main(int argc, char *argv[])
 	if (strcmp(linecommand, "-noname") == 0)
 	  noname = 1;
 
-	/* if (strcmp(linecommand, "-rna") == 0) { */
-	/*   rna = 1; */
-	/*   nucleotide_bitiupac = rna_bitiupac; */
-	/*   nucleotide_iupac = rna_iupac; */
-	/*   forward = rnaforward; */
-	/* } */
-	/* if (strcmp(linecommand, "-x") == 0) */
-	/*   extendedoutput = 1; */
-	/* if (strcmp(linecommand, "-u") == 0) */
-	/*   remove_non_unique = 1; */
-	/* if (strcmp(linecommand, "-c") == 0) */
-	/*   print_counts = 1; */
-	/* if (strcmp(linecommand, "-p") == 0) */
-	/*   print_p_values = 1; */
-	/* if (strcmp(linecommand, "-i") == 0) */
-	/*   print_input_sequences = 1; */
-	/* if (strcmp(linecommand, "-s") == 0) */
-	/*   output_all_gap_lengths_in_one_line = 1; */
-	/* if (strcmp(linecommand, "-n") == 0) */
-	/*   print_nucleotides = 1; */
-	/* if (strcmp(linecommand, "-q") == 0) */
-	/*   print_frequencies = 1; */
-	/* if (strcmp(linecommand, "-a") == 0) */
-	/*   align_matches = 1; */
-	/* if (strcmp(linecommand, "-xyplot") == 0) */
-	/*   xyplot = 1; */
-	/* if (strcmp(linecommand, "-eoplot") == 0) */
-	/*   expected_observed_plot = 1; */
-	/* if (strcmp(linecommand, "-contacts") == 0) */
-	/*   contacts = 1; */
-	/* if (strcmp(linecommand, "-printlocalmax") == 0) */
-	/*   print_local_max = 1; */
-	/* if (strcmp(linecommand, "-nogaps") == 0) */
-	/*   count_also_spaced_kmers = 0; */
-	/* if (strcmp(linecommand, "-allgaps") == 0) */
-	/*   count_also_spaced_kmers = 2; */
-	/* if (strcmp(linecommand, "-both") == 0) */
-	/*   count_both_instances_of_palindromic_hit = 1; */
-	/* if (strcmp(linecommand, "-nocall") == 0) */
-	/*   nocall = 1; */
-	/* if (strcmp(linecommand, "-CpG") == 0) { */
-	/*   methylCGcompare = 1; */
-	/*   dinucleotide_properties = 1; */
-	/* } */
-	/* if (strcmp(linecommand, "-bothifnotequal") == 0) */
-	/*   count_unequal_hits_only = 1; */
-	/* if (strcmp(linecommand, "-forwardonly") == 0) */
-	/*   count_only_forward_instance_of_palindromic_hit = 1; */
-	/* if (strcmp(linecommand, "-reverseonly") == 0) */
-	/*   count_only_reverse_instance_of_palindromic_hit = 1; */
-	/* if (strcmp(linecommand, "-forwardifequal") == 0) */
-	/*   prefer_forward_strand = 1; */
-	/* if (strcmp(linecommand, "-reverseifequal") == 0) */
-	/*   prefer_reverse_strand = 1; */
-	/* if (strcmp(linecommand, "-dimer") == 0) */
-	/*   only_palindromes = 1; */
-	/* if (strcmp(linecommand, "-dinuc") == 0) */
-	/*   dinucleotide_properties = 1; */
-	/* if (strcmp(linecommand, "-kmer") == 0) */
-	/*   kmer_table = 1; */
-	/* if (strcmp(linecommand, "-ic") == 0) */
-	/*   information_content_output = 1; */
-	/* if (strcmp(linecommand, "-e") == 0) { */
-	/*   even_background = 1; */
-	/*   file_number++; */
-	/* } */
-	/* if (strcmp(linecommand, "-14N") == 0) */
-	/*   Nlength = 15; */
-	/* if (strcmp(linecommand, "-26N") == 0) */
-	/*   Nlength = 27; */
-	/* if (strcmp(linecommand, "-30N") == 0) */
-	/*   Nlength = 31; */
-	/* if (strcmp(linecommand, "-40N") == 0) */
-	/*   Nlength = 41; */
-	/* if (strcmp(linecommand, "-mono") == 0) */
-	/*   complex_background = 0; */
-	/* if (strcmp(linecommand, "-iterate") == 0) { */
-	/*   iterate_seed = 1; */
-	/* } */
-	/* if (strcmp(linecommand, "-iterate-fast") == 0) { */
-	/*   iterate_seed = 1; */
-	/*   end_trim_seed = 1; */
-	/* } */
-	/* if (strcmp(linecommand, "-iterate-samesize") == 0) { */
-	/*   iterate_seed = 1; */
-	/*   same_seed_size = 1; */
-	/* } */
-	/* if (linecommand[0] == '-' && linecommand[1] == 'o' && linecommand[2] == '=') */
-	/*   strcpy(user_specified_output_file, linecommand + 3); */
-
-	/* if (linecommand[0] == '-' && linecommand[1] == 'm' && linecommand[2] == '=') */
-	/*   multinomial = atoi(linecommand + 3); */
-
-	/* if (linecommand[0] == '-' && linecommand[1] == 'f' && linecommand[2] == 'k' && linecommand[3] == '=') */
-	/*   flank_kmer_pos = atoi(linecommand + 4); */
-
-	/* if (linecommand[0] == '-' && linecommand[1] == 'm' && linecommand[2] == 'f' && linecommand[3] == '=') */
-	/*   match_filter = atoi(linecommand + 4); */
-
-	/* if (linecommand[0] == '-' && linecommand[1] == 'k' && linecommand[2] == 'l' && linecommand[3] == '=') { */
-	/*   shortest_kmer = atoi(linecommand + 4); */
-	/*   too_long_kmer = shortest_kmer + 1; */
-	/* } */
-
-	/* if (linecommand[0] == '-' && linecommand[1] == 'l' && linecommand[2] == 'o' && linecommand[7] == '=') { */
-	/*   kmer_length_difference_cutoff = atof(linecommand + 8); */
-	/* } */
-
-	/* if (linecommand[0] == '-' && linecommand[1] == 'i' && linecommand[2] == 'u' && linecommand[6] == '=') { */
-	/*   iupac_cutoff = atof(linecommand + 7); */
-	/* } */
-
-	/* if (linecommand[0] == '-' && linecommand[1] == 'h' && linecommand[2] == 'r' && linecommand[6] == '=') { */
-	/*   number_of_heatmap_rows = atof(linecommand + 7); */
-	/* } */
-
-	/* if (linecommand[0] == '-' && linecommand[1] == 'e' && linecommand[2] == 'd' && linecommand[9] == '=') { */
-	/*   lowpaircount = 1; */
-	/*   local_max_min_percent = ((double)atoi(linecommand + 10)) / 100; */
-	/* } */
-
-	/* if (linecommand[0] == '-' && linecommand[1] == 'l' && linecommand[2] == 'i' && linecommand[3] == 'm' && linecommand[4] == '=') { */
-	/*   limit_hits_to_position = atoi(linecommand + 5); */
-	/*   limit_hits_to_strand = linecommand[strlen(linecommand) - 1]; */
-	/* } */
-
-	/* if (linecommand[0] == '-' && linecommand[1] == 'e' && linecommand[2] == 'x' && linecommand[3] == 'c' && linecommand[4] == '=') { */
-	/*   for (counter = 0, linecommand += 5; counter < max_Nlength; counter++, linecommand++) { */
-	/*     exclude_position[counter] = atoi(linecommand); */
-	/*     for (; *linecommand != ',' && *linecommand != '\0'; linecommand++) ; */
-	/*     exclude_strand[counter] = *(linecommand - 1); */
-	/*     if (*linecommand == '\0') */
-	/*       break; */
-	/*   } */
-	/* } */
-
-	/* if (linecommand[0] == '-' && linecommand[1] == 'm' && linecommand[2] == 'a' && linecommand[3] == 't' && linecommand[6] == '=') { */
-	/*   char *halfsite1; */
-	/*   char *halfsite2; */
-	/*   halfsite1 = malloc(1000); */
-	/*   halfsite2 = malloc(1000); */
-	/*   for (counter = 7; counter < strlen(linecommand), linecommand[counter] != ','; counter++) ; */
-	/*   strcpy(halfsite2, linecommand + counter + 1); */
-	/*   strcpy(halfsite1, linecommand + 7); */
-	/*   halfsite1[counter - 7] = '\0'; */
-	/*   //printf("\nHalfsites %s,%s, %i\n", halfsite1, halfsite2, counter); */
-	/*   for (query_sequence_value = 0, position = 0, position_value = pow(4, strlen(halfsite1) - 1); position < strlen(halfsite1); */
-	/*        position++, position_value /= 4) { */
-	/*     for (nucleotide_value = 0; nucleotide_value < 4 && halfsite1[position] != forward[nucleotide_value]; nucleotide_value++) ; */
-	/*     if (nucleotide_value == 4) { */
-	/*       printf("\nERROR IN MATCH SEQUENCE\n"); */
-	/*       exit(1); */
-	/*     } */
-	/*     query_sequence_value += position_value * nucleotide_value; */
-	/*   } */
-	/*   long int halfsite1_value = query_sequence_value; */
-	/*   for (query_sequence_value = 0, position = 0, position_value = pow(4, strlen(halfsite2) - 1); position < strlen(halfsite2); */
-	/*        position++, position_value /= 4) { */
-	/*     for (nucleotide_value = 0; nucleotide_value < 4 && halfsite2[position] != forward[nucleotide_value]; nucleotide_value++) ; */
-	/*     if (nucleotide_value == 4) { */
-	/*       printf("\nERROR IN MATCH SEQUENCE\n"); */
-	/*       exit(1); */
-	/*     } */
-	/*     query_sequence_value += position_value * nucleotide_value; */
-	/*   } */
-	/*   long int halfsite2_value = query_sequence_value; */
-
-	/*   match_orientations = malloc(sizeof(long int) * 10 + 5); */
-	/*   short int shift1 = strlen(halfsite1) * 2; */
-	/*   short int shift2 = strlen(halfsite2) * 2; */
-
-	/*   /\* HETERODIMER *\/ */
-	/*   match_orientations[0] = halfsite1_value << shift1 | halfsite2_value; */
-	/*   match_orientations[1] = halfsite2_value << shift2 | halfsite1_value; */
-	/*   match_orientations[2] = Reverse_complement_sequence_value_li(halfsite1_value, strlen(halfsite1)) << shift1 | halfsite2_value; */
-	/*   match_orientations[3] = halfsite1_value << shift1 | Reverse_complement_sequence_value(halfsite2_value, strlen(halfsite2)); */
-
-	/*   /\* HOMODIMER1 *\/ */
-	/*   match_orientations[4] = halfsite1_value << shift1 | halfsite1_value; */
-	/*   match_orientations[5] = Reverse_complement_sequence_value(halfsite1_value, strlen(halfsite1)) << shift1 | halfsite1_value; */
-	/*   match_orientations[6] = halfsite1_value << shift1 | Reverse_complement_sequence_value(halfsite1_value, strlen(halfsite1)); */
-
-	/*   /\* HOMODIMER2 *\/ */
-	/*   match_orientations[7] = halfsite2_value << shift2 | halfsite2_value; */
-	/*   match_orientations[8] = Reverse_complement_sequence_value(halfsite2_value, strlen(halfsite2)) << shift2 | halfsite2_value; */
-	/*   match_orientations[9] = halfsite2_value << shift2 | Reverse_complement_sequence_value(halfsite2_value, strlen(halfsite2)); */
-	/*   match_length = strlen(halfsite1) + strlen(halfsite2); */
-	/* } */
 
       } else
 	break;
@@ -1704,8 +1344,6 @@ int main(int argc, char *argv[])
   char *searchstring;
   searchstring = malloc(1000);
   strcpy(searchstring, "-");
-  /* char *valuestring; */
-  /* valuestring = malloc(1000); */
 
   short int *number_of_matches;
   number_of_matches = malloc(sizeof(short int) * 200 + 5);
@@ -1727,7 +1365,6 @@ int main(int argc, char *argv[])
   cms_to_heatmap = malloc(sizeof(struct count_connecting_matrix *) * 4 + 5);
   cms_to_heatmap[0] = &cm;
 
-  //  short int iupac_query = 0;
 
   struct count_connecting_matrix two_hits_connecting_matrix;
   count_connecting_matrix_init(&two_hits_connecting_matrix, "two hit connecting matrix", Nlength, 0);
@@ -1791,21 +1428,7 @@ int main(int argc, char *argv[])
   struct normalized_connecting_matrix cp;
   normalized_connecting_matrix_init(&cp, "normalized connecting matrix", Nlength * 2, 0);
 
-  /* ADM STRUCTURES */
-  /* struct adjacent_dinucleotide_model unflanked_adm; */
-  /* struct adjacent_dinucleotide_model flanked_adm; */
-  /* struct adjacent_dinucleotide_model *flanked_adm_p; */
 
-  /* short int first; */
-  /* short int last; */
-  /* short int first_match_position; */
-  /* short int spacing; */
-  /* short int orientation; */
-  /* __uint128_t first_sequence_value_ULL; */
-  /* char *pwm_name; */
-  /* double cut_off = 9; */
-  /* double filter_cut_off = 9; */
-  /* double multi_2_cut_off = 9; */
 
   /* VARIABLES AND STRUCTURES FOR LOGO GENERATION */
   //  short int current_logo = 0;
@@ -1817,47 +1440,7 @@ int main(int argc, char *argv[])
     normalized_pwm_init(&np[counter], "empty", Nlength * 2, 0);
     np_p[counter] = &np[counter];
   }
-  //  long int total_number_of_two_hits;
-  //  long int total_possible_spacings;
 
-/* /\* VARIABLES FOR MULTINOMIAL *\/ */
-/*   double swap = 0; */
-/*   file_number = 0; */
-/*   double lambda = 1; */
-/*   short int no_insertions = 0; */
-/*   short int multinomial_2_dinuc = 0; */
-/*   long int background_kmer_count; */
-/*   long int signal_kmer_count; */
-/*   long int number_of_kmers = 0; */
-
-/* /\* VARIABLES FOR INFORMATION CONTENT *\/ */
-/*   double background_info = 16; */
-/*   double signal_info = 16; */
-/*   double background_nonhit_info = -100; */
-/*   double signal_nonhit_info = -100; */
-/*   double fraction; */
-/*   double total_exp; */
-/*   double total_obs; */
-
-/*   double current_ic_score; */
-/*   double max_ic_score = 0; */
-/*   double ic_score = 0; */
-/*   double delta_ic = 0; */
-/*   short int max_first = 0; */
-/*   short int max_second = 0; */
-/*   short int end_trim = 15; */
-/*   short int max_dinucleotide; */
-/*   short int min_dinucleotide; */
-/*   short int warning = 0; */
-/*   double forward_pos_ic; */
-/*   double reverse_pos_ic; */
-/*   double min_fold; */
-/*   double max_fold; */
-/*   double current_fold; */
-
-  //  short int load_pwm = 0;
-  //  short int load_adm = 0;
-  //  short int loaded_pwm_width = 0;
 
 /* double **total_relative_deviation;
 total_relative_deviation = malloc(sizeof(double *) * Nlength * 2 + 5);
@@ -1866,9 +1449,6 @@ for(counter = 0; counter < Nlength * 2; counter++) total_relative_deviation[coun
   uncentered_correlation = malloc(sizeof(double *) * Nlength * 2 + 5);
   for (counter = 0; counter < Nlength * 2; counter++)
     uncentered_correlation[counter] = malloc(sizeof(double) * Nlength * 2 + 5);
-  //  long double sum_x_squared;
-  //long double sum_y_squared;
-  //  long double sum_xy;
 
 
 /* LOGO OPTION ENTIRE MAIN PROGRAM CODE */

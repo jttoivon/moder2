@@ -78,6 +78,9 @@ install: all
 	install -d $(prefix)/bin
 	install -d $(docdir)
 	install -m 0755 moder $(prefix)/bin
+	install -m 0755 heatmap.py $(prefix)/bin
+	install -m 0755 to_html.py $(prefix)/bin
+	install -m 0755 myspacek40 $(prefix)/bin
 	install -m 0644 README.md $(docdir)
 
 dist: $(distdir).tar.gz
