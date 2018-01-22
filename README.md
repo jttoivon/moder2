@@ -132,3 +132,13 @@ Then, if the first parameter is, for example, 'TF', the report generator will au
 TFa,TFb,TFc, etc, for each seed given to MODER.
 
 All the images in the html page are clickable and reveal more information.
+
+Computing pairwise huddinge distances
+=====================================
+
+This is a program for computing all pairwise huddinge distances for
+input sequences. The output is by default streamed to file `huddinge.dists` with 1st line giving
+number N of sequences studied and the next N lines give the sequences
+themselves. Finally there is N(N-1)/2 bytes of huddinge distances
+between pairs of sequences. The distance between sequences i > j is
+provided by kth (unsigned) byte where k=i*(i-1)/2 + j.
