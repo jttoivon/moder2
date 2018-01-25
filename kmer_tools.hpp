@@ -251,8 +251,13 @@ template <typename T>
 int
 hamming_distance_with_bits(T x, T y)
 {
+
+  // clang compiler does not support this on (u)int128 type
+#ifndef __clang__
   static_assert(std::is_unsigned<T>::value,
 		"hamming_distance_with_bits requires unsigned parameter type");
+#endif
+  
   // Note! Here we assume that the leftmost bits are cleared and contain no thrash.
   // We could also get length of string as parameter and mask out the extra bits, just to be sure, but this would slow things down.
   static const T evenmask = detail::get_even_mask<T>();

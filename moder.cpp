@@ -61,7 +61,10 @@
 #include <fenv.h>
 
 #include <libgen.h>   // for dirname and basename
+
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 
 #include <string>
 #include <iostream>
@@ -2047,7 +2050,7 @@ get_number_of_parameters(std::vector<cob_params_t>& my_cob_params, std::vector<d
     for (int d=dmin; d <= max_dist_for_deviation; ++d) {
       for (int o=0; o < number_of_orientations; ++o) {
 	if (my_cob_params[r].dimer_lambdas[o][d] != 0.0)
-	  number_of_parameters += 4 * (2+fabs(d));     // correction matrices
+	  number_of_parameters += 4 * (2+abs(d));     // correction matrices
       }
     }
   }

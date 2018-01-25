@@ -16,8 +16,16 @@ BOOSTLIB=
 PROGOPT=-lboost_program_options -lboost_system -lboost_filesystem
 endif
 
+CXX=g++
+#CXX=clang++
+#CXX=$(HOME)/usr/bin/g++
+
 CXXFLAGS= -std=gnu++11 -DPACKAGE_VERSION=\"$(version)\" -Wall -Wno-sign-compare -g $(BOOSTINC)
 CFLAGS= -Wall -Wno-sign-compare -g
+
+ifeq ($(CXX), clang++)
+	CXXFLAGS += -Wno-unused-function
+endif
 
 NOOPENMP?=0
 ifeq ($(NOOPENMP),0)
@@ -52,8 +60,6 @@ endif
 
 PROGRAMS=moder all_pairs_huddinge
 
-CXX=g++
-#CXX=$(HOME)/usr/bin/g++
 
 LDFLAGS=$(BOOSTLIB) $(PROGOPT) #-L$(HOME)/usr/lib #-B/usr/bin/ld.gold
 export CXXFLAGS

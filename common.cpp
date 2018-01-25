@@ -164,7 +164,7 @@ count_frequencies(const std::string& s)
 }
 
 std::string
-to_string(const std::string& format, ...)
+to_string(std::string format, ...)
 {
   char* tmpstr;
 
@@ -195,7 +195,7 @@ vto_string(const std::string& format, va_list args)
 }
 
 void
-underline(const std::string& format, ...)
+underline(std::string format, ...)
 {
   va_list args;
   va_start( args, format );

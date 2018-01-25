@@ -82,11 +82,13 @@ extended_dna_to_number(const std::string& s)
   big_int sum=0;
   for (int i=0;i<s.size(); ++i)
     sum = sum*5 + to_int(s[i]);
-  
+
+  /*
   if (sum < 0) {
     std::cout << s << std::endl;
     throw "sika";
   }
+  */
   return sum;
 }
 
@@ -121,10 +123,6 @@ number_to_extended_dna(big_int i, int l)
 
 
 
-
-
-
-
 // interpret string of nucleid acids as a number in base 4
 // The first nucleotide of the string is in the most significant end
 big_int
@@ -137,10 +135,11 @@ vector_to_number(const std::vector<int>& s)
   for (int i=0;i<s.size(); ++i)
     sum = sum*4 + s[i];
 
-  
+  /*
   if (sum < 0) {
     throw "sika";
   }
+  */
   return sum;
 }
 
@@ -172,10 +171,12 @@ extended_vector_to_number(const std::vector<int>& s)
   big_int sum=0;
   for (int i=0;i<s.size(); ++i)
     sum = sum*5 + s[i];
-  
+
+  /*
   if (sum < 0) {
     throw "sika";
   }
+  */
   return sum;
 }
 

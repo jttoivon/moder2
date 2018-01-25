@@ -57,7 +57,10 @@
 #include <fenv.h>
 
 #include <libgen.h>   // for dirname and basename
+
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 
 #include <string>
 #include <iostream>

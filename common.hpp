@@ -93,10 +93,10 @@ atof(const std::string& s);
 
 
 std::string
-to_string(const std::string& format, ...);
+to_string(std::string format, ...);
 
 void
-underline(const std::string& format, ...);
+underline(std::string format, ...);
 
 extern matrix<double> positional_background;
 
