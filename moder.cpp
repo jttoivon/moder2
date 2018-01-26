@@ -79,7 +79,13 @@
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 
+// clang does not seem to be able to handle 128 bit type (long double)
+// in openmp constructs
+#if defined(__clang__)
+typedef double FloatType;
+#else
 typedef long double FloatType;
+#endif
 
 typedef boost::tuple<int,int> cob_combination_t;
 
@@ -1626,8 +1632,10 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
   // Signal from monomeric models
   for (int k=0; k < fixed_p; ++k) {
     dmatrix pwm(4, 2*Lmax-fixed_w[k]);
-    // This requires at least gcc 4.9
-#if defined _OPENMP && _OPENMP >= 201307
+    // This requires at least gcc 4.9.
+    // clang (at least not 3.8) does not support 'declare reduction' even
+    // though it defines _OPENMP to 201307 (that is openmp 4.0).
+#if defined(_OPENMP) && (_OPENMP >= 201307) && !defined(__clang__)
 #pragma omp declare reduction( + : dmatrix : omp_out+=omp_in ) initializer(omp_priv(omp_orig.dim()))
 #pragma omp declare reduction( + : std::vector<double, std::allocator<double> > : omp_out+=omp_in ) initializer(omp_priv(std::vector<double>(omp_orig.size())))
 #pragma omp parallel for shared(lines,sequences,use_two_strands) reduction(+:pwm) schedule(static)
@@ -1667,7 +1675,9 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
 
 	dmatrix pwm(4, 2*Lmax - my_cob_params[r].dimer_w[d]);
 	// This requires gcc 4.9
-#if defined _OPENMP && _OPENMP >= 201307
+	// clang (at least not 3.8) does not support 'declare reduction' even
+	// though it defines _OPENMP to 201307 (that is openmp 4.0).
+#if defined(_OPENMP) && (_OPENMP >= 201307) && !defined(__clang__)
 #pragma omp declare reduction( + : dmatrix : omp_out+=omp_in ) initializer(omp_priv(omp_orig.dim()))
 #pragma omp declare reduction( + : std::vector<double, std::allocator<double> > : omp_out+=omp_in ) initializer(omp_priv(std::vector<double>(omp_orig.size())))	
 #pragma omp parallel for reduction(+:pwm) schedule(static)
@@ -1724,7 +1734,9 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
 	pwm.fill_with(0.0);
 
 	// This requires gcc 4.9
-#if defined _OPENMP && _OPENMP >= 201307
+    // clang (at least not 3.8) does not support 'declare reduction' even
+    // though it defines _OPENMP to 201307 (that is openmp 4.0).
+#if defined(_OPENMP) && (_OPENMP >= 201307) && !defined(__clang__)
 	//	    dmatrix& pwm1 = m1[r];
 	//	    dmatrix& pwm2 = m2[r];
 #pragma omp declare reduction( + : dmatrix : omp_out+=omp_in ) initializer(omp_priv(omp_orig.dim()))
@@ -2600,7 +2612,9 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	std::vector<double> temp_signal_rev(4, 0.0);
 
 	// This requires at least gcc 4.9
-#if defined _OPENMP && _OPENMP >= 201307
+	// clang (at least not 3.8) does not support 'declare reduction' even
+	// though it defines _OPENMP to 201307 (that is openmp 4.0).
+#if defined(_OPENMP) && (_OPENMP >= 201307) && !defined(__clang__)
 #pragma omp declare reduction( + : dmatrix : omp_out+=omp_in ) initializer(omp_priv(omp_orig.dim()))
 #pragma omp declare reduction( + : std::vector<double, std::allocator<double> > : omp_out+=omp_in ) initializer(omp_priv(std::vector<double>(omp_orig.size())))
 #pragma omp parallel for shared(lines,sequences,use_two_strands) reduction(+:pwm,temp_dinucleotide_signal,temp_dinucleotide_signal_rev,temp_signal,temp_signal_rev) schedule(static)
@@ -2667,7 +2681,9 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
 	    dmatrix pwm(overlapping_dimer_weights[r][o][d].dim());
 	    // This requires gcc 4.9
-#if defined _OPENMP && _OPENMP >= 201307
+	    // clang (at least not 3.8) does not support 'declare reduction' even
+	    // though it defines _OPENMP to 201307 (that is openmp 4.0).
+#if defined(_OPENMP) && (_OPENMP >= 201307) && !defined(__clang__)
 #pragma omp declare reduction( + : dmatrix : omp_out+=omp_in ) initializer(omp_priv(omp_orig.dim()))
 #pragma omp declare reduction( + : std::vector<double, std::allocator<double> > : omp_out+=omp_in ) initializer(omp_priv(std::vector<double>(omp_orig.size())))	
 #pragma omp parallel for reduction(+:pwm,temp_dinucleotide_signal,temp_dinucleotide_signal_rev,temp_signal,temp_signal_rev) schedule(static)
@@ -2727,7 +2743,9 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    dmatrix temp_dinucleotide_signal(4, 4);
 	    dmatrix temp_dinucleotide_signal_rev(4, 4);
 	    // This requires gcc 4.9
-#if defined _OPENMP && _OPENMP >= 201307
+	    // clang (at least not 3.8) does not support 'declare reduction' even
+	    // though it defines _OPENMP to 201307 (that is openmp 4.0).
+#if defined(_OPENMP) && (_OPENMP >= 201307) && !defined(__clang__)
 	    //	    dmatrix& pwm1 = m1[r];
 	    //	    dmatrix& pwm2 = m2[r];
 #pragma omp declare reduction( + : dmatrix : omp_out+=omp_in ) initializer(omp_priv(omp_orig.dim()))
@@ -2862,7 +2880,9 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    dmatrix temp_dinucleotide_signal(4, 4);
 	    dmatrix temp_dinucleotide_signal_rev(4, 4);
 	    // This requires gcc 4.9
-#if defined _OPENMP && _OPENMP >= 201307
+	    // clang (at least not 3.8) does not support 'declare reduction' even
+	    // though it defines _OPENMP to 201307 (that is openmp 4.0).
+#if defined(_OPENMP) && (_OPENMP >= 201307) && !defined(__clang__)
 #pragma omp declare reduction( + : dmatrix : omp_out+=omp_in ) initializer(omp_priv(omp_orig.dim()))
 #pragma omp declare reduction( + : std::vector<double> : omp_out+=omp_in ) initializer(omp_priv(std::vector<double>(omp_orig.size())))
 #pragma omp parallel for reduction(+:m1, temp_dinucleotide_signal,temp_dinucleotide_signal_rev, temp_signal, temp_signal_rev) schedule(static)
