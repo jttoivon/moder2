@@ -1258,23 +1258,24 @@ f.write("</div>\n")
 
 monomer_lambdas=[ y for x,y in lambda_table][0:number_of_factors]
 # These are for the title attribute of the images
-monomer_titles=[ "Lambda: %f&#010;IC: %f&#010;Length: %i" % (l,i, length) for l, i, length in zip(monomer_lambdas, monomer_ics, monomer_lengths)]
+monomer_titles=[ "Lambda: %f&#010;IC: %.2f&#010;Length: %i" % (l,i, length) for l, i, length in zip(monomer_lambdas, monomer_ics, monomer_lengths)]
 f.write('<div id="factors">')
 f.write('<h2>Monomer motifs</h2>')
 make_table_h(f, logo_files, factors, monomer_titles)
 f.write("</div>")
 
+
 ###################
 #
 # Print the cob tables and the best case from each cob table
 
-f.write('<div id="cobs">')
-f.write('<h2>COB tables</h2>')
-make_table_v2(f, cob_files, [""]*number_of_cobs, cob_links)
 if number_of_cobs > 0:
+    f.write('<div id="cobs">')
+    f.write('<h2>COB tables</h2>')
+    make_table_v2(f, cob_files, [""]*number_of_cobs, cob_links)
     f.write('<h2>Strongest dimeric case from each cob table</h2>')
-make_table_v3(f, best_cases, best_cases_headers, best_cases_links, ".html", best_cases_titles)
-f.write("</div>")
+    make_table_v3(f, best_cases, best_cases_headers, best_cases_links, ".html", best_cases_titles)
+    f.write("</div>")
 
 ###############################
 #
@@ -1302,6 +1303,11 @@ if debug:
 #print '<img src="background.svg"\>'
 #print '</div>'
 
+citation="""Jarkko Toivonen, Teemu Kivioja, Arttu Jolma, Yimeng Yin, Jussi Taipale, Esko Ukkonen (2018) Modular discovery of monomeric and dimeric
+transcription factor binding motifs for large data sets, Nucleic Acids Research, to appear."""
+bibtex=""
+moder_doi="https://doi.org/10.1093/nar/gky027"
+
 f.write('<div id="programinfo">\n')
 f.write("<ul>\n")
 f.write("<li>Command line was: %s</li>\n" % command)
@@ -1310,6 +1316,7 @@ f.write("<li>MODER version: %s</li>\n" % version)
 f.write("<li>MODER was run on host: %s</li>\n" % hostname)
 f.write("<li>Number of simultaneous threads: %s</li>\n" % threads)
 f.write("<li>MODER is available from <a href='https://github.com/jttoivon/MODER'>GitHub</a></li>")
+f.write("<li>If you use MODER in your research, please cite: %s <a href='%s'>Link to article.</a>\n</li>" % (citation,moder_doi))
 f.write("</ul>\n")
 f.write("</div>")
 
@@ -1398,6 +1405,10 @@ for i, cob_factor in enumerate(cob_factors):
 
 #myrun("cp %s/style.css ." % execdir)
 
+with open("monomer_weights.txt", "w") as f:
+    f.write("%s\n" % (",".join(factors)))
+    f.write("%s\n" % (",".join(map(str, monomer_lambdas))))
+    
 with open("style.css", "w") as f:
     f.write(css)
     
