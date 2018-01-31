@@ -28,7 +28,12 @@ def float_to_string(f):
         return "-"
     else:
         return '%.0f' % (f*1000)
-    
+
+def myfloat(s):
+    "Converts string to float. Allows use of unicode minus sign (u'\u2212')."
+    r = "".join(map(lambda x : "-" if x == u'\u2212' else x, s))
+    return float(r)
+
 def make_heatmap(data, drange, title="", outputfile="", fontsize=32.0):
 #    plt.style.use('ggplot')
     
@@ -93,12 +98,16 @@ def make_heatmap(data, drange, title="", outputfile="", fontsize=32.0):
     ax.grid(which='minor', color='black', linestyle='-', linewidth=1, solid_joinstyle='round')
 
     cax = divider.append_axes("right", size="5%", pad=0.05)
-    plt.colorbar(cax=cax)
-    temp=cax.get_yticklabels()
-    for i,t in enumerate(temp):
-        #print temp[i].get_text()
-        temp[i].set_text("%.0f" % (float(temp[i].get_text())*1000))   # Multiply values in colorbar by 1000
-    cax.set_yticklabels(temp)
+    try:
+        cb=plt.colorbar(cax=cax)
+        temp=cax.get_yticklabels()
+        for i,t in enumerate(temp):
+            #print temp[i].get_text()
+            temp[i].set_text("%.0f" % (float(temp[i].get_text())*1000))   # Multiply values in colorbar by 1000
+        cax.set_yticklabels(temp)
+    except UnicodeEncodeError:   # If labels contain unicode minus, then something went wrong and better not show colorbar
+        cb.remove()
+        pass
 #    cax.yaxis.set_tick_params(labelright=False)   # No tick labels in colorbar
 #    print data
     if outputfile:
