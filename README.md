@@ -136,7 +136,10 @@ All the images in the html page are clickable and reveal more information.
 Computing pairwise huddinge distances
 =====================================
 
-This is a program for computing all pairwise huddinge distances for
+This part is not closely related to MODER, but can be useful to
+cluster or otherwise visualize the set of k-mers of a data set.
+
+The program `all_pairs_huddinge` computes all pairwise huddinge distances for
 input sequences. The output is by default streamed to file `huddinge.dists` with 1st line giving
 number N of sequences studied and the next N lines give the sequences
 themselves. Finally there is N(N-1)/2 bytes of huddinge distances

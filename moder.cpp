@@ -3993,7 +3993,10 @@ int main(int argc, char* argv[])
     ("max-iter", po::value<int>(),   m("Maximum number of iterations", max_iter).c_str())
     ("epsilon", po::value<double>(),        m("Epsilon defines convergence of EM (double). Elementwise maximum distance between two consequent matrices", epsilon).c_str())
 
-    ("cob", po::value<string>(),     "List of cob tables wanted. Example format: --cob '0-0,1-1,0-1', where the numbers refer to the indices of the fixed list. Use option '--cob all' to create all combinations.")
+    ("cob", po::value<string>(),     "List of cob tables wanted. Example format: --cob '0-0,1-1,0-1', "
+                                     "where the numbers refer to the indices of the list of monomers. "
+                                     "Note, that the indexing starts from zero. "
+                                     "Use option '--cob all' to create all combinations.")
     ("cob-cutoff", po::value<double>(),        m("Cob cutoff constant", cob_cutoff).c_str())
 
     ("dmin", po::value<std::string>(),   "Smallest negative distance in dimer, comma separated list or a single global value, default: half of the length of the shorter monomer")
