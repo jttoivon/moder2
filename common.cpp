@@ -579,6 +579,64 @@ read_sequences(const std::string& filename, std::vector<std::string>& seqs, bool
 }
 
 
+
+std::pair<int,int>
+read_fasta_sequences(const std::string& filename, std::vector<std::string>& seqs, bool allow_iupac)
+{
+  assert(seqs.size() == 0);
+  std::ifstream f;
+  std::string line;
+  int bad_lines = 0;
+  f.open(filename.c_str(), std::ios_base::in);
+  if (not f.is_open()) {
+    std::cerr << "Couldn't open file " << filename << std::endl;
+    exit(1);
+  }
+  bool header_read=false;
+  std::string current;
+  while (getline(f, line)) {
+    if (not header_read) {                             // wait till we find the next header line
+      if (line.length() > 0 and line[0] == '>')
+	header_read = true;
+      else
+	++bad_lines;
+      continue;
+    }
+	
+     
+    if (line.length() == 0) {
+      ++bad_lines;
+      current.clear();
+      header_read=false;
+      continue;
+    }
+    if (line[0] == '>') {
+      if (current.length() == 0)
+	++bad_lines;
+      else {
+	seqs.push_back(current);
+      }
+      current.clear();
+      continue;
+    }
+    if ((allow_iupac and is_iupac_string(line)) || is_nucleotide_string(line))
+      current += line;
+    else {
+      ++bad_lines;
+      current.clear();
+      header_read=false;
+    }
+  }
+  f.close();
+  if (current.length() != 0)
+    seqs.push_back(current);
+
+  error(seqs.size() == 0, "No valid sequences found! Exiting.\n");
+  int lines = seqs.size();
+
+  return std::make_pair(lines, bad_lines);
+}
+
 // x == base^3 * result[0] + base^2 * result[1] + base * result[2] + result[3]
 std::vector<int>
 decode_base(int base, int x)

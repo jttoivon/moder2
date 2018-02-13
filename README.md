@@ -27,11 +27,10 @@ The generic form of running MODER is as follows
 
     moder [ options ] inputfile monomer0,monomer1,...
 
-The input file to MODER should consist of sequences separated by 'new line' characters.
-That is, each sequence should appear on its own line. If you give a fasta file as
-parameter, it ignores the header lines (ones that begin with `>`). If a fasta sequence is split on
-several lines, then MODER considers these as separate sequences. So, using a fasta file at the moment
-is not recommended. Moreover, currently sequences containing non-base characters, such as `N`, are ignored.
+If the inputfile has extension `fasta` or `fa`, then it is read as a fasta file.
+Otherwise, the input file to MODER should consist of sequences separated by 'new line' characters.
+That is, each sequence should appear on its own line.
+Currently, sequences containing non-base characters, such as `N`, are ignored.
 
 The second parameter is a comma separated list of initial values for monomer models. These
 can be given either as IUPAC sequences or as matrices. In the latter case, the option

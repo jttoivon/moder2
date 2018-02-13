@@ -4449,7 +4449,20 @@ int main(int argc, char* argv[])
   int lines, bad_lines;
 
 
-  boost::tie(lines, bad_lines) = read_sequences(seqsfile, sequences);
+  std::vector<std::string> parts = split(seqsfile, '.');
+  std::string extension = boost::to_lower_copy(parts.back());
+
+  if (extension == "fasta" or extension == "fa") {
+    printf("Reading from fasta file\n");
+    boost::tie(lines, bad_lines) = read_fasta_sequences(seqsfile, sequences);
+  }
+  else {
+    printf("Reading from sequence-per-line file\n");
+    boost::tie(lines, bad_lines) = read_sequences(seqsfile, sequences);
+  }
+  //  for (int i=0; i < sequences.size(); ++ i)
+  //    printf("%i: %s\n", i, sequences[i].c_str());
+  
   check_data(sequences);
   printf("Read %zu good lines from file %s\n", sequences.size(), seqsfile.c_str());
   printf("Discarded %i bad lines\n", bad_lines);
