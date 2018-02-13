@@ -90,15 +90,16 @@ install: all
 	install -m 0755 all_pairs_huddinge $(prefix)/bin
 	install -m 0644 README.md $(docdir)
 
-dist: $(distdir).tar.gz
 
 FORCE:
-	-rm $(distdir).tar.gz  # &>/dev/null
-	-rm -rf $(distdir)     # &>/dev/null
+	-rm -f $(distdir).tar.gz 2>/dev/null >/dev/null
+
 
 $(distdir).tar.gz: FORCE $(distdir)
 	tar chf - $(distdir) | gzip -9 -c > $(distdir).tar.gz
 	rm -rf $(distdir)
+
+dist: $(distdir).tar.gz
 
 distcheck: $(distdir).tar.gz
 	gzip -cd $+ | tar xvf -
@@ -106,16 +107,16 @@ distcheck: $(distdir).tar.gz
 	$(MAKE) -C $(distdir) check
 	$(MAKE) -C $(distdir) clean
 	rm -rf $(distdir)
-	@echo "*** Package $(distdir).tar.gz\
-          ready for distribution."
+	@echo "*** Package $(distdir).tar.gz ready for distribution."
 
 check: all
 	./moder --prior addone --cob 0-0 data/TFAP2A-head-1000.seq GGGCA > /dev/null
 	./all_pairs_huddinge  data/TFAP2A-head-1000.seq  > /dev/null
 	@echo "*** ALL TESTS PASSED ***"
 
+
 $(distdir):
-#	rm -rf $(distdir)
+	-rm -rf $(distdir) 2>/dev/null >/dev/null
 	mkdir -p $(distdir)
 	mkdir -p $(distdir)/CPM03
 	mkdir -p $(distdir)/data	
@@ -184,7 +185,7 @@ $(distdir):
 
 MODER_OBJS=moder.o common.o  probabilities.o parameters.o matrix_tools.o my_assert.o combinatorics.o\
 	multinomial_helper.o bndm.o orientation.o data.o iupac.o suffix_array_wrapper.o kmer_tools.o huddinge.o
-$(PRGPREFIX)moder: $(addprefix $(OBJDIR)/, $(MODER_OBJS)) CPM03/difference_cover.o
+$(PRGPREFIX)moder: $(addprefix $(OBJDIR)/, $(MODER_OBJS)) | CPM03
 	$(CXX) $(CXXFLAGS) $(addprefix $(OBJDIR)/, $(MODER_OBJS)) CPM03/difference_cover.o -o $@ $(LDFLAGS)
 
 
