@@ -22,6 +22,7 @@
 #include "common.hpp"
 #include "iupac.hpp"
 
+#include <libgen.h> // for dirname and basename
 #include <fstream>
 #include <bitset>
 #include <sstream>

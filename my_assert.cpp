@@ -22,7 +22,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 
-#undef NDEBUG
+#ifndef NDEBUG
 #include "my_assert.hpp"
 
 extern const char *__progname;
@@ -54,3 +54,5 @@ __my_assert2(const char *assertion, const char *x, const char *file,
 }
 	    
 } // end namespace my_assert_detail
+
+#endif

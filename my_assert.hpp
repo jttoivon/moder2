@@ -23,6 +23,7 @@
 #define MY_ASSERT_HPP
 
 #ifndef NDEBUG
+
 #include<stdio.h>
 #include<stdlib.h>
 #include<assert.h>
@@ -31,7 +32,9 @@
 #include <sstream>
 
 
-
+#ifndef __ASSERT_FUNCTION
+#define __ASSERT_FUNCTION __func__
+#endif
 
 namespace my_assert_detail
 {

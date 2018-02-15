@@ -6,10 +6,10 @@ prefix=/usr/local
 datarootdir=$(prefix)/share
 docdir=$(datarootdir)/doc/$(package)
 
-ifdef BOOSTROOT
-BOOSTINC=-I $(BOOSTROOT)/include
-BOOSTLIB=-L $(BOOSTROOT)/lib
-PROGOPT=$(BOOSTROOT)/lib/libboost_program_options.a
+ifdef BOOST_ROOT
+BOOSTINC=-I $(BOOST_ROOT)/include
+BOOSTLIB=-L $(BOOST_ROOT)/lib
+PROGOPT=$(BOOST_ROOT)/lib/libboost_program_options.a
 else
 BOOSTINC=
 BOOSTLIB=
@@ -216,7 +216,7 @@ myspacek40: myspacek40.c
 # Automatically create dependency files (*.d)
 $(OBJDIR)/%.d: %.cpp
 	@set -e; rm -f $@; \
-         $(CXX) -MM $(CPPFLAGS) $< > $@.$$$$; \
+         $(CXX) -MM $(CXXFLAGS) $< > $@.$$$$; \
          sed 's,\($*\)\.o[ :]*,'$(OBJDIR)'/\1.o $@ : ,g' < $@.$$$$ > $@; \
          rm -f $@.$$$$
 

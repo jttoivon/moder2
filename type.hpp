@@ -21,8 +21,11 @@
 */
 //typedef unsigned long long int big_int;
 
-typedef unsigned uint32_t;
-typedef unsigned long uint64_t;
+#include <cstdint>
+
+// The types uint32_t and uint64_t are defined in c++11 so the below definitions are commented out:
+//typedef unsigned uint32_t;
+//typedef unsigned long long uint64_t;
 
 #ifdef __int128
 typedef unsigned __int128 myuint128;

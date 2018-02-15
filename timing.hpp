@@ -28,6 +28,7 @@
 #ifndef _TIMING_HPP
 #define _TIMING_HPP
 
+#include <time.h>
 #include <sys/time.h>
 #include <iostream>
 #include <iomanip>
@@ -38,6 +39,68 @@ inline double get_cpu_time()
   return clock() * in_seconds;
 }
 
+
+
+
+#ifdef TIMING
+
+#define TIME_START(t) \
+  double timer_##t##_current_, \
+    timer_##t##_last_ = get_cpu_time()
+
+#define TIME_CHECK(t) \
+  timer_##t##_current_ = get_cpu_time(); \
+  std::cout << std::setw(10) << std::fixed << std::setprecision(2) \
+            << timer_##t##_current_ - timer_##t##_last_ << std::endl; \
+  timer_##t##_last_ = timer_##t##_current_
+
+#define TIME_PRINT(format,t)		 \
+  timer_##t##_current_ = get_cpu_time(); \
+  printf(format, (timer_##t##_current_ - timer_##t##_last_));	\
+  timer_##t##_last_ = timer_##t##_current_
+
+#define TIME_GET(t)		 \
+  ((timer_##t##_current_ = get_cpu_time()), (timer_##t##_current_ - timer_##t##_last_))
+
+
+#ifdef __APPLE__ // apple machines don't define clock_gettime. Not at least the older ones.
+
+inline
+timeval
+get_wall_time()
+{
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return tv;
+}
+
+inline
+double
+subtract_time(timeval& tp_new, timeval& tp_old)
+{
+  timeval temp = tp_new;
+  temp.tv_sec -= tp_old.tv_sec;
+  temp.tv_usec -= tp_old.tv_usec;
+  if (temp.tv_usec < 0) {
+    --temp.tv_sec;
+    temp.tv_usec += 1000000;
+  }
+  double result = temp.tv_sec;
+  result += temp.tv_usec / 1000000.0;
+
+  return result; 
+}
+
+#define WALL_TIME_START(t) \
+  timeval timer_##t##_current_, \
+  timer_##t##_last_ = get_wall_time()
+
+#define WALL_TIME_PRINT(format,t)		 \
+  timer_##t##_current_ = get_wall_time(); \
+  printf(format, subtract_time(timer_##t##_current_, timer_##t##_last_)); \
+  timer_##t##_last_ = timer_##t##_current_
+
+#else
 
 inline
 timespec
@@ -65,28 +128,6 @@ subtract_time(timespec& tp_new, timespec& tp_old)
   return result; 
 }
 
-
-#ifdef TIMING
-
-#define TIME_START(t) \
-  double timer_##t##_current_, \
-    timer_##t##_last_ = get_cpu_time()
-
-#define TIME_CHECK(t) \
-  timer_##t##_current_ = get_cpu_time(); \
-  std::cout << std::setw(10) << std::fixed << std::setprecision(2) \
-            << timer_##t##_current_ - timer_##t##_last_ << std::endl; \
-  timer_##t##_last_ = timer_##t##_current_
-
-#define TIME_PRINT(format,t)		 \
-  timer_##t##_current_ = get_cpu_time(); \
-  printf(format, (timer_##t##_current_ - timer_##t##_last_));	\
-  timer_##t##_last_ = timer_##t##_current_
-
-#define TIME_GET(t)		 \
-  ((timer_##t##_current_ = get_cpu_time()), (timer_##t##_current_ - timer_##t##_last_))
-
-
 #define WALL_TIME_START(t) \
   timespec timer_##t##_current_, \
   timer_##t##_last_ = get_wall_time()
@@ -95,13 +136,16 @@ subtract_time(timespec& tp_new, timespec& tp_old)
   timer_##t##_current_ = get_wall_time(); \
   printf(format, subtract_time(timer_##t##_current_, timer_##t##_last_)); \
   timer_##t##_last_ = timer_##t##_current_
+#endif
 
 #else
 
 #define TIME_START(t)
 #define TIME_CHECK(t)
 #define TIME_PRINT(format,t)
-#define TIME_GET(t)
+#define TIME_GET(t) 0.0
+#define WALL_TIME_START(t)
+#define WALL_TIME_PRINT(format,t)
 
 #endif
 
