@@ -5,6 +5,7 @@ import matplotlib
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib import rcParams
+from matplotlib import ticker
 import sys
 import getopt
 import os
@@ -34,7 +35,7 @@ def myfloat(s):
     r = "".join(map(lambda x : "-" if x == u'\u2212' else x, s))
     return float(r)
 
-def make_heatmap(data, drange, title="", outputfile="", fontsize=32.0):
+def make_heatmap(data, drange, fmt, title="", outputfile="", fontsize=32.0):
 #    plt.style.use('ggplot')
     
     linewidth=1.0
@@ -100,24 +101,30 @@ def make_heatmap(data, drange, title="", outputfile="", fontsize=32.0):
     cax = divider.append_axes("right", size="5%", pad=0.05)
     try:
         cb=plt.colorbar(cax=cax)
+        tick_locator = ticker.MaxNLocator(nbins=5)
+        cb.locator = tick_locator
+        ##cb.ax.yaxis.set_major_locator(matplotlib.ticker.AutoLocator())
+        cb.update_ticks()
         temp=cax.get_yticklabels()
         for i,t in enumerate(temp):
             #print temp[i].get_text()
             temp[i].set_text("%.0f" % (float(temp[i].get_text())*1000))   # Multiply values in colorbar by 1000
-        cax.set_yticklabels(temp)
+        cax.set_yticklabels(temp, fontsize=tickfontsize)
     except UnicodeEncodeError:   # If labels contain unicode minus, then something went wrong and better not show colorbar
         cb.remove()
         pass
 #    cax.yaxis.set_tick_params(labelright=False)   # No tick labels in colorbar
 #    print data
     if outputfile:
-        plt.savefig(outputfile, format="pdf", bbox_inches="tight")
+        plt.savefig(outputfile, format=fmt, bbox_inches="tight")
     else:
         plt.show()
 
 endings = ["png", "pdf", "ps", "eps", "svg"]
 prog=os.path.basename(sys.argv[0])
 title=""
+
+
 
 usage="""Usage:
 %s [ options ] cobfile [ imagefile ]
@@ -129,6 +136,8 @@ Visualizes a cob file (.cob). The extension of the imagefile
 (%s) chooses the format of the image.
 
 """ % (prog, ", ".join(endings))
+
+
 
 try:
     optlist, args = getopt.getopt(sys.argv[1:], 'ht:', ["help", "title="])
@@ -161,7 +170,7 @@ try:
     parts = outputfile.split(".")
     ending=parts[-1]
     if len(parts) >= 2 and ending in endings:
-        format=ending
+        fmt=ending
     else:
         sys.stderr.write("The extension of the outputfile should be one of the following: %s\n" % (", ".join(endings)))
         sys.stderr.write("Exiting!\n")
@@ -185,4 +194,4 @@ drange = map(float, cob[0,1:])
 data=cob[1:,1:].astype(float)
 vfunc = np.vectorize(lambda x: x if x > 0.0 else -0.0002)   # Modify zero values to -0.0002 in order for the colormap to work better.
 data=vfunc(data)
-make_heatmap(data, drange, title=title, outputfile=outputfile)
+make_heatmap(data, drange, fmt, title=title, outputfile=outputfile)

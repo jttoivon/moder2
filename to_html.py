@@ -43,6 +43,10 @@ ul {
     padding-right: 20px;
 }
 
+#programinfo ul {
+    max-width: 60em;
+}
+
 div#lambdaTable th{
     text-align: left;
 }
@@ -548,6 +552,7 @@ def get_lambda_table(results_output):
     return lambda_table2
 
 def get_info(results_output, full_output, cob_codes):
+    maxiter = int(extract(r"Maximum number of iterations is (.*)", full_output))
     iterations =  int(extract(r"EM-algorithm took (.*) = .* iterations", results_output))
     Lmin =  int(extract(r"Minimum sequence length is (.*)", full_output))
     Lmax =  int(extract(r"Maximum sequence length is (.*)", full_output))
@@ -565,7 +570,7 @@ def get_info(results_output, full_output, cob_codes):
     excluded = 0
     for c in cob_codes:
         excluded += len(extract(r"Cob %s excluded cases: \[(.*)\]" % c, results_output).split(", "))
-    return iterations, Lmin, Lmax, lines, epsilon, excluded, command, start_time, version, hostname, threads
+    return iterations, maxiter, Lmin, Lmax, lines, epsilon, excluded, command, start_time, version, hostname, threads
 
 
 def get_seeds(full_output, number_of_factors):
@@ -589,7 +594,8 @@ def get_seeds(full_output, number_of_factors):
             ch=[" "] * number_of_factors
             for j in xrange(number_of_factors): 
                 ch[j] = str(j+1) if prev[j] != t[j] else " "
-            f.write("Round %02i %s\t%s\n" % (i, " ".join(t), " ".join(ch)))
+            f.write("Round %02i %s\t%s\n" % (i, " ".join(t), " ".join(ch))) # Third field contains a number for each factor that had its seed changes
+                                                                            # compared to the one from the previous iteration
 
             prev = t
     return seeds_begin, seeds_end
@@ -607,7 +613,10 @@ def get_seeds(full_output, number_of_factors):
 
 def get_run_time(results_output):
     temp=extract(r"Whole program took (.+) seconds wall-time", results_output)
-    s=seconds_to_hms(float(temp))
+    try:
+        s=seconds_to_hms(float(temp))
+    except TypeError:
+        s="unknown"
     return s
 
 
@@ -1159,7 +1168,7 @@ lambda_table = get_lambda_table(results_output)
 
 
 
-iterations, Lmin, Lmax, lines, epsilon, excluded, command, start_time, version, hostname, threads = get_info(results_output, full_output, cob_codes)
+iterations, maxiter, Lmin, Lmax, lines, epsilon, excluded, command, start_time, version, hostname, threads = get_info(results_output, full_output, cob_codes)
 
 #Background distribution: [0.30201, 0.294127, 0.202849, 0.201013]
 bg_dist = map(float, extract(r"Background distribution: \[(.*)\]", results_output).split(', '))
@@ -1238,7 +1247,10 @@ else:
     L="%s-%s" % (Lmin, Lmax)
 f.write("<li>Data contains %i sequences of length %s </li>" % (lines, L))
 f.write("<li>Running time was (wall-clock) %s</li>" % runtime)
-f.write("<li>EM-algorithm took %i iterations</li>" % iterations)
+if iterations == maxiter:
+    f.write("<li>EM-algorithm took <span style='color: red;'>%i iterations</span> (max-iter=%i)</li>" % (iterations, maxiter))
+else:
+    f.write("<li>EM-algorithm took %i iterations (max-iter=%i)</li>" % (iterations, maxiter))
 f.write("<li>Convergence criterion cutoff is %g</li>" % epsilon)
 f.write("<li>Excluded cob cases: %i</li>" % excluded)
 f.write("<li>Are monomers learnt modularly: %s</li>" % " ".join(monomer_modularity))

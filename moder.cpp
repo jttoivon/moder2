@@ -2244,8 +2244,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
 
       // Print seeds
+      printf("Fixed seeds are %s\n", print_vector(fixed_seed).c_str());
       if (use_multinomial and local_debug) {
-	printf("Fixed seeds are %s\n", print_vector(fixed_seed).c_str());
 
 	
 	for (int r=0; r < my_cob_params.size(); ++r) {
@@ -3115,11 +3115,11 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       //
       ///////////////
       
+      for (int k=0; k < fixed_p; ++k) {
+	fixed_seed[k] = string_giving_max_score(new_fixed_PWM[k]);
+      }
+      
       if (use_multinomial and adjust_seeds) {
-
-	for (int k=0; k < fixed_p; ++k) {
-	  fixed_seed[k] = string_giving_max_score(new_fixed_PWM[k]);
-	}
 
 	for (int r = 0; r < number_of_cobs; ++r) {
 	  int number_of_orientations = my_cob_params[r].number_of_orientations;
@@ -3509,6 +3509,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
   printf("%s\n", std::string(40, '*').c_str());
   printf("Results:\n");
 
+  
   // Print deviations
   for (int r = 0; r < number_of_cobs; ++r) {
     int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
@@ -3613,6 +3614,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
   printf("\n");
 
   printf("Background distribution: %s\n", print_vector(bg_model).c_str());
+  printf("Fixed seeds are %s\n", print_vector(fixed_seed).c_str());
 
   for (int k=0; k < fixed_p; ++k) {
     write_matrix(stdout, fixed_PWM[k], to_string("Fixed matrix %i:\n", k), "%.6f");
@@ -4648,6 +4650,7 @@ int main(int argc, char* argv[])
     dmin = std::max(-mink + 1, dmin);
     //    dmax = std::min(dmax, Lmax - k1 - k2);
     dmax = std::min(dmax, Lmin - k1 - k2);
+    error(dmax < dmin, "Requested dimeric cases do not fit into the input sequence");
     max_dist_for_deviation = std::min(max_dist_for_deviation, dmax);
     cob_params_t cp = create_cob(cob_combination, fixedseedlist, fixed_M, dimer_lambda_fraction, 
 				 overlapping_dimer_cases,
