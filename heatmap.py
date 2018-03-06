@@ -108,10 +108,15 @@ def make_heatmap(data, drange, fmt, title="", outputfile="", fontsize=32.0):
         temp=cax.get_yticklabels()
         for i,t in enumerate(temp):
             #print temp[i].get_text()
-            temp[i].set_text("%.0f" % (float(temp[i].get_text())*1000))   # Multiply values in colorbar by 1000
+#            temp[i].set_text("%.0f" % (float(temp[i].get_text())*1000))   # Multiply values in colorbar by 1000
+            temp[i] = "%.0f" % (float(temp[i].get_text())*1000)   # Multiply values in colorbar by 1000
+            #print temp[i].get_text()
+        
+        #cb.update_ticks()
         cax.set_yticklabels(temp, fontsize=tickfontsize)
     except UnicodeEncodeError:   # If labels contain unicode minus, then something went wrong and better not show colorbar
         cb.remove()
+        print "Unicode error!"
         pass
 #    cax.yaxis.set_tick_params(labelright=False)   # No tick labels in colorbar
 #    print data
@@ -176,6 +181,7 @@ try:
         sys.stderr.write("Exiting!\n")
         sys.exit(1)
 except IndexError:
+    fmt=""
     outputfile=""
 
 try:
