@@ -2463,19 +2463,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
       // Initialize the models to zero
 
-      // spaced models
-      for (int r = 0; r < number_of_cobs; ++r) {
-	int no = my_cob_params[r].number_of_orientations;
-	int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
-	overlapping_dimer_weights.push_back(cob_of_matrices(boost::extents[no][range(my_cob_params[r].dmin,max_dist_for_deviation+1)]));
-	gap_weights.push_back(cob_of_matrices(boost::extents[no][range(0, max_dist_for_deviation+1)]));
-	int width1 = fixed_w[my_cob_params[r].tf1];
-	int width2 = fixed_w[my_cob_params[r].tf2];
-	spaced_dimer_weights_sum.push_back(boost::make_tuple(dmatrix(4, width1), 
-							     dmatrix(4, width2)));
-	spaced_dimer_weights2_sum.push_back(boost::make_tuple(dmatrix(4, width1), 
-							      dmatrix(4, width2)));
-      }
 
       // Fixed models
       for (int k=0; k < fixed_p; ++k) { 
@@ -2487,6 +2474,15 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	}
       }
 
+      // spaced models
+      for (int r = 0; r < number_of_cobs; ++r) {
+	int width1 = fixed_w[my_cob_params[r].tf1];
+	int width2 = fixed_w[my_cob_params[r].tf2];
+	spaced_dimer_weights_sum.push_back(boost::make_tuple(dmatrix(4, width1), 
+							     dmatrix(4, width2)));
+	spaced_dimer_weights2_sum.push_back(boost::make_tuple(dmatrix(4, width1), 
+							      dmatrix(4, width2)));
+      }
 
       // Overlapping dimer models
       for (int r = 0; r < number_of_cobs; ++r) {
@@ -2495,7 +2491,12 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	const int& no = my_cob_params[r].number_of_orientations;
 	const int& k1 = my_cob_params[r].k1;
 	const int& k2 = my_cob_params[r].k2;
+	//	int no = my_cob_params[r].number_of_orientations;
+	//	int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
+	overlapping_dimer_weights.push_back(cob_of_matrices(boost::extents[no][range(my_cob_params[r].dmin,max_dist_for_deviation+1)]));
+	gap_weights.push_back(cob_of_matrices(boost::extents[no][range(0, max_dist_for_deviation+1)]));
 	new_deviation.push_back(cob_of_matrices(boost::extents[no][range(dmin,max_dist_for_deviation+1)]));
+	
 	empty_gap.push_back(boost::multi_array<bool, 2>(boost::extents[no][range(dmin, max_dist_for_deviation+1)]));
 	for (int o=0; o < no; ++o) {
 	  for (int d=dmin; d <= max_dist_for_deviation; ++d) {
@@ -2897,8 +2898,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      const std::string& line_rev = sequences_rev[i];
 
 	      for (int dir=0; dir < maxdir; ++dir) {
-		int first = dir == 0 ? w1 : w2;  // in the second strand the binding sites are in different order 
-		int last = first+d;
+		int first = dir == 0 ? w1 : w2;  // in the second strand the binding sites are in different order, first gap pos 
+		int last = first+d;              // last gap pos
 		for (int j1=0; j1 < my_cob_params[r].dimer_m[i][d]; ++j1) {  // iterates through start positions
 		  double z = my_cob_params[r].overlapping_dimer_Z[i][o][d][dir][j1];
 		  get_new_gap_weights(j1, dirs[dir], z, d, fixed_w[tf1], fixed_w[tf2], 
@@ -2982,7 +2983,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       
       if (local_debug)
 	printf("Total signal is %s\n", print_vector(total_signal_sum).c_str());
-      dvector bg_temp = background_frequencies;
+      dvector bg_temp = background_frequencies;    // always counted only in single direction!!!!!
       dmatrix bg_markov_temp = background_frequency_matrix;
       //bg_temp /= 2.0;
       //bg_markov_temp.apply(division_functor(2.0));
@@ -3186,7 +3187,10 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
       
       /////////////////////////////////
+      //
       // print overlapping dimer models
+      //
+      /////////////////////////////////
       
       if (extra_debug) {
 	for (int r = 0; r < number_of_cobs; ++r) {
@@ -3234,9 +3238,11 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
       
       ////////////////////////////
+      //
       // Reestimate the deviations
       //
-
+      ////////////////////////////
+      
       for (int r = 0; r < number_of_cobs; ++r) {
 	const int& w1 = my_cob_params[r].k1;
 	//	const int& w2 = my_cob_params[r].k2;
