@@ -2764,6 +2764,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      for (int dir=0; dir < maxdir; ++dir) {
 		int first = dir == 0 ? 0 : w2 + d;
 		int second = dir == 0 ? w1+d : 0;
+		// int first = 0;
+		// int second = w1+d;
 		for (int j1=0; j1 < my_cob_params[r].dimer_m[i][d]; ++j1) {  // iterates through start positions
 		  //		  int j2 = j1 + d + w1;  // position of the second leg
 
@@ -2943,8 +2945,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       // if (not use_full_signal) 
       // 	for (int k=0; k < fixed_p; ++k) // for every matrix
       // 	  add_columns(fixed_signal_sum, new_fixed_PWM[k]);
-      if (use_two_strands)
-	fixed_signal_sum /= 2.0;
+      // if (use_two_strands)
+      // 	fixed_signal_sum /= 2.0;
 	
       total_signal_sum += fixed_signal_sum;
       if (local_debug)
@@ -2955,8 +2957,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       // if (not use_full_signal) 
       // 	for (int k=0; k < fixed_p; ++k)  // for every matrix
       // 	  add_columns(fixed2_signal_sum, new_fixed_PWM2[k]);
-      if (use_two_strands)
-	fixed2_signal_sum /= 2.0;
+      // if (use_two_strands)
+      // 	fixed2_signal_sum /= 2.0;
       total_signal_sum += fixed2_signal_sum;
       if (local_debug)
 	printf("fixed2 signal: %s\n", print_vector(fixed2_signal_sum).c_str());
@@ -2970,15 +2972,15 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       // 	  }
       // 	} // end for r
       // }
-      if (use_two_strands)
-	overlapping_signal_sum /= 2.0;
+      // if (use_two_strands)
+      // 	overlapping_signal_sum /= 2.0;
 
       total_signal_sum += overlapping_signal_sum;
       if (local_debug)
 	printf("overlapping signal: %s\n", print_vector(overlapping_signal_sum).c_str());
 
-      if (use_two_strands)
-	gap_signal_sum /= 2.0;
+      // if (use_two_strands)
+      // 	gap_signal_sum /= 2.0;
       total_signal_sum += gap_signal_sum;
       if (local_debug)
 	printf("gap signal: %s\n", print_vector(gap_signal_sum).c_str());
