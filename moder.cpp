@@ -2338,11 +2338,12 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	FloatType log_background = compute_log_background_probability<FloatType>(line, log_bg_model, bg_model_markov);
 	log_background += log_background_lambda;
 
-	// Fixed models
+	// Monomer models
 	for (int k=0; k < fixed_p; ++k)
 	  expectation_Z_dir_j(fixed_Z, i, k, line, line_rev, fixed_m[i][k], log_fixed_lambda[k], log_fixed_PWM[k], 
 			      log_bg_model, log_bg_model_rev, bg_model_markov, bg_model_markov_rev);
 
+	// Dimer models
 	for (int r=0; r < my_cob_params.size(); ++r) {
 	  int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
 	  // Overlapping dimer models
@@ -2359,7 +2360,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 					      bg_model_markov, bg_model_markov_rev);
 	    }
 	  }
-
 	  // Spaced dimer models
 	  for (int o=0; o < my_cob_params[r].number_of_orientations; ++o)
 	    for (int d=max_dist_for_deviation+1; d <= my_cob_params[r].dmax; ++d){
@@ -2438,7 +2438,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       // Initialize weights, pred_flank, succ_flank
       
       // These are used just to compute the background by subtracting signal from the whole data
-      bool use_full_signal = true;     // Signal is not restricted to Hamming-1 neighbourhood of the seed
+      //bool use_full_signal = true;     // Signal is not restricted to Hamming-1 neighbourhood of the seed
       std::vector<double> fixed_signal_sum(4, 0.0);   // These are used to learn new PWM models
       std::vector<double> fixed2_signal_sum(4, 0.0);  // These are not used to learn new PWM models
       std::vector<double> overlapping_signal_sum(4, 0.0);
@@ -2594,7 +2594,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       // Signal from monomeric models
       for (int k=0; k < fixed_p; ++k) {
 	dmatrix pwm(4, fixed_w[k]);
-	std::vector<double>& signal = use_full_signal ? (is_fixed_pwm_part_of_cob[k]?fixed2_signal_sum:fixed_signal_sum) : dummy2;
+	//	std::vector<double>& signal = use_full_signal ? (is_fixed_pwm_part_of_cob[k]?fixed2_signal_sum:fixed_signal_sum) : dummy2;
+	std::vector<double>& signal = is_fixed_pwm_part_of_cob[k] ? fixed2_signal_sum : fixed_signal_sum;
 
 	dmatrix temp_dinucleotide_signal(4, 4);
 	//	dmatrix temp_dinucleotide_signal_rev(4, 4);
@@ -2652,7 +2653,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	
       // #pragma omp parallel for schedule(static)
       for (int r = 0; r < number_of_cobs; ++r) {
-	std::vector<double>& signal = use_full_signal ? overlapping_signal_sum : dummy2;
+	std::vector<double>& signal = overlapping_signal_sum;
 	
 	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
 	  for (int d=my_cob_params[r].dmin; d < 0; ++d) {
@@ -2738,7 +2739,9 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
 	    int w1 = fixed_w[tf1];
 	    int w2 = fixed_w[tf2];
-	    std::vector<double>& signal = use_full_signal ? (d >= minimum_distance_for_learning ? fixed_signal_sum : fixed2_signal_sum) : dummy2;
+	    //	    std::vector<double>& signal = use_full_signal ? (d >= minimum_distance_for_learning ? fixed_signal_sum : fixed2_signal_sum) : dummy2;
+	    std::vector<double>& signal = d >= minimum_distance_for_learning ? fixed_signal_sum : fixed2_signal_sum;
+	    
 	    std::vector<double> temp_signal(4, 0.0);
 	    //	    std::vector<double> temp_signal_rev(4, 0.0);
 	    dmatrix temp_dinucleotide_signal(4, 4);
@@ -2880,7 +2883,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
 	    int w1 = fixed_w[tf1];
 	    int w2 = fixed_w[tf2];
-	    //std::vector<double>& signal = use_full_signal ? (d >= minimum_distance_for_learning ? fixed_signal_sum : fixed2_signal_sum) : dummy2;
 	    std::vector<double> temp_signal(4, 0.0);
 	    //	    std::vector<double> temp_signal_rev(4, 0.0);
 	    dmatrix temp_dinucleotide_signal(4, 4);
@@ -2938,9 +2940,9 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
       // fixed PWMs
       // These are used to learn new PWM models
-      if (not use_full_signal) 
-	for (int k=0; k < fixed_p; ++k) // for every matrix
-	  add_columns(fixed_signal_sum, new_fixed_PWM[k]);
+      // if (not use_full_signal) 
+      // 	for (int k=0; k < fixed_p; ++k) // for every matrix
+      // 	  add_columns(fixed_signal_sum, new_fixed_PWM[k]);
       if (use_two_strands)
 	fixed_signal_sum /= 2.0;
 	
@@ -2950,24 +2952,24 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
       // These weren't used to learning fixed PWMs.
       // Only to form background model by subtracting signal from full data
-      if (not use_full_signal) 
-	for (int k=0; k < fixed_p; ++k)  // for every matrix
-	  add_columns(fixed2_signal_sum, new_fixed_PWM2[k]);
+      // if (not use_full_signal) 
+      // 	for (int k=0; k < fixed_p; ++k)  // for every matrix
+      // 	  add_columns(fixed2_signal_sum, new_fixed_PWM2[k]);
       if (use_two_strands)
 	fixed2_signal_sum /= 2.0;
       total_signal_sum += fixed2_signal_sum;
       if (local_debug)
 	printf("fixed2 signal: %s\n", print_vector(fixed2_signal_sum).c_str());
 
-      if (not use_full_signal) {
-	for (int r = 0; r < number_of_cobs; ++r) {
-	  // overlapping_dimer PWMs
-	  for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
-	    for (int d=my_cob_params[r].dmin; d < 0; ++d) 
-	      add_columns(overlapping_signal_sum, overlapping_dimer_weights[r][o][d]);
-	  }
-	} // end for r
-      }
+      // if (not use_full_signal) {
+      // 	for (int r = 0; r < number_of_cobs; ++r) {
+      // 	  // overlapping_dimer PWMs
+      // 	  for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
+      // 	    for (int d=my_cob_params[r].dmin; d < 0; ++d) 
+      // 	      add_columns(overlapping_signal_sum, overlapping_dimer_weights[r][o][d]);
+      // 	  }
+      // 	} // end for r
+      // }
       if (use_two_strands)
 	overlapping_signal_sum /= 2.0;
 
