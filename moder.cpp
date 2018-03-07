@@ -2438,12 +2438,10 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       // Initialize weights, pred_flank, succ_flank
       
       // These are used just to compute the background by subtracting signal from the whole data
-      //bool use_full_signal = true;     // Signal is not restricted to Hamming-1 neighbourhood of the seed
       std::vector<double> fixed_signal_sum(4, 0.0);   // These are used to learn new PWM models
       std::vector<double> fixed2_signal_sum(4, 0.0);  // These are not used to learn new PWM models
       std::vector<double> overlapping_signal_sum(4, 0.0);
       std::vector<double> gap_signal_sum(4, 0.0);     // For gap in spaced dimers with d\in[0,max_dist_for_deviation]
-      std::vector<double> dummy2(4, 0.0);  // Not needed, because signal is then sum of Hamming-1 neighbourhoods used in forming PWMs
       
       dmatrix dinucleotide_signal(4, 4);
 
@@ -2491,8 +2489,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	const int& no = my_cob_params[r].number_of_orientations;
 	const int& k1 = my_cob_params[r].k1;
 	const int& k2 = my_cob_params[r].k2;
-	//	int no = my_cob_params[r].number_of_orientations;
-	//	int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
 	overlapping_dimer_weights.push_back(cob_of_matrices(boost::extents[no][range(my_cob_params[r].dmin,max_dist_for_deviation+1)]));
 	gap_weights.push_back(cob_of_matrices(boost::extents[no][range(0, max_dist_for_deviation+1)]));
 	new_deviation.push_back(cob_of_matrices(boost::extents[no][range(dmin,max_dist_for_deviation+1)]));
@@ -2594,13 +2590,10 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       // Signal from monomeric models
       for (int k=0; k < fixed_p; ++k) {
 	dmatrix pwm(4, fixed_w[k]);
-	//	std::vector<double>& signal = use_full_signal ? (is_fixed_pwm_part_of_cob[k]?fixed2_signal_sum:fixed_signal_sum) : dummy2;
 	std::vector<double>& signal = is_fixed_pwm_part_of_cob[k] ? fixed2_signal_sum : fixed_signal_sum;
 
 	dmatrix temp_dinucleotide_signal(4, 4);
-	//	dmatrix temp_dinucleotide_signal_rev(4, 4);
 	std::vector<double> temp_signal(4, 0.0);
-	//	std::vector<double> temp_signal_rev(4, 0.0);
 
 	int w = fixed_w[k];
 	// This requires at least gcc 4.9
@@ -2630,11 +2623,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    }
 	  }
 	}  // end for lines
-	//	std::reverse(temp_signal_rev.begin(), temp_signal_rev.end());
 	signal += temp_signal;
-	//	signal += temp_signal_rev;
 	dinucleotide_signal += temp_dinucleotide_signal;
-	//	dinucleotide_signal += reverse_complement_markov_model(temp_dinucleotide_signal_rev);
 
 	if (is_fixed_pwm_part_of_cob[k])
 	  new_fixed_PWM2[k] += pwm;
@@ -2651,7 +2641,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       //
       ////////////////////////////
 	
-      // #pragma omp parallel for schedule(static)
       for (int r = 0; r < number_of_cobs; ++r) {
 	std::vector<double>& signal = overlapping_signal_sum;
 	
@@ -2671,9 +2660,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    
 	    int w = my_cob_params[r].dimer_w[d];
 	    dmatrix temp_dinucleotide_signal(4, 4);
-	    //	    dmatrix temp_dinucleotide_signal_rev(4, 4);
 	    std::vector<double> temp_signal(4, 0.0);
-	    //	    std::vector<double> temp_signal_rev(4, 0.0);
 
 	    dmatrix pwm(overlapping_dimer_weights[r][o][d].dim());
 	    // This requires gcc 4.9
@@ -2704,11 +2691,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 		} // for dir
 	      } // for j1
 	    }  // for i
-	      //	    std::reverse(temp_signal_rev.begin(), temp_signal_rev.end());
 	    signal += temp_signal;
-	    //	    signal += temp_signal_rev;
 	    dinucleotide_signal += temp_dinucleotide_signal;
-	    //	    dinucleotide_signal += reverse_complement_markov_model(temp_dinucleotide_signal_rev);
 	    overlapping_dimer_weights[r][o][d] = pwm;
 	  } // for d, overlapping dimer PWMs
 	} // for o, overlapping dimer PWMs
@@ -2739,19 +2723,14 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
 	    int w1 = fixed_w[tf1];
 	    int w2 = fixed_w[tf2];
-	    //	    std::vector<double>& signal = use_full_signal ? (d >= minimum_distance_for_learning ? fixed_signal_sum : fixed2_signal_sum) : dummy2;
 	    std::vector<double>& signal = d >= minimum_distance_for_learning ? fixed_signal_sum : fixed2_signal_sum;
 	    
 	    std::vector<double> temp_signal(4, 0.0);
-	    //	    std::vector<double> temp_signal_rev(4, 0.0);
 	    dmatrix temp_dinucleotide_signal(4, 4);
-	    //	    dmatrix temp_dinucleotide_signal_rev(4, 4);
 	    // This requires gcc 4.9
 	    // clang (at least not 3.8) does not support 'declare reduction' even
 	    // though it defines _OPENMP to 201307 (that is openmp 4.0).
 #if defined(_OPENMP) && (_OPENMP >= 201307) && !defined(__clang__)
-	    //	    dmatrix& pwm1 = m1[r];
-	    //	    dmatrix& pwm2 = m2[r];
 #pragma omp declare reduction( + : dmatrix : omp_out+=omp_in ) initializer(omp_priv(omp_orig.dim()))
 #pragma omp declare reduction( + : std::vector<double> : omp_out+=omp_in ) initializer(omp_priv(std::vector<double>(omp_orig.size())))
 #pragma omp parallel for reduction(+:m1,m2, temp_dinucleotide_signal,temp_signal) schedule(static)
@@ -2764,10 +2743,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      for (int dir=0; dir < maxdir; ++dir) {
 		int first = dir == 0 ? 0 : w2 + d;
 		int second = dir == 0 ? w1+d : 0;
-		// int first = 0;
-		// int second = w1+d;
 		for (int j1=0; j1 < my_cob_params[r].dimer_m[i][d]; ++j1) {  // iterates through start positions
-		  //		  int j2 = j1 + d + w1;  // position of the second leg
 
 		  double z = d <= my_cob_params[r].max_dist_for_deviation ?
 		    my_cob_params[r].overlapping_dimer_Z[i][o][d][dir][j1] : 
@@ -2776,10 +2752,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 					       my_cob_params[r].oriented_dimer_seeds[o].get<0>(), 
 					       my_cob_params[r].oriented_dimer_seeds[o].get<1>(),
 					       line, line_rev, 
-
-					       //     spaced_dimer_weights_a[r][o][d], spaced_dimer_weights_b[r][o][d],
 					       m1, m2,
-					       //pred_flank[k], succ_flank[k], true,
 					       use_multinomial);
 
 		  for (int pos=0; pos < w1; ++pos)
@@ -2802,11 +2775,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      }
 
 	    } // for i in lines
-	    //	    std::reverse(temp_signal_rev.begin(), temp_signal_rev.end());
 	    signal += temp_signal;
-	    //	    signal += temp_signal_rev;
 	    dinucleotide_signal += temp_dinucleotide_signal;
-	    //	    dinucleotide_signal += reverse_complement_markov_model(temp_dinucleotide_signal_rev);
 	    boost::tuple<dmatrix,dmatrix>& temp = 
 	      d >= minimum_distance_for_learning ? spaced_dimer_weights_sum[r] : spaced_dimer_weights2_sum[r];
 
@@ -2862,7 +2832,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	int tf1 = my_cob_params[r].tf1;
 	int tf2 = my_cob_params[r].tf2;
 	int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
-	// temps for spaced
 
 	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
 	  for (int d=0; d <= max_dist_for_deviation; ++d) {
@@ -2886,9 +2855,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    int w1 = fixed_w[tf1];
 	    int w2 = fixed_w[tf2];
 	    std::vector<double> temp_signal(4, 0.0);
-	    //	    std::vector<double> temp_signal_rev(4, 0.0);
 	    dmatrix temp_dinucleotide_signal(4, 4);
-	    //	    dmatrix temp_dinucleotide_signal_rev(4, 4);
 	    // This requires gcc 4.9
 	    // clang (at least not 3.8) does not support 'declare reduction' even
 	    // though it defines _OPENMP to 201307 (that is openmp 4.0).
@@ -2918,11 +2885,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 		} // for j1
 	      } // for dir
 	    } // for i in lines
-	      //	    std::reverse(temp_signal_rev.begin(), temp_signal_rev.end());
 	    gap_signal_sum += temp_signal;
-	    //	    gap_signal_sum += temp_signal_rev;
-	    //gap_dinucleotide_signal += temp_dinucleotide_signal;
-	    //gap_dinucleotide_signal += reverse_complement_markov_model(temp_dinucleotide_signal_rev);
 	    gap_weights[r][o][d] = m1;
 
 	  } // for d, spaced dimer PWMs
@@ -2940,13 +2903,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       
       std::vector<double> total_signal_sum(4, 0.0);
 
-      // fixed PWMs
-      // These are used to learn new PWM models
-      // if (not use_full_signal) 
-      // 	for (int k=0; k < fixed_p; ++k) // for every matrix
-      // 	  add_columns(fixed_signal_sum, new_fixed_PWM[k]);
-      // if (use_two_strands)
-      // 	fixed_signal_sum /= 2.0;
 	
       total_signal_sum += fixed_signal_sum;
       if (local_debug)
@@ -2954,24 +2910,12 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
       // These weren't used to learning fixed PWMs.
       // Only to form background model by subtracting signal from full data
-      // if (not use_full_signal) 
-      // 	for (int k=0; k < fixed_p; ++k)  // for every matrix
-      // 	  add_columns(fixed2_signal_sum, new_fixed_PWM2[k]);
       // if (use_two_strands)
       // 	fixed2_signal_sum /= 2.0;
       total_signal_sum += fixed2_signal_sum;
       if (local_debug)
 	printf("fixed2 signal: %s\n", print_vector(fixed2_signal_sum).c_str());
 
-      // if (not use_full_signal) {
-      // 	for (int r = 0; r < number_of_cobs; ++r) {
-      // 	  // overlapping_dimer PWMs
-      // 	  for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
-      // 	    for (int d=my_cob_params[r].dmin; d < 0; ++d) 
-      // 	      add_columns(overlapping_signal_sum, overlapping_dimer_weights[r][o][d]);
-      // 	  }
-      // 	} // end for r
-      // }
       // if (use_two_strands)
       // 	overlapping_signal_sum /= 2.0;
 
@@ -2989,8 +2933,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	printf("Total signal is %s\n", print_vector(total_signal_sum).c_str());
       dvector bg_temp = background_frequencies;    // always counted only in single direction!!!!!
       dmatrix bg_markov_temp = background_frequency_matrix;
-      //bg_temp /= 2.0;
-      //bg_markov_temp.apply(division_functor(2.0));
       if (local_debug)
 	printf("Data distribution is %s\n", print_vector(bg_temp).c_str());
 
@@ -3119,8 +3061,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	  int dmin = my_cob_params[r].dmin;
 	  int tf1 = my_cob_params[r].tf1;
 	  int tf2 = my_cob_params[r].tf2;
-	  // int k1 = fixed_seed[tf1].length();
-	  // int k2 = fixed_seed[tf2].length();
 	  for (int o=0; o < number_of_orientations; ++o) {
 	    std::string seed1, seed2;
 	    boost::tie(seed1, seed2) = //my_cob_params[r].oriented_dimer_seeds[0]; 
@@ -3292,7 +3232,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	printf("Intermediate fixed lambdas are %s\n", print_vector(fixed_lambda).c_str());
 	if (use_dimers) {
 	  for (int r = 0; r < number_of_cobs; ++r) {
-	    //	    print_cob(stdout, my_cob_params[r].dimer_lambdas, to_string("Intermediate dimer lambdas %s:\n", my_cob_params[r].name().c_str()), "%.5f");
 	    print_cob(stdout, my_cob_params[r].dimer_lambdas, to_string("Intermediate dimer lambdas %s:\n", my_cob_params[r].name().c_str()), "%e");
 	    printf("Intermediate sum of dimer lambdas %s is %.4f\n", my_cob_params[r].name().c_str(),
 		   sum(my_cob_params[r].dimer_lambdas));
@@ -3386,7 +3325,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      //last = w1 + d - 1;
 	    }
 	    if (my_cob_params[r].dimer_lambdas[o][d] != 0.0) {
-	      //	      deviation_dist[r][o][d]=distance(new_deviation[r][o][d], my_cob_params[r].deviation[o][d]);
 	      deviation_dist[r][o][d]=distance(gap_weights[r][o][d].cut(0, first-1, 4, 2+d),
 					       my_cob_params[r].overlapping_dimer_PWM[o][d].cut(0, first-1, 4, 2+d));
 	      overlapping_dimer_weights[r][o][d] = my_cob_params[r].expected_overlapping_dimer_PWMs[o][d];
