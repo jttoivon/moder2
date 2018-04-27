@@ -1309,7 +1309,6 @@ get_new_weights(int j1, int dir, double z, int w, const std::string& seed,
     j1 = L - j1 - w;
   bitstring_t mismatches = iupac_mismatch_positions<bitstring_t>(line.substr(j1, w), seed);
   int hd = mypopcount(mismatches);
-  //  assert(hamming_distance(line.substr(j1, w), seed) == hd);
   bitstring_t positions = 0;
   if (not force_multinomial or hd < hamming_radius)
     positions = ~static_cast<bitstring_t>(0);  // update all
@@ -1320,7 +1319,6 @@ get_new_weights(int j1, int dir, double z, int w, const std::string& seed,
   //  printf("HD is %i %i %s %s\n", hd, mismatches, print_bitvector(mismatches).c_str(), print_bitvector(positions).c_str());
   bitstring_t mask = static_cast<bitstring_t>(1)<<(w-1);
   for (int pos=0; pos < w; ++pos, mask>>=1) {
-    //signal[to_int(line[j1+pos])] += z;
     if (positions & mask)
       weights(to_int(line[j1+pos]), pos) += z; // update columns of pwm marked by bit vector positions
   }
@@ -1330,12 +1328,6 @@ get_new_weights(int j1, int dir, double z, int w, const std::string& seed,
     if (j1 + w < L)
       succ_flank[to_int(line[j1+w])] += z;
   }
-
-  // if (use_markov_background) {
-  //   for (int pos2=0; pos2 < w-1; ++pos2)
-  //     dinucleotide_signal(to_int(line[j1+pos2]), to_int(line[j1+pos2+1])) += z;
-  // }
-
 }
 
 void
@@ -1344,7 +1336,6 @@ get_new_spaced_dimer_weights(int j1, int dir, double z, int d,
 			     const std::string& seed1, const std::string& seed2,
 			     const std::string& line_orig, const std::string& line_rev_orig,
 			     dmatrix& weights1, dmatrix& weights2, 
-			     //			    std::vector<double>& pred_flank, std::vector<double>& succ_flank,
 			     bool force_multinomial)
 {
   assert(seed1.length() == w1);
@@ -1402,7 +1393,6 @@ get_new_gap_weights(int j1, int dir, double z, int d,
 		    const std::string& seed1, const std::string& seed2,
 		    const std::string& line_orig, const std::string& line_rev_orig,
 		    dmatrix& weights1,
-		    //			    std::vector<double>& pred_flank, std::vector<double>& succ_flank,
 		    bool force_multinomial)//, bool compute_flanks)
 {
   assert(seed1.length() == w1);
@@ -1414,7 +1404,6 @@ get_new_gap_weights(int j1, int dir, double z, int d,
   int dimer_len = w1 + d + w2;
   if (dir == -1)
     j1 = L - j1 - dimer_len;
-  //  int j2 = j1 + d + w1;  // position of the second leg
 
   // first part
   std::string seed = seed1 + std::string(d, 'N') + seed2;
@@ -1427,32 +1416,16 @@ get_new_gap_weights(int j1, int dir, double z, int d,
   bitstring_t positions = 0;
   if (not force_multinomial or hd <= hamming_radius)
     positions = ~static_cast<bitstring_t>(0);  // update all
-  //  else if (hd == hamming_radius)  // update only mismatch positions
-  //    positions = mismatches;
   else
     positions = 0;   // update nothing
   int first = w1-1;  // last position of the first half-site
   int last = w1+d;   // first position of the second half-site
   bitstring_t mask = static_cast<bitstring_t>(1)<<(d+w2);
   for (int pos=first; pos <= last; ++pos, mask>>=1) {
-    //    if (pos != first and pos != last)
-    //      signal[to_int(line[j1+pos])] += z;
     if (positions & mask)
       weights1(to_int(line[j1+pos]), pos) += z; // update all columns
   }
 
-  /*
-  // Not correct
-  
-  if (use_markov_background) {
-    // first part
-    for (int pos2=0; pos2 < w1-1; ++pos2)
-      dinucleotide_signal(to_int(line[j1+pos2]), to_int(line[j1+pos2+1])) += z;
-    // second part
-    for (int pos2=0; pos2 < w2-1; ++pos2)
-      dinucleotide_signal(to_int(line[j2+pos2]), to_int(line[j2+pos2+1])) += z;
-  }
-  */
 }
 
 
@@ -1520,7 +1493,6 @@ get_new_spaced_dimer_weights_with_flanks(int j1, int dir, double z, int d,
   int dimer_len = w1 + d + w2;
   if (dir == -1)
     j1 = L - j1 - dimer_len;
-  //  int j2 = j1 + d + w1;  // position of the second leg
   int motif_pos = Lmax - dimer_len;        // Motif pos inside matrix 'weights' which has width 2*Lmax-w
   int seq_pos = motif_pos - j1; // Position of sequence inside matrix 'weights'
 
@@ -1599,10 +1571,7 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
   for (int r = 0; r < number_of_cobs; ++r) {
     const int& dmin = my_cob_params[r].dmin;
     const int& dmax = my_cob_params[r].dmax;
-    //    int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
     const int& no = my_cob_params[r].number_of_orientations;
-    // const int& k1 = my_cob_params[r].k1;
-    // const int& k2 = my_cob_params[r].k2;
     for (int o=0; o < no; ++o) {
       for (int d=dmin; d <= dmax; ++d) {
 	  flank_dimer_PWM[r][o][d] = dmatrix(4, 2*Lmax - my_cob_params[r].dimer_w[d]);
@@ -1610,9 +1579,12 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
     }
   }
 
+  int dirs[2] = {1, -1};
+  int maxdir = use_two_strands ? 2 : 1;
+
   ////////////////////////////
   //
-  // Fixed models
+  // Monomer models
   //
   ////////////////////////////
   
@@ -1631,14 +1603,10 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
       const std::string& line = sequences[i];
       const std::string& line_rev = sequences_rev[i];
       for (int j1=0; j1 < fixed_m[i][k]; ++j1) {  // iterates through start positions
-	double z = fixed_Z[i][k][0][j1];
-	get_new_weights_with_flanks(j1, +1, z, fixed_w[k], Lmax, fixed_seed[k], line, line_rev, pwm, 
+	for (int dir=0; dir < maxdir; ++dir) {
+	  double z = fixed_Z[i][k][dir][j1];
+	  get_new_weights_with_flanks(j1, dirs[dir], z, fixed_w[k], Lmax, fixed_seed[k], line, line_rev, pwm, 
 			use_multinomial, true);
-
-	if (use_two_strands) {
-	  double z2 = fixed_Z[i][k][1][j1];
-	  get_new_weights_with_flanks(j1, -1, z2, fixed_w[k], Lmax, fixed_seed[k], line, line_rev, pwm, 
-			  use_multinomial, true);
 	}
       }
     }  // end for lines
@@ -1674,16 +1642,12 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
 	  const std::string& line_rev = sequences_rev[i];
 
 	  for (int j1=0; j1 < my_cob_params[r].dimer_m[i][d]; ++j1) {  // iterates through start positions
-	    double z = my_cob_params[r].overlapping_dimer_Z[i][o][d][0][j1];
-	    get_new_weights_with_flanks(j1, +1, z, my_cob_params[r].dimer_w[d], Lmax, my_cob_params[r].dimer_seeds[o][d], 
-			    line, line_rev, pwm, use_multinomial, true);
-
-	    if (use_two_strands) {
-	      double z2 = my_cob_params[r].overlapping_dimer_Z[i][o][d][1][j1];
-	      get_new_weights_with_flanks(j1, -1, z2, my_cob_params[r].dimer_w[d], Lmax, my_cob_params[r].dimer_seeds[o][d], 
-			      line, line_rev, pwm, use_multinomial, true);
+	    for (int dir=0; dir < maxdir; ++dir) {
+	      double z = my_cob_params[r].overlapping_dimer_Z[i][o][d][dir][j1];
+	      get_new_weights_with_flanks(j1, dirs[dir], z, my_cob_params[r].dimer_w[d], Lmax, my_cob_params[r].dimer_seeds[o][d], 
+					  line, line_rev, pwm, use_multinomial, true);
 	    }
-	  }
+	  } // for j1
 	}  // for i
 	flank_dimer_PWM[r][o][d] = pwm;
       } // for d, overlapping dimer PWMs
@@ -1709,7 +1673,6 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
   for (int r = 0; r < number_of_cobs; ++r) {
     int tf1 = my_cob_params[r].tf1;
     int tf2 = my_cob_params[r].tf2;
-    //int dmax = my_cob_params[r].dmax;
     // temps for spaced
     int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
     for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
@@ -1724,8 +1687,6 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
     // clang (at least not 3.8) does not support 'declare reduction' even
     // though it defines _OPENMP to 201307 (that is openmp 4.0).
 #if defined(_OPENMP) && (_OPENMP >= 201307) && !defined(__clang__)
-	//	    dmatrix& pwm1 = m1[r];
-	//	    dmatrix& pwm2 = m2[r];
 #pragma omp declare reduction( + : dmatrix : omp_out+=omp_in ) initializer(omp_priv(omp_orig.dim()))
 #pragma omp declare reduction( + : std::vector<double> : omp_out+=omp_in ) initializer(omp_priv(std::vector<double>(omp_orig.size())))
 #pragma omp parallel for reduction(+:pwm) schedule(static)
@@ -1734,35 +1695,19 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
 	  const std::string& line = sequences[i];
 	  const std::string& line_rev = sequences_rev[i];
 
+	  for (int dir=0; dir < maxdir; ++dir) {
 
-
-	  ////////////////
-	  // strand one
-
-	  for (int j1=0; j1 < my_cob_params[r].dimer_m[i][d]; ++j1) {  // iterates through start positions
-	    double z = my_cob_params[r].overlapping_dimer_Z[i][o][d][0][j1];
-	    get_new_spaced_dimer_weights_with_flanks(j1, +1, z, d, fixed_w[tf1], fixed_w[tf2], Lmax,
-				my_cob_params[r].oriented_dimer_seeds[o].get<0>(), 
-				my_cob_params[r].oriented_dimer_seeds[o].get<1>(),
-				line, line_rev, 
-				pwm,
-						     use_multinomial, true);
-	  }
-
-	  ////////////////
-	  // strand two
-
-	  if (use_two_strands) {
 	    for (int j1=0; j1 < my_cob_params[r].dimer_m[i][d]; ++j1) {  // iterates through start positions
-	      double z = my_cob_params[r].overlapping_dimer_Z[i][o][d][1][j1];
-	      get_new_spaced_dimer_weights_with_flanks(j1, -1, z, d, fixed_w[tf1], fixed_w[tf2], Lmax,
-				  my_cob_params[r].oriented_dimer_seeds[o].get<0>(), 
-				  my_cob_params[r].oriented_dimer_seeds[o].get<1>(),
-				  line, line_rev, 
-				  pwm,
+	      double z = my_cob_params[r].overlapping_dimer_Z[i][o][d][dir][j1];
+	      get_new_spaced_dimer_weights_with_flanks(j1, dirs[dir], z, d, fixed_w[tf1], fixed_w[tf2], Lmax,
+						       my_cob_params[r].oriented_dimer_seeds[o].get<0>(), 
+						       my_cob_params[r].oriented_dimer_seeds[o].get<1>(),
+						       line, line_rev, 
+						       pwm,
 						       use_multinomial, true);
-	    }
-	  }
+	    } // for j1
+	  }  // for dir
+	  
 	} // for i in lines
 	flank_dimer_PWM[r][o][d] = pwm;
       } // for d, spaced dimer PWMs
@@ -1782,8 +1727,6 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
     int dmin = my_cob_params[r].dmin;
     int dmax = my_cob_params[r].dmax;
     int no = my_cob_params[r].number_of_orientations;
-    //int tf1 = my_cob_params[r].tf1;
-    //int tf2 = my_cob_params[r].tf2;
     for (int o=0; o < no; ++o) {
       for (int d=dmin; d <= dmax; ++d) {
 	if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
@@ -1791,7 +1734,6 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
 	if (use_pseudo_counts)
 	  pseudo_counts.add(flank_dimer_PWM[r][o][d]);
 	normalize_matrix_columns(flank_dimer_PWM[r][o][d]);
-	//	write_matrix(stdout, flank_dimer_PWM[r][o][d], to_string("Flank dimer case matrix %i-%i %s %i:\n", tf1,tf2, orients[o], d), "%.6f");
       }
     }
     
@@ -3157,7 +3099,12 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	} // end for r
       }
       
-      // print gap models
+      /////////////////////////////////
+      //
+      // print gap dimer models
+      //
+      /////////////////////////////////
+
       if (extra_debug) {
 	for (int r = 0; r < number_of_cobs; ++r) {
 	  int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
@@ -3607,6 +3554,7 @@ print_positional_options(const po::positional_options_description& popt,
   }
 }
 
+// Not used currently
 class mytempfile
 {
 public:
@@ -3655,6 +3603,8 @@ private:
   int* reference_count;
 };
 
+
+// Not used!!!
 void
 pwm_list_to_logos(const std::string& result_filename, const std::vector<dmatrix>& matrices)
 {
