@@ -11,6 +11,7 @@ import math
 import StringIO
 import matplotlib.pyplot as plt
 import matplotlib
+from matplotlib import ticker
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 css="""
@@ -833,11 +834,16 @@ def make_heatmap(data, drange, title="", outputfile="", fontsize=32.0):
     cax = divider.append_axes("right", size="5%", pad=0.05)
     try:
         cb=plt.colorbar(cax=cax)
+        tick_locator = ticker.MaxNLocator(nbins=5)
+        cb.locator = tick_locator
+        ##cb.ax.yaxis.set_major_locator(matplotlib.ticker.AutoLocator())                                             
+        cb.update_ticks()
         temp=cax.get_yticklabels()
         for i,t in enumerate(temp):
             #print temp[i].get_text()
-            temp[i].set_text("%.0f" % (float(temp[i].get_text())*1000))   # Multiply values in colorbar by 1000
-        cax.set_yticklabels(temp)
+#            temp[i].set_text("%.0f" % (float(temp[i].get_text())*1000))   # Multiply values in colorbar by 1000
+            temp[i] = "%.0f" % (float(temp[i].get_text())*1000)   # Multiply values in colorbar by 1000
+        cax.set_yticklabels(temp, fontsize=tickfontsize)
     except UnicodeEncodeError:   # If labels contain unicode minus, then something went wrong and better not show colorbar
         cb.remove()
         pass

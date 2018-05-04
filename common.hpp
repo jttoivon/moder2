@@ -936,6 +936,9 @@ write_cob_file(const std::string& filename, const boost::multi_array<T, 2>& a)
   fclose(fp);
 }
 
+std::string&
+SSS(const char* s);
+
 
 #endif // COMMON_HPP
 
