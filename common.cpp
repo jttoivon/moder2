@@ -691,6 +691,12 @@ integer_range(int begin, int end)
   return result;
 }
 
+// This is a helper function to be used inside gdb debugger
+std::string&
+SSS(const char* s)
+{
+  return *(new std::string(s));
+}
 
 
 
