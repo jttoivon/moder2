@@ -89,8 +89,8 @@ typedef long double FloatType;
 
 typedef boost::tuple<int,int> cob_combination_t;
 
-typedef std::vector<boost::tuple<int, int, int, int, std::string> > overlapping_dimer_cases_t;
-typedef std::vector<boost::tuple<int, int, int, int> > spaced_dimer_cases_t;
+// typedef std::vector<boost::tuple<int, int, int, int, std::string> > overlapping_dimer_cases_t;
+// typedef std::vector<boost::tuple<int, int, int, int> > spaced_dimer_cases_t;
 
 typedef boost::multi_array<dmatrix, 2> cob_of_matrices;
 
@@ -2594,14 +2594,14 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
 	      continue;
 
-	    bool local_use_two_strands;
-	    if (avoid_palindromes and use_two_strands and (o == HH or o==TT) and
-		is_almost_palindrome(my_cob_params[r].deviation[o][d])) {
-	      local_use_two_strands = false;
-	      printf("Avoiding palindrome %s %d iteration %i\n", orients[o], d, round);
-	    }
-	    else
-	      local_use_two_strands = use_two_strands;
+	    //	    bool local_use_two_strands;
+	    // if (avoid_palindromes and use_two_strands and (o == HH or o==TT) and
+	    // 	is_almost_palindrome(my_cob_params[r].deviation[o][d])) {
+	    //   local_use_two_strands = false;
+	    //   printf("Avoiding palindrome %s %d iteration %i\n", orients[o], d, round);
+	    // }
+	    // else
+	    //   local_use_two_strands = use_two_strands;
 	    
 	    int w = my_cob_params[r].dimer_w[d];
 	    dmatrix temp_dinucleotide_signal(4, 4);
@@ -2787,14 +2787,14 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    dmatrix m1(4, dimer_len);
 
 	    m1.fill_with(0.0);
-	    bool local_use_two_strands;
-	    if (avoid_palindromes and use_two_strands and (o == HH or o==TT) and
-		is_almost_palindrome(my_cob_params[r].deviation[o][d])) {
-	      local_use_two_strands = false;
-	      printf("Avoiding palindrome %s %d iteration %i\n", orients[o], d, round);
-	    }
-	    else
-	      local_use_two_strands = use_two_strands;
+	    //	    bool local_use_two_strands;
+	    // if (avoid_palindromes and use_two_strands and (o == HH or o==TT) and
+	    // 	is_almost_palindrome(my_cob_params[r].deviation[o][d])) {
+	    //   local_use_two_strands = false;
+	    //   printf("Avoiding palindrome %s %d iteration %i\n", orients[o], d, round);
+	    // }
+	    // else
+	    //   local_use_two_strands = use_two_strands;
 
 
 	    int w1 = fixed_w[tf1];
@@ -3686,8 +3686,8 @@ create_cob(cob_combination_t cob_combination,
 	   const std::vector<std::string>& fixed_seeds,
 	   const std::vector<dmatrix>& fixed_M,
 	   double dimer_lambda_fraction,
-	   const overlapping_dimer_cases_t& overlapping_dimer_cases, 
-	   const spaced_dimer_cases_t& spaced_dimer_cases,
+	   // const overlapping_dimer_cases_t& overlapping_dimer_cases, 
+	   // const spaced_dimer_cases_t& spaced_dimer_cases,
 	   const std::vector<std::string>& sequences,
 	   const std::vector<int>& L,
 	   const gapped_kmer_context& my_gapped_kmer_context, int dmin, int dmax, int max_dist_for_deviation)
@@ -3942,8 +3942,8 @@ int main(int argc, char* argv[])
   std::vector<double> spaced_dimer_lambda;
 
 
-  overlapping_dimer_cases_t overlapping_dimer_cases;
-  spaced_dimer_cases_t spaced_dimer_cases;
+  // overlapping_dimer_cases_t overlapping_dimer_cases;
+  // spaced_dimer_cases_t spaced_dimer_cases;
 
   po::variables_map vm;
   int fixed_p = 0; // number of fixed models
@@ -4111,7 +4111,7 @@ int main(int argc, char* argv[])
       else {
 	std::vector<std::string> cob_tables = split(vm["cob"].as<std::string>(), ',');
 	BOOST_FOREACH(std::string s, cob_tables) {
-	  std::vector<std::string> temp =split(s, '-');
+	  std::vector<std::string> temp = split(s, '-');
 	  error(temp.size() != 2,
 		to_string("Cob combinations given to --cob should be pairs of integers separated by '-'. Error in %s", s.c_str()));
 
@@ -4546,8 +4546,9 @@ int main(int argc, char* argv[])
     error(dmax < dmin, "Requested dimeric cases do not fit into the input sequence");
     max_dist_for_deviation = std::min(max_dist_for_deviation, dmax);
     cob_params_t cp = create_cob(cob_combination, fixedseedlist, fixed_M, dimer_lambda_fraction, 
-				 overlapping_dimer_cases,
-				 spaced_dimer_cases, sequences, L, my_gapped_kmer_context, dmin, dmax, max_dist_for_deviation);
+				 // overlapping_dimer_cases,
+				 // spaced_dimer_cases,
+				 sequences, L, my_gapped_kmer_context, dmin, dmax, max_dist_for_deviation);
     cp.update_oriented_matrices(fixed_M, fixedseedlist);
     cp.compute_expected_matrices(fixed_M);
     cp.compute_deviation_matrices();
