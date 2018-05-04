@@ -1,5 +1,5 @@
 package = moder
-version = 1.0.0
+version = 1.0.1
 tarname = $(package)
 distdir = $(tarname)-$(version)
 prefix=/usr/local
@@ -90,12 +90,13 @@ install: all
 	install -m 0755 all_pairs_huddinge $(prefix)/bin
 	install -m 0644 README.md $(docdir)
 
+.PHONY: dist FORCE distcheck $(distdir)
 
 FORCE:
 	-rm -f $(distdir).tar.gz 2>/dev/null >/dev/null
 
 
-$(distdir).tar.gz: FORCE $(distdir)
+$(distdir).tar.gz: $(distdir)
 	tar chf - $(distdir) | gzip -9 -c > $(distdir).tar.gz
 	rm -rf $(distdir)
 
@@ -121,6 +122,7 @@ $(distdir):
 	mkdir -p $(distdir)/CPM03
 	mkdir -p $(distdir)/data	
 	cp README.md $(distdir)
+	cp NEWS $(distdir)
 	cp COPYING $(distdir)
 	cp Makefile $(distdir)
 	cp myspacek40.c $(distdir)
@@ -204,7 +206,6 @@ myspacek40: myspacek40.c
 #test/test_suffix_array_wrapper: $(TEST_SUFFIX_ARRAY_WRAPPER_OBJS)
 #	$(CXX) $(CXXFLAGS) $(TEST_SUFFIX_ARRAY_WRAPPER_OBJS) -o test/test_suffix_array_wrapper $(LDFLAGS)
 
-.PHONY: dist FORCE distcheck
 
 
 ####################################

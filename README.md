@@ -6,6 +6,10 @@ As the only external dependency, the MODER requires the Boost library, which is 
 should be used. At least version 1.49 is known to work.
 To get full advantage of parallellism the compiler should support openmp 4.0 which, for instance, gcc 4.9.0 and later supports.
 Running `make` in the directory of the distribution should compile MODER.
+If on macOS/OSX you have problems compiling MODER, it may be due to lack of openmp support. In this case,
+first run `make clean`, followed by `make NOOPENMP=1`. This option unfortunately prevents running
+MODER with multiple threads simultaneously.
+
 You can also install MODER by running the command
 
 	sudo make install
