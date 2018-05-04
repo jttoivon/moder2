@@ -30,10 +30,6 @@
 
 #define TIMING
 
-//extern "C" {
-//#include "suffix_array/interface.h"
-//}
-
 #ifndef PACKAGE_VERSION
 #define PACKAGE_VERSION "unknown"
 #endif
@@ -89,9 +85,6 @@ typedef long double FloatType;
 
 typedef boost::tuple<int,int> cob_combination_t;
 
-// typedef std::vector<boost::tuple<int, int, int, int, std::string> > overlapping_dimer_cases_t;
-// typedef std::vector<boost::tuple<int, int, int, int> > spaced_dimer_cases_t;
-
 typedef boost::multi_array<dmatrix, 2> cob_of_matrices;
 
 
@@ -108,11 +101,9 @@ int global_dmax = 10;
 //int global_max_dist_for_deviation = -1;
 //int global_max_dist_for_deviation = 4;
 int global_max_dist_for_deviation = 1000;
-//int min_flank = 3;  // On each side of overlapping area of a dimer at least min_flank number of positions
-                    // must be reserved. That is the minimum non-overlapping part on each side.
+
 double ic_threshold = 0.40;
 double learning_fraction = 0.02;
-//int hamming_threshold = 4;
 
 int character_count=0;
 int digram_count=0;
@@ -435,59 +426,7 @@ public:
     return boost::make_tuple(std::string(""), 0);
   }
 
-  /*
-  // Old version, do not use
-  std::string
-  max(const std::string& s, int gap_pos, int gap_len) const
-  {
-    TIME_START(s);
-    int k = s.length();
-    assert(gap_pos > 0);
-    assert(gap_pos + gap_len < k);
-    for(int i=gap_pos; i < gap_pos + gap_len; ++i) {
-      assert(s[i] == 'N');
-    }
 
-// Writes in numocc the number of occurrences of the substring 
-//       pattern[0..length-1] found in the text indexed by index.
-
-    int max_count = 0;
-    std::string arg_max;
-    unsigned long int number_of_occurrences;
-    char nucs[] = "ACGT";
-
-    std::vector<int> v(gap_len, 0);  // helper array
-    std::string pattern = s;
-    v[gap_len-1]=-1;  // Initialize
-    // The loop goes throught the gap filler in the following order:
-    // AAAA....AAA
-    // AAAA....AAC
-    // ...
-    // TTTT....TTG
-    // TTTT....TTT
-    for (int j=0; j < pow(4, gap_len); ++j) {
-
-      int i;
-      for (i=gap_len-1; v[i] == 3; --i) {
-	v[i]=0;
-	pattern[gap_pos+i] = nucs[v[i]];
-      }
-      v[i]++;
-      pattern[gap_pos+i] = nucs[v[i]];
-
-      number_of_occurrences = count(pattern);
-
-      if (number_of_occurrences > max_count) {
-	max_count = number_of_occurrences;
-	arg_max = pattern;
-      }
-    }
-
-    timer += TIME_GET(s);
-
-    return arg_max;
-  }
-*/
 
   ~gapped_kmer_context() 
   { 
@@ -613,7 +552,6 @@ struct cob_params_t
     deviation.resize(boost::extents[number_of_orientations][range(dmin, max_dist_for_deviation+1)]);
     for (int o=0; o < number_of_orientations; ++o) {
       for (int d=dmin; d <= max_dist_for_deviation; ++d) {
-	//	deviation[o][d] = dmatrix(4, 2 - d);
 	deviation[o][d] = dmatrix(4, k1 + k2 + d);  // This contains redundant flanks. Just to ease
 	                                            // operating with matrices expected and observed
 	                                            // which have the same dimensions.
@@ -629,8 +567,6 @@ struct cob_params_t
 
   void
   set_lengths() {
-    //printf("Overlapping dimer cases:\n");
-    //typedef BinOp<int>::type func_ptr;
     myaccumulate<int> acc(0, static_cast<BinOp<int>::type>(std::max));
     for (int d=dmin; d < std::min(0, dmax+1); ++d) {
       dimer_w[d] = overlapping_dimer_PWM[0][d].get_columns();
@@ -642,8 +578,6 @@ struct cob_params_t
 
     overlapping_dimer_m_max = acc.get();
     
-    //printf("Spaced dimer cases:\n");
-    //typedef const int& (*func_ptr)(const int&, const int&);
     acc.reset(0);
     for (int d=0; d <= dmax; ++d){
       dimer_w[d] = k1 + d + k2;
@@ -661,8 +595,6 @@ struct cob_params_t
     int directions = use_two_strands ? 2 : 1;
     overlapping_dimer_Z.resize(boost::extents[lines][number_of_orientations][range(dmin,max_dist_for_deviation+1)][directions][overlapping_dimer_m_max]);
     spaced_dimer_Z.resize(boost::extents[lines][number_of_orientations][range(max_dist_for_deviation+1,dmax+1)][directions][spaced_dimer_m_max]);
-    //    overlapping_dimer_Z.resize(boost::extents[lines][number_of_orientations][range(dmin,0)][directions][overlapping_dimer_m_max]);
-    //    spaced_dimer_Z.resize(boost::extents[lines][number_of_orientations][range(0,dmax+1)][directions][spaced_dimer_m_max]);
   }
 
   void
@@ -682,14 +614,8 @@ struct cob_params_t
     // Compute expected matrices
     for (int o=0; o < number_of_orientations; ++o) {
       for (int d=dmin; d <= max_dist_for_deviation; ++d) {
-	//	dmatrix a, b;
-	//	boost::tie(a, b) = get_matrices_according_to_hetero_orientation(o, fixed_PWM[tf1],fixed_PWM[tf2]);
-	//	boost::tie(a, b) = oriented_dimer_matrices[o];
 	dmatrix expected = matrix_product(oriented_dimer_matrices[o].get<0>(), oriented_dimer_matrices[o].get<1>(), d);
-	// write_matrix(stdout, expected, to_string("Expected (unnormalized) dimer case matrix %s %s %i:\n", 
-	// 					 name().c_str(), orients[o], d).c_str(), "%.6f");
 	normalize_matrix_columns(expected);
-	//    write_matrix(stdout, expected, to_string("Expected (normalized) dimer case matrix %s %i:\n", orients[o], d).c_str(), "%.6f");
 	expected_overlapping_dimer_PWMs[o][d] = expected;
       } // end for d
     }   // end for o
@@ -754,105 +680,6 @@ struct cob_params_t
   std::vector<boost::tuple<std::string,std::string> > oriented_dimer_seeds;
 };
 
-/*
-
-// This computes the expected log likelihood of the INCOMPLETE data. that is: E log P(X|total model)
-double
-incomplete_data_maximum_log_likelihood(const std::vector<dmatrix>& PWM, 
-		       const std::vector<double>& q, 
-		       const dmatrix& q2, 
-		       const std::vector<double>& lambda, 
-		       double lambda_bg, std::vector<cob_params_t>& my_cob_params,
-		       const std::vector<std::string>& sequences,
-		       const std::vector<std::string>& sequences_rev)
-{
-
-  double result=0.0;
-  int p=PWM.size();
-  int L=sequences[0].length();
-  int number_of_cobs = my_cob_params.size();
-
-  std::vector<int> w(p);
-  std::vector<int> m(p);
-  for (int i=0; i < p; ++i) {
-    w[i] = PWM[i].get_columns();
-    m[i] = L-w[i]+1;
-  }
-
-  typedef boost::multi_array<dmatrix, 2> cob_of_matrices_t;
-  typedef cob_of_matrices_t::extent_range range;
-  std::vector<cob_of_matrices_t> overlapping_models;
-  for (int r=0; r < number_of_cobs; ++r) {
-    int tf1 = my_cob_params[r].tf1;
-    int tf2 = my_cob_params[r].tf2;
-    int number_of_orientations = tf1 == tf2 ? 3 : 4;
-    int dmin = my_cob_params[r].dmin;
-    int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
-    //    int dmax = my_cob_params[r].dmax;
-    
-    overlapping_models.push_back(cob_of_matrices_t(boost::extents[number_of_orientations][range(dmin, max_dist_for_deviation+1)]));
-    for (int o=0; o < number_of_orientations; ++o) {
-      for (int d=dmin; d <= max_dist_for_deviation; ++d) {
-	overlapping_models[r][o][d] = my_cob_params[r].expected_overlapping_dimer_PWMs[o][d] + my_cob_params[r].deviation[o][d];
-      }
-    }
-  }
-#pragma omp parallel for shared(use_two_strands) reduction(+:result) schedule(static)
-  for (int i=0; i < sequences.size(); ++i) {
-    const std::string& line = sequences[i];
-    const std::string& line_rev = sequences_rev[i];
-    double temp = 0.0;
-    for (int k=0; k < p; ++k) {
-      for (int j=0; j < m[k]; ++j) {
-	temp += compute_probability(line, line_rev, j, 1, PWM[k], q, q2) * lambda[k] / (double)m[k] / 2.0;
-	temp += compute_probability(line, line_rev, j, -1, PWM[k], q, q2) * lambda[k] / (double)m[k] / 2.0;
-      }
-    }
-
-    for (int r=0; r < number_of_cobs; ++r) {
-      int tf1 = my_cob_params[r].tf1;
-      int tf2 = my_cob_params[r].tf2;
-      int number_of_orientations = tf1 == tf2 ? 3 : 4;
-      int dmin = my_cob_params[r].dmin;
-      int dmax = my_cob_params[r].dmax;
-      int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
-      for (int o=0; o < number_of_orientations; ++o) {
-	for (int d=max_dist_for_deviation+1; d <= dmax; ++d) {       // spaced dimers
-	  int m = my_cob_params[r].dimer_m[d];
-	  for (int j=0; j < m; ++j) {
-	    temp += compute_dimer_probability(line, line_rev,
-					      j, +1,
-					      my_cob_params[r].oriented_dimer_matrices[o].get<0>(), 
-					      my_cob_params[r].oriented_dimer_matrices[o].get<1>(), 
-					      d, q, q2) * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0;
-	    temp += compute_dimer_probability(line, line_rev,
-					      j, -1,
-					      my_cob_params[r].oriented_dimer_matrices[o].get<0>(), 
-					      my_cob_params[r].oriented_dimer_matrices[o].get<1>(), 
-					      d, q, q2) * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0;
-	  } // end for j
-	} // end for d
-
-	for (int d=dmin; d <= max_dist_for_deviation; ++d) {        // overlapping dimers
-	  int m = my_cob_params[r].dimer_m[d];
-	  const dmatrix& model = overlapping_models[r][o][d];
-	  for (int j=0; j < m; ++j) {
-	    temp += compute_probability(line, line_rev, j, +1, model, q, q2) * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0;
-	    temp += compute_probability(line, line_rev, j, -1, model, q, q2) * my_cob_params[r].dimer_lambdas[o][d] / (double)m / 2.0;
-	  }
-	}
-
-      }  // end for o
-    } // end for r
-
-    temp += compute_background_probability(line, q, q2) * lambda_bg;
-    result += log2(temp);
-  } // end for i
-
-  return result;
-} // end incomplete_data_log_likelihood
-
-*/
 
 void
 print_math_error(int retval)
@@ -1212,14 +1039,12 @@ sum_Z_dir_j(const boost::multi_array<FloatType, 5>& Z, int i, int o, int d, int 
   for (int j=0; j < m; ++j) {
     if (Z[i][o][d][0][j] != 0.0) {
       queue.push(Z[i][o][d][0][j]);
-      //queue.push_back(Z[i][o][d][0][j]);
     }
   }
   if (use_two_strands) {
     for (int j=0; j < m; ++j) {
       if (Z[i][o][d][1][j] != 0.0) {
 	queue.push(Z[i][o][d][1][j]);
-	//queue.push_back(Z[i][o][d][1][j]);
       }
     }
   }
@@ -1232,14 +1057,12 @@ sum_Z_dir_j(const boost::multi_array<FloatType, 4>& Z, int i, int k, int m, queu
   for (int j=0; j < m; ++j) {
     if (Z[i][k][0][j] != 0.0) {
       queue.push(Z[i][k][0][j]);
-      //queue.push_back(Z[i][k][0][j]);
     }
   }
   if (use_two_strands) {
     for (int j=0; j < m; ++j) {
       if (Z[i][k][1][j] != 0.0) {
 	queue.push(Z[i][k][1][j]);
-	//queue.push_back(Z[i][k][1][j]);
       }
     }
   }
@@ -1817,17 +1640,11 @@ create_overlapping_seed(const std::string& seed1, const std::string& seed2, int 
   int k1 = seed1.length();
   int k2 = seed2.length();
 
-  //int my_min_flank = std::min(k1+d,k2+d);
   std::string pattern;
   int hd;
-  // if (my_min_flank <= 3) {
-  //   hd = hamming_distance_overlapping_seeds_OR;
-  //   pattern = combine_seeds_OR(seed1, seed2, d);
-  // }
-  // else {
   hd = hamming_distance_overlapping_seeds_N;   // this is zero
   pattern = combine_seeds_func(seed1, seed2, d);
-    //  }
+
   assert(pattern.size() == k1 + k2 + d);
   std::string overlapping_seed;
   if (maximize_overlapping_seeds) {
@@ -1837,12 +1654,6 @@ create_overlapping_seed(const std::string& seed1, const std::string& seed2, int 
   }
   else
     overlapping_seed = pattern;
-  /*
-    for (int i=0; i < k1+d; ++i)                       // Flanks should be the same
-    assert(overlapping_seed[i] == pattern[i]);
-    for (int i=k1; i < k1+k2+d; ++i)
-    assert(overlapping_seed[i] == pattern[i]);
-  */
   assert(overlapping_seed.size() == k1 + k2 + d);
   return  overlapping_seed;
 }
@@ -2066,8 +1877,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
   boost::multi_array<int, 2> fixed_m(boost::extents[lines][fixed_p]);
   std::vector<int> L(lines);
   
-  //  std::vector<int> fixed_m(fixed_p);
-
   
   std::vector<std::vector<double> > pred_flank(fixed_p);
   std::vector<std::vector<double> > succ_flank(fixed_p);
@@ -2291,10 +2100,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	  // Overlapping dimer models
 	  for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
 	    for (int d=my_cob_params[r].dmin; d <= max_dist_for_deviation; ++d) {
-	      //const dmatrix& model = my_cob_params[r].overlapping_dimer_PWM[o][d];
-	      //const dmatrix& expected = my_cob_params[r].expected_overlapping_dimer_PWMs[o][d];
-	      //const dmatrix& deviation = my_cob_params[r].deviation[o][d];
-	      //const dmatrix& model = expected + deviation;
 	      expectation_Z_dir_j_overlapping(my_cob_params[r].overlapping_dimer_Z, i, o, d, line, line_rev, 
 					      my_cob_params[r].dimer_m[i][d], log_dimer_lambda[r][o][d],
 					      log_overlapping_models[r][o][d],
@@ -2855,25 +2660,21 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
       // These weren't used to learning fixed PWMs.
       // Only to form background model by subtracting signal from full data
-      // if (use_two_strands)
-      // 	fixed2_signal_sum /= 2.0;
       total_signal_sum += fixed2_signal_sum;
       if (local_debug)
 	printf("fixed2 signal: %s\n", print_vector(fixed2_signal_sum).c_str());
 
-      // if (use_two_strands)
-      // 	overlapping_signal_sum /= 2.0;
 
       total_signal_sum += overlapping_signal_sum;
       if (local_debug)
 	printf("overlapping signal: %s\n", print_vector(overlapping_signal_sum).c_str());
 
-      // if (use_two_strands)
-      // 	gap_signal_sum /= 2.0;
       total_signal_sum += gap_signal_sum;
       if (local_debug)
 	printf("gap signal: %s\n", print_vector(gap_signal_sum).c_str());
       
+      //      if (use_two_strands)  
+		//	total_signal_sum /= 2.0;  // This should not be used
       if (local_debug)
 	printf("Total signal is %s\n", print_vector(total_signal_sum).c_str());
       dvector bg_temp = background_frequencies;    // always counted only in single direction!!!!!
@@ -2881,8 +2682,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       if (local_debug)
 	printf("Data distribution is %s\n", print_vector(bg_temp).c_str());
 
-      //      if (use_two_strands)  
-		//	total_signal_sum /= 2.0;  // This should not be used
       //recompute the background probabilities, without motif occurences
       for (int i=0; i < 4; ++i) {
 	bg_model[i] = bg_temp[i] - total_signal_sum[i];
@@ -3441,7 +3240,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	 (int)first_maximum_log_likelihood);
   printf("Maximum log likelihood in the end: %i\n", (int)mll);
 
-  //printf("AIC score: %lg\n", aic_score(maximum_log_likelihood, lines, w[0]));
   printf("EM-algorithm took %s = %d iterations \n", print_vector(iterations, "+", 0).c_str(), sum(iterations));
   printf("\n");
   printf("Background lambda is %f\n", background_lambda);
@@ -3560,6 +3358,7 @@ print_positional_options(const po::positional_options_description& popt,
   }
 }
 
+/*
 // Not used currently
 class mytempfile
 {
@@ -3657,7 +3456,7 @@ pwm_list_to_logos(const std::string& result_filename, const std::vector<dmatrix>
     return;
 
 }
-
+*/
 
 dmatrix
 multinomial1_multimer_bernoulli_corrected(const std::string& seed, const std::vector<std::string>& sequences)
@@ -3686,8 +3485,6 @@ create_cob(cob_combination_t cob_combination,
 	   const std::vector<std::string>& fixed_seeds,
 	   const std::vector<dmatrix>& fixed_M,
 	   double dimer_lambda_fraction,
-	   // const overlapping_dimer_cases_t& overlapping_dimer_cases, 
-	   // const spaced_dimer_cases_t& spaced_dimer_cases,
 	   const std::vector<std::string>& sequences,
 	   const std::vector<int>& L,
 	   const gapped_kmer_context& my_gapped_kmer_context, int dmin, int dmax, int max_dist_for_deviation)
@@ -3713,24 +3510,6 @@ create_cob(cob_combination_t cob_combination,
   if (use_dimers) {
     // These were given on the command line
     double uniform_lambda = dimer_lambda_fraction / (number_of_overlapping_dimer_cases + number_of_spaced_dimer_cases);
-    /*
-    for (int i=0; i < overlapping_dimer_cases.size(); ++i) {
-      //overlapping_dimer_lambda.push_back(uniform_lambda);
-      int o = overlapping_dimer_cases[i].get<2>();
-      int d = overlapping_dimer_cases[i].get<3>();
-      std::string seed = overlapping_dimer_cases[i].get<4>();
-      dimer_seeds[o][d] = seed;
-      dimer_lambdas[o][d] = uniform_lambda;
-    }
-     
-    // These were given on the command line
-    for (int i=0; i < spaced_dimer_cases.size(); ++i) {
-      int o = spaced_dimer_cases[i].get<2>();
-      int d = spaced_dimer_cases[i].get<3>();
-      dimer_lambdas[o][d] = uniform_lambda;
-      //      spaced_dimer_lambda.push_back(uniform_lambda);
-    }
-    */
     
     // Fill dimer matrix with the rest of overlapping cases
     for (int o=0; o < number_of_orientations; ++o) {
@@ -3769,16 +3548,8 @@ create_cob(cob_combination_t cob_combination,
       if (use_pseudo_counts)
 	pseudo_counts.add(overlapping_dimer_PWM[o][d]);
       normalize_matrix_columns(overlapping_dimer_PWM[o][d]);
-      /*
-	write_matrix(stdout, overlapping_dimer_PWM[o][d], 
-	to_string("Initial overlapping_dimer matrix %i-%i %s %i from seed %s:\n", 
-	tf1, tf2,
-	orients[o], d, seed.c_str()), "%.6f");
-      */
     }  // end for d
     for (int d=0; d <= max_dist_for_deviation; ++d) {
-      //      int dimer_len = fixed_seeds[tf1].length() + fixed_seeds[tf2].length() + d;
-      //      overlapping_dimer_PWM[o][d] = dmatrix(4, dimer_len);
       overlapping_dimer_PWM[o][d] =
 	normalize_matrix_columns_copy(matrix_product(oriented_dimer_matrices[o].get<0>(),
 						     oriented_dimer_matrices[o].get<1>(),
@@ -3932,7 +3703,6 @@ int main(int argc, char* argv[])
 
   
   string seqsfile;
-  //string freqs;
   std::vector<std::string> fixedmatrixfilelist;
   std::vector<std::string> fixedseedlist;
 
@@ -3942,13 +3712,9 @@ int main(int argc, char* argv[])
   std::vector<double> spaced_dimer_lambda;
 
 
-  // overlapping_dimer_cases_t overlapping_dimer_cases;
-  // spaced_dimer_cases_t spaced_dimer_cases;
 
   po::variables_map vm;
   int fixed_p = 0; // number of fixed models
-  // int overlapping_dimer_p = 0; // number of overlapping models
-  // int spaced_dimer_p = 0; // number of spaced models
   boost::multi_array<std::string, 2> dimer_seeds;
 
    ////////////////////////////////
@@ -4069,9 +3835,6 @@ int main(int argc, char* argv[])
     }
     error(hamming_distance_overlapping_seeds_N < 0 or hamming_distance_overlapping_seeds_N > 2, "overlap maximize must be either 0, 1 or 2.");
 
-    // if (vm.count("min-flank"))
-    //   min_flank = vm["min-flank"].as< int >();
-    // error(min_flank <= 0, "min-flank must be positive.");
 
     if (vm.count("overlap-combine")) {
       std::string method = vm["overlap-combine"].as<std::string>();
@@ -4119,8 +3882,6 @@ int main(int argc, char* argv[])
 	  int tf2 = atoi(temp[1]);
 	  error(tf1 < 0 or tf1 >= fixed_p, to_string("TF index pair in %s out of range.", s.c_str()));
 	  error(tf2 < 0 or tf2 >= fixed_p, to_string("TF index pair in %s out of range.", s.c_str()));
-	  //	  assert(0 <= tf1 and tf1 < fixed_p);
-	  //	  assert(0 <= tf2 and tf2 < fixed_p);
 	  cob_combinations.push_back(make_tuple(tf1, tf2));
 	}
       }
@@ -4206,64 +3967,6 @@ int main(int argc, char* argv[])
 	names.push_back(to_string("TF%i", i));
     }
 
-    // Command line parameters for cob models
-    /*
-    if (vm.count("overlapping-dimer") and use_dimers) {
-      std::vector<std::string> v = vm["overlapping-dimer"].as<std::vector<std::string> >();
-      printf("Overlapping dimer cases:\n");
-      for (int a=0; a < v.size(); ++a) {
-	std::vector<std::string> parts = split(v[a], ',');
-	assert(parts.size() == 5);
-
-	int i = atoi(parts[0]);
-	int j = atoi(parts[1]);
-	int o = string_to_orientation(parts[2]);
-	int d = atoi(parts[3]);
-	std::string seed = parts[4];
-
-	assert(0 <= i && i < fixed_p);
-	assert(0 <= j && j < fixed_p);
-
-	overlapping_dimer_cases.push_back(boost::make_tuple(i, j, o, d, seed));
-	printf("%i: %s\n", a, v[a].c_str());
-      }
-      //      overlapping_dimer_p = overlapping_dimer_cases.size();
-    }
-
-    if (vm.count("spaced-dimer") and use_dimers) {
-      std::vector<std::string> v = vm["spaced-dimer"].as<std::vector<std::string> >();
-      printf("Spaced dimer cases:\n");
-      for (int a=0; a < v.size(); ++a) {
-	std::vector<std::string> parts = split(v[a], ',');
-	assert(parts.size() == 4);
-
-	int i = atoi(parts[0]);
-	int j = atoi(parts[1]);
-	int o = string_to_orientation(parts[2]);
-	int d = atoi(parts[3]);
-
-	assert(0 <= i && i < fixed_p);
-	assert(0 <= j && j < fixed_p);
-
-	spaced_dimer_cases.push_back(boost::make_tuple(i, j, o, d));
-	printf("%i: %s\n", a, v[a].c_str());
-      }
-      //spaced_dimer_p = spaced_dimer_cases.size();
-    }
-    */
-
-    /*
-    // Command line parameter disabled
-    if (vm.count("fixed-lambdalist")) {
-      std::vector<std::string> fixedlambdastringlist  = split(vm["fixed-lambdalist"].as< std::string >(), ',');
-      for (int i=0; i < fixedlambdastringlist.size(); ++i) {
-	fixed_lambda.push_back(atof(fixedlambdastringlist[i].c_str()));
-	assert(fixed_lambda[i] >= 0.0 and fixed_lambda[i] <= 1.0);
-      }
-    } else {      // uniform distribution
-    }
-    assert(fixed_lambda.size() == fixed_p);
-    */
     fixed_lambda.assign(fixed_p, 0.0);  // Will be assigned later
 
     if (vm.count("keep-monomer-fixed")) {
@@ -4338,8 +4041,6 @@ int main(int argc, char* argv[])
     fixed_lambda[k] = per_PWM_lambda_fraction;
   }
 
-  //  if (use_multinomial)
-  //assert(seeds_given);
   
   int lines, bad_lines;
 
@@ -4355,8 +4056,6 @@ int main(int argc, char* argv[])
     printf("Reading from sequence-per-line file\n");
     boost::tie(lines, bad_lines) = read_sequences(seqsfile, sequences);
   }
-  //  for (int i=0; i < sequences.size(); ++ i)
-  //    printf("%i: %s\n", i, sequences[i].c_str());
   
   check_data(sequences);
   printf("Read %zu good lines from file %s\n", sequences.size(), seqsfile.c_str());
@@ -4546,8 +4245,6 @@ int main(int argc, char* argv[])
     error(dmax < dmin, "Requested dimeric cases do not fit into the input sequence");
     max_dist_for_deviation = std::min(max_dist_for_deviation, dmax);
     cob_params_t cp = create_cob(cob_combination, fixedseedlist, fixed_M, dimer_lambda_fraction, 
-				 // overlapping_dimer_cases,
-				 // spaced_dimer_cases,
 				 sequences, L, my_gapped_kmer_context, dmin, dmax, max_dist_for_deviation);
     cp.update_oriented_matrices(fixed_M, fixedseedlist);
     cp.compute_expected_matrices(fixed_M);
