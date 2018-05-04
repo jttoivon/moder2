@@ -2881,6 +2881,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       if (local_debug)
 	printf("Data distribution is %s\n", print_vector(bg_temp).c_str());
 
+      //      if (use_two_strands)  
+		//	total_signal_sum /= 2.0;  // This should not be used
       //recompute the background probabilities, without motif occurences
       for (int i=0; i < 4; ++i) {
 	bg_model[i] = bg_temp[i] - total_signal_sum[i];
