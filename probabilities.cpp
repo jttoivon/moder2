@@ -292,9 +292,9 @@ max_matrix_probability(const dmatrix& m)
 
 
 std::string
-string_giving_max_score(const dmatrix& m)
+string_giving_max_score(const dmatrix& m, bool use_rna)
 {
-  const char* nucs = "ACGT";
+  const char* nucs = use_rna ? "ACGU" : "ACGT";
   int k = m.get_columns();
   std::string result(k, '-');
   for (int i=0; i<k; ++i)
@@ -330,7 +330,7 @@ count_positional_background(const std::vector<std::string>& sequences)
 }
 
 boost::tuple<std::vector<double>, dmatrix, std::vector<int> >
-count_background(const std::vector<std::string>& sequences)
+count_background(const std::vector<std::string>& sequences, bool use_rna)
 {
   std::vector<int> character_frequencies(256);
   std::vector<double> background_frequencies(4,0);
@@ -340,7 +340,7 @@ count_background(const std::vector<std::string>& sequences)
 
   int character_count = 0;
   int digram_count = 0;
-  static character_to_values<bool> isnuc("ACGT", true);
+  static character_to_values<bool> isnuc(use_rna ? "ACGU" : "ACGT", true);
   
   for (int i=0; i < sequences.size(); ++i) {
     const std::string& line = sequences[i];

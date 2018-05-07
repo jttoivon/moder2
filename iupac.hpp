@@ -79,8 +79,8 @@ private:
   typedef struct {char c; const char* str;} char_class_t;
   typedef struct {char c; int bits;}             char_bits_t;
 
-  static char_class_t char_classes[15];
-  static char_bits_t  char_bits[15];
+  static char_class_t char_classes[16];
+  static char_bits_t  char_bits[16];
 };
 
 static iupac_class_type iupac_class;

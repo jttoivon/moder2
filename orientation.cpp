@@ -27,31 +27,51 @@
 #include <cassert>
 
 boost::tuple<dmatrix,dmatrix>
-get_matrices_according_to_hetero_orientation(int o, const dmatrix& m1, const dmatrix& m2)
+get_matrices_according_to_hetero_orientation(int o, const dmatrix& m1, const dmatrix& m2, bool use_rna)
 {
-  assert(o >= 0 and o <=3);
-
   dmatrix x, y;
-  switch (o) {
-  case HT: x = m1; y = m2; break;                      // HT
-  case HH: x = m1; y = reverse_complement(m2); break;  // HH
-  case TT: x = reverse_complement(m1); y = m2; break;  // TT
-  case TH: x = reverse_complement(m1); y = reverse_complement(m2); break;  // TH
+  if (use_rna) {
+    assert(o >= 0 and o <=1);
+    switch (o) {
+    case HT: x = m1; y = m2; break;                      // HT
+    case RNA_TH: x = m2; y = m1; break;  // TH
+    }
   }
+  else {
+    assert(o >= 0 and o <=3);
+
+    switch (o) {
+    case HT: x = m1; y = m2; break;                      // HT
+    case HH: x = m1; y = reverse_complement(m2); break;  // HH
+    case TT: x = reverse_complement(m1); y = m2; break;  // TT
+    case TH: x = reverse_complement(m1); y = reverse_complement(m2); break;  // TH
+    }
+  }
+  
   return boost::make_tuple(x, y);
 }
 
 boost::tuple<std::string,std::string>
-get_seeds_according_to_hetero_orientation(int o, const std::string& s1, const std::string& s2)
+get_seeds_according_to_hetero_orientation(int o, const std::string& s1, const std::string& s2, bool use_rna)
 {
-  assert(o >= 0 and o <=3);
-
   std::string x, y;
-  switch (o) {
-  case HT: x = s1; y = s2; break;                      // HT
-  case HH: x = s1; y = reverse_complement(s2); break;  // HH
-  case TT: x = reverse_complement(s1); y = s2; break;  // TT
-  case TH: x = reverse_complement(s1); y = reverse_complement(s2); break;  // TH
+
+  if (use_rna) {
+    assert(o >= 0 and o <=1);
+    switch (o) {
+    case HT: x = s1; y = s2; break;                      // HT
+    case RNA_TH: x = s2; y = s1; break;  // TH
+    }
+  }
+  else {
+    assert(o >= 0 and o <=3);
+    
+    switch (o) {
+    case HT: x = s1; y = s2; break;                      // HT
+    case HH: x = s1; y = reverse_complement(s2); break;  // HH
+    case TT: x = reverse_complement(s1); y = s2; break;  // TT
+    case TH: x = reverse_complement(s1); y = reverse_complement(s2); break;  // TH
+    }
   }
   return boost::make_tuple(x, y);
 }
@@ -90,7 +110,9 @@ orientation2(int o1, int o2)
   assert(false);
 }
 
-const char* orients[4] = {"HT", "HH", "TT", "TH"};
+const char* dna_orients[4] = {"HT", "HH", "TT", "TH"};
+const char* rna_orients[2] = {"HT", "TH"};
+const char** orients = dna_orients;
 
 const int hetero_orientation_class::a[4][2] = { {128+2,16+4}, {128+1,32+4}, {64+2,16+8}, {64+1,32+8}};
 

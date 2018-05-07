@@ -30,9 +30,11 @@
 #include <map>
 #include <cassert>
 
-enum {HT=0, HH=1, TT=2, TH=3};
+enum {HT=0, HH=1, TT=2, TH=3, RNA_TH=1};
 
-extern const char* orients[];
+extern const char** orients;
+extern const char* dna_orients[];
+extern const char* rna_orients[];
 
 
 class string_to_orientation_type
@@ -64,10 +66,10 @@ int
 orientation2(int o1, int o2);  // four different orientations
 
 boost::tuple<dmatrix,dmatrix>
-get_matrices_according_to_hetero_orientation(int o, const dmatrix& m1, const dmatrix& m2);
+get_matrices_according_to_hetero_orientation(int o, const dmatrix& m1, const dmatrix& m2, bool use_rna);
 
 boost::tuple<std::string,std::string>
-get_seeds_according_to_hetero_orientation(int o, const std::string& s1, const std::string& s2);
+get_seeds_according_to_hetero_orientation(int o, const std::string& s1, const std::string& s2, bool use_rna);
 
 
 

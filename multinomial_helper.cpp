@@ -317,7 +317,7 @@ most_common_pattern_monomer(const std::vector<std::string>& sequences, int k, st
 // Do not reject sequences with multiple occurrences of query strings.
 // Compute the counts for the multinomial1 matrix
 boost::tuple<dmatrix,int,int>
-find_snips_multimer_helper(const std::string& consensus, const std::vector<std::string>& sequences)
+find_snips_multimer_helper(const std::string& consensus, const std::vector<std::string>& sequences, bool use_rna)
 {
   
   std::string str1;
@@ -333,7 +333,7 @@ find_snips_multimer_helper(const std::string& consensus, const std::vector<std::
   str2=join_rev(sequences, '#');
 
   int k = consensus.length();
-  char nucs[] = "ACGT";
+  const char* nucs = use_rna ? "ACGU" : "ACGT";
   bool is_palindrome = is_palindromic(consensus);
   int consensus_count = BNDM_with_joker(str1, consensus);
   if (use_two_strands && (count_palindromes_twice || not is_palindrome))
@@ -396,14 +396,14 @@ find_snips_multimer_helper(const std::string& consensus, const std::vector<std::
 
 
 dmatrix
-find_snips_multimer(const std::string& consensus, const std::vector<std::string>& sequences, int hamming_distance)
+find_snips_multimer(const std::string& consensus, const std::vector<std::string>& sequences, int hamming_distance, bool use_rna)
 {
   TIME_START(t);
   assert(hamming_distance == 1);
   dmatrix result;
   int seed_count;
   int multinomial_count;
-  boost::tie(result, seed_count, multinomial_count) = find_snips_multimer_helper(consensus, sequences);
+  boost::tie(result, seed_count, multinomial_count) = find_snips_multimer_helper(consensus, sequences, use_rna);
   TIME_PRINT("Multinomial-1 algorithm took %.2f seconds.\n", t);
   printf("Seed count = %i\n", seed_count);
   printf("Total multinomial1 count is %d\n", multinomial_count);

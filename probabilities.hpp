@@ -125,7 +125,7 @@ max_matrix_probability(const dmatrix& m);
 
 
 std::string
-string_giving_max_score(const dmatrix& m);
+string_giving_max_score(const dmatrix& m, bool use_rna);
 
 matrix<double>
 count_positional_background(const std::vector<std::string>& sequences);
@@ -684,6 +684,6 @@ compute_dimer_probability(const std::string& line_orig, const std::string& line_
 
 
 boost::tuple<std::vector<double>, dmatrix, std::vector<int> >
-count_background(const std::vector<std::string>& sequences);
+count_background(const std::vector<std::string>& sequences, bool use_rna=false);
 
 #endif // PROBABILITIES_HPP

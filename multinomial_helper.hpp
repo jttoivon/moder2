@@ -69,11 +69,11 @@ most_common_pattern_monomer(const std::vector<std::string>& sequences, int k, st
 // Do not reject sequences with multiple occurrences of query strings
 // compute the counts for the multinomial1 matrix
 dmatrix
-find_snips_multimer(const std::string& seed, const std::vector<std::string>& sequences, int hamming_distance);
+find_snips_multimer(const std::string& seed, const std::vector<std::string>& sequences, int hamming_distance, bool use_rna);
 
 
 boost::tuple<dmatrix,int,int>
-find_snips_multimer_helper(const std::string& seed, const std::vector<std::string>& sequences);
+find_snips_multimer_helper(const std::string& seed, const std::vector<std::string>& sequences, bool use_rna);
 
 
 string_to_tuple_type

@@ -44,10 +44,14 @@ public:
       to_int_array[(unsigned char)nucleotides[i]] = i;
     for (int i=0; i < nucleotides_lowercase.length(); ++i)
       to_int_array[(unsigned char)nucleotides_lowercase[i]] = i;
+
+    // These are for RNA alphabet, overlaps with T (and t)
+    to_int_array[(unsigned char)'U'] = 3;
+    to_int_array[(unsigned char)'u'] = 3;
   }
 
   int
-  operator()(char c)
+  operator()(char c) const
   {
     return to_int_array[(unsigned char)c];
   }
