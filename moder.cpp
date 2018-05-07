@@ -94,6 +94,7 @@ bool use_palindromic_correction=false;
 bool use_multimer=true;
 bool use_meme_init=false;
 bool get_full_flanks=false;  // make motifs for each model that have width 2*L-motif_width
+bool use_rna = false;
 
 int max_iter = 50;  // was 300
 int minimum_distance_for_learning = 4;
@@ -320,12 +321,15 @@ public:
     std::vector<int> v(k, 0);  // helper array
 
     std::vector<int> base(k, 0);
-    std::vector<const char*> iupac_classes(k);
+    //    std::vector<const char*> iupac_classes(k);
+    std::vector<std::string> iupac_classes(k);
     std::string pattern(k, '-');
     int number_of_combinations = 1;
     for (int i=0; i < k; ++i) {
       iupac_classes[i] = iupac_class(s[i]);
-      int size = strlen(iupac_classes[i]);
+      if (use_rna)
+	std::replace(iupac_classes[i].begin(), iupac_classes[i].end(), 'T', 'U');
+      int size = iupac_classes[i].length();
       base[i] = size - 1;
       pattern[i] = iupac_classes[i][0];            // Initialize pattern to the first sequence of iupac string
       number_of_combinations *= size;
@@ -543,7 +547,10 @@ struct cob_params_t
     k2 = fixed_seeds_[tf2].length();
     //    assert(dmin == -std::min(k1, k2) + min_flank);
     
-    number_of_orientations = tf1 == tf2 ? 3 : 4;
+    number_of_orientations = use_rna ? 1 : 3;
+    if (tf1 != tf2)
+      ++number_of_orientations;  // is a hetero dimer
+    
     expected_overlapping_dimer_PWMs.resize(boost::extents[number_of_orientations][range(dmin, max_dist_for_deviation+1)]);
     lines = L.size();
     dimer_w.resize(boost::extents[range(dmin, dmax+1)]);
@@ -601,11 +608,11 @@ struct cob_params_t
   update_oriented_matrices(const std::vector<dmatrix>& fixed_PWM, const std::vector<std::string>& fixed_seed) {
     oriented_dimer_matrices.resize(4);
     oriented_dimer_seeds.resize(4);
-    for (int o=0; o < 4; ++o) {
+    for (int o=0; o < number_of_orientations; ++o) {
       oriented_dimer_matrices[o] =
-	get_matrices_according_to_hetero_orientation(o, fixed_PWM[tf1], fixed_PWM[tf2]);
+	get_matrices_according_to_hetero_orientation(o, fixed_PWM[tf1], fixed_PWM[tf2], use_rna);
       oriented_dimer_seeds[o] =
-	get_seeds_according_to_hetero_orientation(o, fixed_seed[tf1], fixed_seed[tf2]);
+	get_seeds_according_to_hetero_orientation(o, fixed_seed[tf1], fixed_seed[tf2], use_rna);
     }
   }
 
@@ -625,16 +632,28 @@ struct cob_params_t
   compute_deviation_matrices()
   {
     const int& w1 = k1;
+    const int& w2 = k2;
     for (int o=0; o < number_of_orientations; ++o) {
       for (int d=dmin; d <= max_dist_for_deviation; ++d) {
 	int first, last;
 	// The interval [first,last] is either the overlap area or the gap.
-	if (d < 0) {
-	  first = w1 + d;
-	  last = w1 - 1;
-	} else {
-	  first = w1;
-	  last = w1 + d - 1;
+	if (use_rna and o == RNA_TH) {
+	  if (d < 0) {
+	    first = w2 + d;
+	    last = w2 - 1;
+	  } else {
+	    first = w2;
+	    last = w2 + d - 1;
+	  }
+	}
+	else {
+	  if (d < 0) {
+	    first = w1 + d;
+	    last = w1 - 1;
+	  } else {
+	    first = w1;
+	    last = w1 + d - 1;
+	  }
 	}
 	for (int row = 0; row < 4; ++row) {
 	  for (int column = first - 1; column <= last + 1; ++column) // The overlapping part with flanks of 1bp on both sides
@@ -739,7 +758,9 @@ complete_data_log_likelihood(const std::vector<dmatrix>& PWM,
   for (int r=0; r < number_of_cobs; ++r) {
     int tf1 = my_cob_params[r].tf1;
     int tf2 = my_cob_params[r].tf2;
-    int number_of_orientations = tf1 == tf2 ? 3 : 4;
+    int number_of_orientations = use_rna ? 1 : 3;
+    if (tf1 != tf2)
+      ++number_of_orientations;
     int dmin = my_cob_params[r].dmin;
     int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
     //    int dmax = my_cob_params[r].dmax;
@@ -789,7 +810,9 @@ complete_data_log_likelihood(const std::vector<dmatrix>& PWM,
     for (int r=0; r < number_of_cobs; ++r) {
       int tf1 = my_cob_params[r].tf1;
       int tf2 = my_cob_params[r].tf2;
-      int number_of_orientations = tf1 == tf2 ? 3 : 4;
+      int number_of_orientations = use_rna ? 1 : 3;
+      if (tf1 != tf2)
+	++number_of_orientations;
       int dmin = my_cob_params[r].dmin;
       int dmax = my_cob_params[r].dmax;
       int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
@@ -2057,9 +2080,9 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       boost::multi_array<matrix<FloatType>, 3> log_oriented_dimer_matrices(boost::extents[number_of_cobs][4][2]);
       boost::multi_array<FloatType, 3> log_dimer_lambda(boost::extents[number_of_cobs][4][range(mindmin,maxdmax+1)]);
       for (int r=0; r < number_of_cobs; ++r) {
-	int tf1 = my_cob_params[r].tf1;
-	int tf2 = my_cob_params[r].tf2;
-	int number_of_orientations = tf1 == tf2 ? 3 : 4;
+	//int tf1 = my_cob_params[r].tf1;
+	//int tf2 = my_cob_params[r].tf2;
+	int number_of_orientations = my_cob_params[r].number_of_orientations;
 	int dmin = my_cob_params[r].dmin;
 	int dmax = my_cob_params[r].dmax;
 	int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
@@ -2459,13 +2482,16 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
 
       for (int r = 0; r < number_of_cobs; ++r) {
-	int tf1 = my_cob_params[r].tf1;
-	int tf2 = my_cob_params[r].tf2;
-	// temps for spaced
-	dmatrix m1(4, fixed_w[tf1]);
-	dmatrix m2(4, fixed_w[tf2]);
 
 	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
+	  int tf1 = my_cob_params[r].tf1;
+	  int tf2 = my_cob_params[r].tf2;
+	  if (use_rna and o == RNA_TH) {
+	    std::swap(tf1, tf2);
+	  }
+	  // temps for spaced
+	  dmatrix m1(4, fixed_w[tf1]);
+	  dmatrix m2(4, fixed_w[tf2]);
 	  for (int d=0; d <= my_cob_params[r].dmax; ++d) {
 
 	    m1.fill_with(0.0);
@@ -2530,25 +2556,42 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    boost::tuple<dmatrix,dmatrix>& temp = 
 	      d >= minimum_distance_for_learning ? spaced_dimer_weights_sum[r] : spaced_dimer_weights2_sum[r];
 
-	    switch (o) {
-	    case HT:
-	      temp.get<0>() += m1;
-	      temp.get<1>() += m2;
-	      break;
-	    case HH:
-	      temp.get<0>() += m1;
-	      temp.get<1>() += reverse_complement(m2);
-	      break;
-	    case TT:
-	      temp.get<0>() += reverse_complement(m1);
-	      temp.get<1>() += m2;
-	      break;
-	    case TH:
-	      temp.get<0>() += reverse_complement(m1);
-	      temp.get<1>() += reverse_complement(m2);
-	      break;
-	    }	      
-
+	    if (use_rna) {
+	      switch (o) {
+	      case HT:
+		temp.get<0>() += m1;
+		temp.get<1>() += m2;
+		break;
+	      case RNA_TH:
+		temp.get<0>() += m2;
+		temp.get<1>() += m1;
+		break;
+	      default:
+		printf("Unknown orientation. Exiting!\n");
+		exit(1);
+	      }	      
+	    }
+	    else {
+	      switch (o) {
+	      case HT:
+		temp.get<0>() += m1;
+		temp.get<1>() += m2;
+		break;
+	      case HH:
+		temp.get<0>() += m1;
+		temp.get<1>() += reverse_complement(m2);
+		break;
+	      case TT:
+		temp.get<0>() += reverse_complement(m1);
+		temp.get<1>() += m2;
+		break;
+	      case TH:
+		temp.get<0>() += reverse_complement(m1);
+		temp.get<1>() += reverse_complement(m2);
+		break;
+	      }	      
+	    }
+	    
 	  } // for d, spaced dimer PWMs
 	} // for o, spaced dimer PWMs
 
@@ -2579,11 +2622,15 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
 
       for (int r = 0; r < number_of_cobs; ++r) {
-	int tf1 = my_cob_params[r].tf1;
-	int tf2 = my_cob_params[r].tf2;
 	int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
 
 	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
+	  int tf1 = my_cob_params[r].tf1;
+	  int tf2 = my_cob_params[r].tf2;
+	  if (use_rna and o == RNA_TH) {
+	    std::swap(tf1, tf2);
+	  }
+	  
 	  for (int d=0; d <= max_dist_for_deviation; ++d) {
 	    if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
 	      continue;
@@ -2797,7 +2844,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       ///////////////
       
       for (int k=0; k < fixed_p; ++k) {
-	fixed_seed[k] = string_giving_max_score(new_fixed_PWM[k]);
+	fixed_seed[k] = string_giving_max_score(new_fixed_PWM[k], use_rna);
       }
       
       if (use_multinomial and adjust_seeds) {
@@ -2811,7 +2858,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	  for (int o=0; o < number_of_orientations; ++o) {
 	    std::string seed1, seed2;
 	    boost::tie(seed1, seed2) = //my_cob_params[r].oriented_dimer_seeds[0]; 
-	      get_seeds_according_to_hetero_orientation(o, fixed_seed[tf1], fixed_seed[tf2]);
+	      get_seeds_according_to_hetero_orientation(o, fixed_seed[tf1], fixed_seed[tf2], use_rna);
 	    for (int d=dmin; d < std::min(0, dmax+1); ++d) {
 	      my_cob_params[r].dimer_seeds[o][d] = create_overlapping_seed(seed1, seed2, d, my_gapped_kmer_context);
 	    }  // end for d
@@ -3467,7 +3514,7 @@ multinomial1_multimer_bernoulli_corrected(const std::string& seed, const std::ve
   int seed_count;
   int multinomial_count;
   dmatrix multinomial1_motif;
-  boost::tie(multinomial1_motif, seed_count, multinomial_count) = find_snips_multimer_helper(seed, sequences);
+  boost::tie(multinomial1_motif, seed_count, multinomial_count) = find_snips_multimer_helper(seed, sequences, use_rna);
   double mean = lines * (use_two_strands ? 2 : 1) * (L-k+1) * pow(4, -k);
       
   dmatrix mean_matrix(4, k);
@@ -3492,7 +3539,9 @@ create_cob(cob_combination_t cob_combination,
   int tf1, tf2;
   boost::tie(tf1, tf2) = cob_combination;
   //  int L = sequences[0].length();
-  int number_of_orientations = tf1 == tf2 ? 3 : 4;
+  int number_of_orientations = use_rna ? 1 : 3;
+  if (tf1 != tf2)
+    ++number_of_orientations;  // hetero dimer
   
   const int number_of_spaced_dimer_cases = use_dimers ? (dmax + 1) * number_of_orientations : 0;
   const int number_of_overlapping_dimer_cases = use_dimers ? (-dmin) * number_of_orientations : 0;
@@ -3514,7 +3563,7 @@ create_cob(cob_combination_t cob_combination,
     // Fill dimer matrix with the rest of overlapping cases
     for (int o=0; o < number_of_orientations; ++o) {
       std::string seed1, seed2;
-      boost::tie(seed1, seed2) = get_seeds_according_to_hetero_orientation(o, fixed_seeds[tf1], fixed_seeds[tf2]);
+      boost::tie(seed1, seed2) = get_seeds_according_to_hetero_orientation(o, fixed_seeds[tf1], fixed_seeds[tf2], use_rna);
       for (int d=dmin; d < std::min(0, dmax+1); ++d) {
 	if (dimer_seeds[o][d] != "")                  // value already set
 	  continue;
@@ -3539,7 +3588,7 @@ create_cob(cob_combination_t cob_combination,
   //  if (seeds_given) {
   std::vector<boost::tuple<dmatrix,dmatrix> > oriented_dimer_matrices(4);
   for (int o=0; o < number_of_orientations; ++o) {
-    oriented_dimer_matrices[o] = get_matrices_according_to_hetero_orientation(o, fixed_M[tf1], fixed_M[tf2]);
+    oriented_dimer_matrices[o] = get_matrices_according_to_hetero_orientation(o, fixed_M[tf1], fixed_M[tf2], use_rna);
     
     for (int d=dmin; d < std::min(0, dmax+1); ++d) {
       std::string seed = dimer_seeds[o][d];
@@ -3690,6 +3739,7 @@ int main(int argc, char* argv[])
     ("number-of-threads", po::value<int>(), m("Number of parallel threads", number_of_threads).c_str())
     ("prior", po::value<std::string>(), m("Choose either addone or dirichlet prior, or none for no pseudo-counts", prior_parameter).c_str())
     ("single-strand", m("Only consider binding sites in forward strand", not use_two_strands).c_str())
+    ("rna", m("Assume input sequences are RNA (experimental)", use_rna).c_str())
     ("unique", po::value<std::string>(), "Uniqueness of sequences. Either off, unique, 1, 2, 3, ..., default: off")
     ("quiet", m("Don't print intermediate results", not local_debug).c_str())
     ;
@@ -3738,6 +3788,9 @@ int main(int argc, char* argv[])
       cout << nonhidden << "\n";
       return 1;
     }
+
+    if (vm.count("rna")) 
+      use_rna = true;
 
     if (vm.count("markov-model")) 
       use_markov_background = true;
@@ -4027,7 +4080,7 @@ int main(int argc, char* argv[])
   else {
     error(true, "Error: combine_seeds_func not initialized.\n");
   }
-
+  
   double background_lambda_fraction = 0.5;
   double PWM_lambda_fraction = cob_combinations.size() == 0 ? 0.5 : 0.3;
   double per_PWM_lambda_fraction = PWM_lambda_fraction / fixed_p;
@@ -4041,6 +4094,10 @@ int main(int argc, char* argv[])
     fixed_lambda[k] = per_PWM_lambda_fraction;
   }
 
+  if (use_rna) {
+    orients = rna_orients;
+    use_two_strands = false;
+  }
   
   int lines, bad_lines;
 
@@ -4056,8 +4113,12 @@ int main(int argc, char* argv[])
     printf("Reading from sequence-per-line file\n");
     boost::tie(lines, bad_lines) = read_sequences(seqsfile, sequences);
   }
+
+  if (use_rna)
+    check_data(sequences, "ACGU");
+  else    
+    check_data(sequences);
   
-  check_data(sequences);
   printf("Read %zu good lines from file %s\n", sequences.size(), seqsfile.c_str());
   printf("Discarded %i bad lines\n", bad_lines);
   if (unique_param >= 0) {
@@ -4082,6 +4143,7 @@ int main(int argc, char* argv[])
 	 yesno(use_markov_background));
   printf("Use positional model for background: %s\n", 
 	 yesno(use_positional_background));
+  printf("Use RNA alphabet: %s\n", yesno(use_rna));
   printf("Use two dna strands: %s\n", yesno(use_two_strands));
   printf("Avoid palindromes: %s\n", yesno(avoid_palindromes));
   printf("Use multinomial model: %s\n", yesno(use_multinomial));
@@ -4102,7 +4164,7 @@ int main(int argc, char* argv[])
   printf("Maximum number of iterations is %i\n", max_iter);
   std::vector<int> character_frequencies;
   
-  boost::tie(background_frequencies, background_frequency_matrix, character_frequencies) = count_background(sequences);
+  boost::tie(background_frequencies, background_frequency_matrix, character_frequencies) = count_background(sequences, use_rna);
   int CG = background_frequencies[1] + background_frequencies[2];
   printf("CG content: %lg\n", (double)CG/sum(background_frequencies));
   printf("Sequences contain %i characters\n", character_count);
@@ -4162,8 +4224,14 @@ int main(int argc, char* argv[])
   if (seeds_given) {
     printf("Initial fixed seeds are %s\n", print_vector(fixedseedlist).c_str());
 
+    char forbidden_char = use_rna ? 'T' : 'U';
     for (int k=0; k < fixed_p; ++k) {
       error(fixedseedlist[k].length() > Lmin, "Seed is longer than the sequences");
+      int count = std::count(fixedseedlist[k].begin(), fixedseedlist[k].end(), forbidden_char);
+      if (count > 0) {
+	fprintf(stderr, "Nucleotide %c forbidden in current alphabet\n", forbidden_char);
+	exit(1);
+      }
       if (not use_meme_init) {
 	fixed_M[k] = multinomial1_multimer_bernoulli_corrected(fixedseedlist[k], sequences);
 	//fixed_M[k] = find_snips_multimer_helper(fixedseedlist[k], sequences).get<0>();
@@ -4173,7 +4241,7 @@ int main(int argc, char* argv[])
 	  pseudo_counts.add(fixed_M[k]);
 	normalize_matrix_columns(fixed_M[k]);
 	if (use_multinomial and adjust_seeds)
-	  fixedseedlist[k] = string_giving_max_score(fixed_M[k]);
+	  fixedseedlist[k] = string_giving_max_score(fixed_M[k], use_rna);
       }
       else
 	fixed_M[k] = get_meme_init_pwm(fixedseedlist[k]);
@@ -4190,7 +4258,7 @@ int main(int argc, char* argv[])
       normalize_matrix_columns(fixed_M[k]);
       write_matrix(stdout, fixed_M[k], to_string("Initial matrix %i from file %s:\n", k, fixedmatrixfilelist[k].c_str()), "%.6f");
       assert(is_column_stochastic_matrix(fixed_M[k]));
-      fixedseedlist[k] = string_giving_max_score(fixed_M[k]);
+      fixedseedlist[k] = string_giving_max_score(fixed_M[k], use_rna);
       //if (use_multinomial)
       //	assert(M[k].get_columns() == seedlist[k].length());
     }

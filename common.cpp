@@ -335,7 +335,7 @@ bool
 is_nucleotide_string(const std::string& str)
 {
   //std::string nucs = "ACGT";
-  static character_to_values<bool> isnuc("ACGT", true);
+  static character_to_values<bool> isnuc("ACGTU", true);
   for (int i=0; i < str.length(); ++i) {
     if (not isnuc(str[i]))
       return false;

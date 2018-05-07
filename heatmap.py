@@ -84,7 +84,11 @@ def make_heatmap(data, drange, fmt, title="", outputfile="", fontsize=32.0):
     plt.yticks(fontsize=tickfontsize)
     ax.yaxis.set_ticks(np.arange(0,height,1))
     number_of_orientations=data.shape[0]
-    ax.set_yticklabels(["HT", "HH", "TT", "TH"][0:number_of_orientations])
+    if use_rna:
+        orients=["HT", "TH"]
+    else:
+        orients=["HT", "HH", "TT", "TH"]
+    ax.set_yticklabels(orients[0:number_of_orientations])
 
 #    ax.set_yticklabels(["HT", "HH", "TT"])
     plt.xticks(fontsize=tickfontsize)
@@ -116,7 +120,7 @@ def make_heatmap(data, drange, fmt, title="", outputfile="", fontsize=32.0):
         cax.set_yticklabels(temp, fontsize=tickfontsize)
     except UnicodeEncodeError:   # If labels contain unicode minus, then something went wrong and better not show colorbar
         cb.remove()
-        print "Unicode error!"
+        #print "Unicode error!"
         pass
 #    cax.yaxis.set_tick_params(labelright=False)   # No tick labels in colorbar
 #    print data
@@ -193,11 +197,18 @@ except IOError:
     
 cob = readarray(lines)
 drange = map(float, cob[0,1:])
+    
 #print drange
 #print cob
 
 #data = np.random.rand(3, 9)
 data=cob[1:,1:].astype(float)
+#print data.shape
+if data.shape[0] in [1,2]:
+    use_rna=True
+else:
+    use_rna=False
+    
 vfunc = np.vectorize(lambda x: x if x > 0.0 else -0.0002)   # Modify zero values to -0.0002 in order for the colormap to work better.
 data=vfunc(data)
 make_heatmap(data, drange, fmt, title=title, outputfile=outputfile)

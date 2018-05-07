@@ -94,11 +94,12 @@ iupac_string_match(const char* str, const char* pattern)
 }
 */
 
-iupac_class_type::char_class_t iupac_class_type::char_classes[15] =
+iupac_class_type::char_class_t iupac_class_type::char_classes[16] =
   {{'A', "A"},
    {'C', "C"},
    {'G', "G"},
    {'T', "T"},
+   {'U', "U"},
    {'W', "AT"},
    {'S', "CG"},
    {'M', "AC"},
@@ -111,11 +112,12 @@ iupac_class_type::char_class_t iupac_class_type::char_classes[15] =
    {'V', "ACG"},
    {'N', "ACGT"}};
 
-iupac_class_type::char_bits_t iupac_class_type::char_bits[15] =
+iupac_class_type::char_bits_t iupac_class_type::char_bits[16] =
   {{'A', 8      },
    {'C',   4    },
    {'G',     2  },
    {'T',       1},
+   {'U',       1},
    {'W', 8    +1},
    {'S',   4+2  },
    {'M', 8+4    },

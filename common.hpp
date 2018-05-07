@@ -909,14 +909,18 @@ print_cob(FILE* fp, const boost::multi_array<T, 2>& a, const std::string& title 
   int row_begin, row_end, col_begin, col_end;
   boost::tie(row_begin, row_end, col_begin, col_end) = get_ranges(a);  
 
-  assert(row_begin == 0 and (row_end == 3 or row_end == 4));
+  assert(row_begin == 0 and (row_end == 3 or row_end == 4 or row_end == 1 or row_end == 2));
   std::vector<std::string> col_headers = integer_range(col_begin, col_end);
   std::vector<std::string> row_headers;
   row_headers.push_back("HT");
-  row_headers.push_back("HH");
-  row_headers.push_back("TT");
-  if (row_end == 4)
+  if (row_end == 2)
     row_headers.push_back("TH");
+  else if (row_end >= 3) {
+    row_headers.push_back("HH");
+    row_headers.push_back("TT");
+    if (row_end == 4)
+      row_headers.push_back("TH");
+  }
 
   if (title.length() > 0)
     fprintf(fp, "%s", title.c_str());
