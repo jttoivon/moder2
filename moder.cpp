@@ -294,7 +294,7 @@ public:
     return str1;
   }
 
-  gapped_kmer_context(const std::vector<std::string>& sequences) : sa(make_string(sequences))
+  gapped_kmer_context(const std::vector<std::string>& sequences) : sa(make_string(sequences), use_rna)
   {
     timer = 0.0;
   }

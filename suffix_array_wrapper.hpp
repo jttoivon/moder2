@@ -40,18 +40,18 @@ public:
   typedef std::vector<unsigned char>::difference_type offset_type;
   typedef unsigned char uchar;
 
-  suffix_array() : text(""), sa(0)
+  suffix_array(bool use_rna=false) : text(""), sa(0)
   {
-    init_array();
+    init_array(use_rna);
   }
 
-  suffix_array(const std::string& str) : text(str), sa(str.length())
+  suffix_array(const std::string& str, bool use_rna=false) : text(str), sa(str.length())
   {
     TIME_START(t);
     construct_suffix_array(text.begin(), text.end(),
 			   sa.begin(), sa.end());
     TIME_PRINT("Constructing suffix array took %.2f seconds\n", t);
-    init_array();
+    init_array(use_rna);
 
     /*    
     int n=text.length();
@@ -171,18 +171,24 @@ private:
   } char_classes_t;
 
 
-  static const char_classes_t char_classes2[16];
+  static const char_classes_t char_classes_dna[16];
+  static const char_classes_t char_classes_rna[16];
 
 
   const char* char_classes[256];
 
   void 
-  init_array()
+  init_array(bool use_rna = false)
   {
-    int size = sizeof(char_classes2)/sizeof(char_classes_t);
-    int i;
-    for(i=0; i < size; ++i)
-      char_classes[(unsigned char)char_classes2[i].c] = char_classes2[i].str;
+    if (use_rna) {
+      int size = sizeof(char_classes_rna)/sizeof(char_classes_t);
+      for(int i=0; i < size; ++i)
+	char_classes[(unsigned char)char_classes_rna[i].c] = char_classes_rna[i].str;
+    } else {
+      int size = sizeof(char_classes_dna)/sizeof(char_classes_t);
+      for(int i=0; i < size; ++i)
+	char_classes[(unsigned char)char_classes_dna[i].c] = char_classes_dna[i].str;
+    }
   }
 
   int 

@@ -21,7 +21,7 @@
 */
 #include "suffix_array_wrapper.hpp"
 
-const suffix_array::char_classes_t suffix_array::char_classes2[16] =
+const suffix_array::char_classes_t suffix_array::char_classes_dna[16] =
     {{'A', "A"},
      {'C', "C"},
      {'G', "G"},
@@ -40,3 +40,21 @@ const suffix_array::char_classes_t suffix_array::char_classes2[16] =
      {'n', "ACGT"}
     };
 
+const suffix_array::char_classes_t suffix_array::char_classes_rna[16] =
+    {{'A', "A"},
+     {'C', "C"},
+     {'G', "G"},
+     {'U', "U"},
+     {'W', "AU"},
+     {'S', "CG"},
+     {'M', "AC"},
+     {'K', "GU"},
+     {'R', "AG"},
+     {'Y', "CU"},
+     {'B', "CGU"},
+     {'D', "AGU"},
+     {'H', "ACU"},
+     {'V', "ACG"},
+     {'N', "ACGU"},
+     {'n', "ACGU"}
+    };
