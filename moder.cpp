@@ -321,12 +321,15 @@ public:
     std::vector<int> v(k, 0);  // helper array
 
     std::vector<int> base(k, 0);
-    std::vector<const char*> iupac_classes(k);
+    //    std::vector<const char*> iupac_classes(k);
+    std::vector<std::string> iupac_classes(k);
     std::string pattern(k, '-');
     int number_of_combinations = 1;
     for (int i=0; i < k; ++i) {
       iupac_classes[i] = iupac_class(s[i]);
-      int size = strlen(iupac_classes[i]);
+      if (use_rna)
+	std::replace(iupac_classes[i].begin(), iupac_classes[i].end(), 'T', 'U');
+      int size = iupac_classes[i].length();
       base[i] = size - 1;
       pattern[i] = iupac_classes[i][0];            // Initialize pattern to the first sequence of iupac string
       number_of_combinations *= size;
@@ -755,7 +758,9 @@ complete_data_log_likelihood(const std::vector<dmatrix>& PWM,
   for (int r=0; r < number_of_cobs; ++r) {
     int tf1 = my_cob_params[r].tf1;
     int tf2 = my_cob_params[r].tf2;
-    int number_of_orientations = tf1 == tf2 ? 3 : 4;
+    int number_of_orientations = use_rna ? 1 : 3;
+    if (tf1 != tf2)
+      ++number_of_orientations;
     int dmin = my_cob_params[r].dmin;
     int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
     //    int dmax = my_cob_params[r].dmax;
@@ -805,7 +810,9 @@ complete_data_log_likelihood(const std::vector<dmatrix>& PWM,
     for (int r=0; r < number_of_cobs; ++r) {
       int tf1 = my_cob_params[r].tf1;
       int tf2 = my_cob_params[r].tf2;
-      int number_of_orientations = tf1 == tf2 ? 3 : 4;
+      int number_of_orientations = use_rna ? 1 : 3;
+      if (tf1 != tf2)
+	++number_of_orientations;
       int dmin = my_cob_params[r].dmin;
       int dmax = my_cob_params[r].dmax;
       int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
@@ -2073,8 +2080,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       boost::multi_array<matrix<FloatType>, 3> log_oriented_dimer_matrices(boost::extents[number_of_cobs][4][2]);
       boost::multi_array<FloatType, 3> log_dimer_lambda(boost::extents[number_of_cobs][4][range(mindmin,maxdmax+1)]);
       for (int r=0; r < number_of_cobs; ++r) {
-	int tf1 = my_cob_params[r].tf1;
-	int tf2 = my_cob_params[r].tf2;
+	//int tf1 = my_cob_params[r].tf1;
+	//int tf2 = my_cob_params[r].tf2;
 	int number_of_orientations = my_cob_params[r].number_of_orientations;
 	int dmin = my_cob_params[r].dmin;
 	int dmax = my_cob_params[r].dmax;
@@ -2475,13 +2482,16 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
 
       for (int r = 0; r < number_of_cobs; ++r) {
-	int tf1 = my_cob_params[r].tf1;
-	int tf2 = my_cob_params[r].tf2;
-	// temps for spaced
-	dmatrix m1(4, fixed_w[tf1]);
-	dmatrix m2(4, fixed_w[tf2]);
 
 	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
+	  int tf1 = my_cob_params[r].tf1;
+	  int tf2 = my_cob_params[r].tf2;
+	  if (use_rna and o == RNA_TH) {
+	    std::swap(tf1, tf2);
+	  }
+	  // temps for spaced
+	  dmatrix m1(4, fixed_w[tf1]);
+	  dmatrix m2(4, fixed_w[tf2]);
 	  for (int d=0; d <= my_cob_params[r].dmax; ++d) {
 
 	    m1.fill_with(0.0);
@@ -2546,25 +2556,42 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    boost::tuple<dmatrix,dmatrix>& temp = 
 	      d >= minimum_distance_for_learning ? spaced_dimer_weights_sum[r] : spaced_dimer_weights2_sum[r];
 
-	    switch (o) {
-	    case HT:
-	      temp.get<0>() += m1;
-	      temp.get<1>() += m2;
-	      break;
-	    case HH:
-	      temp.get<0>() += m1;
-	      temp.get<1>() += reverse_complement(m2);
-	      break;
-	    case TT:
-	      temp.get<0>() += reverse_complement(m1);
-	      temp.get<1>() += m2;
-	      break;
-	    case TH:
-	      temp.get<0>() += reverse_complement(m1);
-	      temp.get<1>() += reverse_complement(m2);
-	      break;
-	    }	      
-
+	    if (use_rna) {
+	      switch (o) {
+	      case HT:
+		temp.get<0>() += m1;
+		temp.get<1>() += m2;
+		break;
+	      case RNA_TH:
+		temp.get<0>() += m2;
+		temp.get<1>() += m1;
+		break;
+	      default:
+		printf("Unknown orientation. Exiting!\n");
+		exit(1);
+	      }	      
+	    }
+	    else {
+	      switch (o) {
+	      case HT:
+		temp.get<0>() += m1;
+		temp.get<1>() += m2;
+		break;
+	      case HH:
+		temp.get<0>() += m1;
+		temp.get<1>() += reverse_complement(m2);
+		break;
+	      case TT:
+		temp.get<0>() += reverse_complement(m1);
+		temp.get<1>() += m2;
+		break;
+	      case TH:
+		temp.get<0>() += reverse_complement(m1);
+		temp.get<1>() += reverse_complement(m2);
+		break;
+	      }	      
+	    }
+	    
 	  } // for d, spaced dimer PWMs
 	} // for o, spaced dimer PWMs
 
@@ -2595,11 +2622,15 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
 
       for (int r = 0; r < number_of_cobs; ++r) {
-	int tf1 = my_cob_params[r].tf1;
-	int tf2 = my_cob_params[r].tf2;
 	int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
 
 	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
+	  int tf1 = my_cob_params[r].tf1;
+	  int tf2 = my_cob_params[r].tf2;
+	  if (use_rna and o == RNA_TH) {
+	    std::swap(tf1, tf2);
+	  }
+	  
 	  for (int d=0; d <= max_dist_for_deviation; ++d) {
 	    if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
 	      continue;

@@ -180,7 +180,7 @@ $(distdir):
 	cp CPM03/timing.hpp $(distdir)/CPM03
 	cp CPM03/dependencies.mk $(distdir)/CPM03
 	cp data/TFAP2A-head-1000.seq $(distdir)/data
-
+	cp data/rna-test.seq $(distdir)/data
 
 # programs
 

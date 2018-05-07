@@ -635,16 +635,16 @@ short int Svg_logo(char *filename, short int number_of_pwms, struct normalized_p
   double swap;
   double font_position;
   char *nucleotide_char;
-  //  char *nucleotide_iupac;
+  char *nucleotide_iupac;
   char *nucleotide_bitiupac;
 
   if (rna == 1) {
     nucleotide_char = rnaforward;
-    //nucleotide_iupac = dna_iupac;
+    nucleotide_iupac = dna_iupac;
     nucleotide_bitiupac = dna_bitiupac;
   } else {
     nucleotide_char = dnaforward;
-    //nucleotide_iupac = rna_iupac;
+    nucleotide_iupac = rna_iupac;
     nucleotide_bitiupac = rna_bitiupac;
   }
 
@@ -1268,6 +1268,10 @@ int main(int argc, char *argv[])
   max_align_score[0][1] = 0;
   max_align_score[1][0] = 0;
   max_align_score[1][1] = 0;
+  char *forward;
+  forward = dnaforward;
+  char *nucleotide_bitiupac = dna_bitiupac;
+  char *nucleotide_iupac = dna_iupac;
 
   COMMAND = malloc(5000);
   strcpy(COMMAND, "");
@@ -1311,6 +1315,12 @@ int main(int argc, char *argv[])
 	if (strcmp(linecommand, "-noname") == 0)
 	  noname = 1;
 
+	if (strcmp(linecommand, "-rna") == 0) {
+	  rna = 1;
+	  nucleotide_bitiupac = rna_bitiupac;
+	  nucleotide_iupac = rna_iupac;
+	  forward = rnaforward;
+	}
 
       } else
 	break;
@@ -1526,6 +1536,7 @@ for(counter = 0; counter < Nlength * 2; counter++) total_relative_deviation[coun
        "  -neg\tAllow negative values in PWM (using paths)\n"
        "  -core=[number]\tHilight this number of positions in the middle of the logo\n"
        "  -noname\tDo not include filename in the logo\n"
+       "  -rna\tInput sequence is from RNA, use uracil (U) instead of thymidine (T) in sequences and logos\n"
        "\n"
        " ");
 

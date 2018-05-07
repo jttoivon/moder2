@@ -129,9 +129,11 @@ div.logoImageContainer {display: inline-block; vertical-align: middle;}
 """
 
 
-orients=["HT", "HH", "TT", "TH"]
+dna_orients=["HT", "HH", "TT", "TH"]
+dna_orient_dict = {"HT" : 0, "HH" : 1, "TT" : 2, "TH" : 3}
 
-orient_dict = {"HT" : 0, "HH" : 1, "TT" : 2, "TH" : 3}
+rna_orients=["HT", "TH"]
+rna_orient_dict = {"HT" : 0, "TH" : 1}
 
 # Entropy of a probability distribution 'l'
 def entropy(l):
@@ -294,18 +296,18 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
 
 
     # Forward direction
-    myrun("myspacek40 -paths -noname --logo %s %s" % (oname, oname.replace(".pfm", ".svg")))
-    myrun("myspacek40 -paths -noname --logo %s %s" % (ename, ename.replace(".pfm", ".svg")))
-    myrun("myspacek40 -paths -noname --difflogo %s %s" % (oname, ename))          # Deviation logo
+    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname, oname.replace(".pfm", ".svg")))
+    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename, ename.replace(".pfm", ".svg")))
+    myrun("myspacek40 %s --difflogo %s %s" % (myspacek_flags, oname, ename))          # Deviation logo
     if get_flanks:
-        myrun("myspacek40 -paths -noname -core=%i,%i,%i --logo %s %s" % (k1, k2, d, fname, fname.replace(".pfm", ".svg")))
+        myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k1, k2, d, fname, fname.replace(".pfm", ".svg")))
 
     # Reverse complement
-    myrun("myspacek40 -paths -noname --logo %s %s" % (oname_rc, oname_rc.replace(".pfm", ".svg")))
-    myrun("myspacek40 -paths -noname --logo %s %s" % (ename_rc, ename_rc.replace(".pfm", ".svg")))
-    myrun("myspacek40 -paths -noname --difflogo %s %s" % (oname_rc, ename_rc))          # Deviation logo
+    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname_rc, oname_rc.replace(".pfm", ".svg")))
+    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename_rc, ename_rc.replace(".pfm", ".svg")))
+    myrun("myspacek40 %s --difflogo %s %s" % (myspacek_flags, oname_rc, ename_rc))          # Deviation logo
     if get_flanks:
-        myrun("myspacek40 -paths -noname -core=%i,%i,%i --logo %s %s" % (k2, k1, d, fname_rc, fname_rc.replace(".pfm", ".svg")))
+        myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k2, k1, d, fname_rc, fname_rc.replace(".pfm", ".svg")))
 
     for rc in ["", "-rc"]:
         with open("three.%s.%s.%i%s.html" % (cob, o, d, rc), "w") as f:
@@ -691,7 +693,11 @@ def get_monomers(factors, results_output, last_iteration_output):
 
 def get_dimer_cases(results_output, iterations, last_iteration_output):
     for i, cob_factor in enumerate(cob_factors):
-        number_of_orientations = 3 if cob_factor[0] == cob_factor[1] else 4
+        number_of_orientations = 1 if use_rna else 3
+        
+        if cob_factor[0] != cob_factor[1]:
+            number_of_orientations += 1
+            
         tf1, tf2 = cob_factor
         # Find the cob table
         lines=find_lines(results_output, "Dimer lambdas %s:" % cob_codes[i], 1, number_of_orientations + 1)
@@ -752,12 +758,12 @@ def create_monomer_logos(factors, factor_lengths):
         #os.system("to_logo.sh -n -t %s %s.pfm" % (f, f))
 #        myrun("myspacek40 -noname -paths --logo %s.pfm %s.svg" % (f, f))
 #        myrun("myspacek40 -noname -paths --logo %s-rc.pfm %s-rc.svg" % (f, f))
-        myrun("myspacek40 -noname -paths --logo monomer.%i.pfm monomer.%i.svg" % (i, i))
-        myrun("myspacek40 -noname -paths --logo monomer.%i-rc.pfm monomer.%i-rc.svg" % (i, i))
+        myrun("myspacek40 %s --logo monomer.%i.pfm monomer.%i.svg" % (myspacek_flags, i, i))
+        myrun("myspacek40 %s --logo monomer.%i-rc.pfm monomer.%i-rc.svg" % (myspacek_flags, i, i))
         if get_flanks:
             g="flank-%i" % i
-            myrun("myspacek40 -noname -paths -core=%i --logo %s.pfm %s.svg" % (factor_lengths[i], g, g))
-            myrun("myspacek40 -noname -paths -core=%i --logo %s-rc.pfm %s-rc.svg" % (factor_lengths[i], g, g))
+            myrun("myspacek40 %s -core=%i --logo %s.pfm %s.svg" % (myspacek_flags, factor_lengths[i], g, g))
+            myrun("myspacek40 %s -core=%i --logo %s-rc.pfm %s-rc.svg" % (myspacek_flags, factor_lengths[i], g, g))
 
 def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
     new_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
@@ -819,7 +825,7 @@ def make_heatmap(data, drange, title="", outputfile="", fontsize=32.0):
     plt.yticks(fontsize=tickfontsize)
     ax.yaxis.set_ticks(numpy.arange(0,height,1))
     number_of_orientations=data.shape[0]
-    ax.set_yticklabels(["HT", "HH", "TT", "TH"][0:number_of_orientations])
+    ax.set_yticklabels(orients[0:number_of_orientations])
     plt.xticks(fontsize=tickfontsize)
     ax.xaxis.set_ticks(numpy.arange(0,width,1))
     ax.set_xticklabels(["%i" % i for i in drange])
@@ -1084,7 +1090,18 @@ except IOError:
     sys.exit(1)
                      
 
-
+use_rna = extract(r"Use RNA alphabet: (.*)", full_output)
+if use_rna == "yes":
+    use_rna = True
+    orients = rna_orients
+    orient_dict = rna_orient_dict
+    myspacek_flags="-paths -noname -rna"
+else:
+    use_rna = False
+    orients = dna_orients
+    orient_dict = dna_orient_dict
+    myspacek_flags="-paths -noname"
+    
 cob_factors=extract(r"Cob combinations are ([0-9,-]*)", full_output)
 if cob_factors:
     cob_factors=cob_factors.split(",")
@@ -1360,7 +1377,9 @@ f.write("</html>")
 # cob_tables=[0]*number_of_cobs
 
 for i, cob_factor in enumerate(cob_factors):
-    number_of_orientations = 3 if cob_factor[0] == cob_factor[1] else 4
+    number_of_orientations = 1 if use_rna else 3
+    if cob_factor[0] != cob_factor[1]:
+        number_of_orientations += 1
 
     # Find the cob table
     # lines=common.find_lines(data, "Dimer lambdas %s:" % cob_codes[i], 1, number_of_orientations + 1)
