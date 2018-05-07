@@ -1326,7 +1326,9 @@ if debug:
 #print '</div>'
 
 citation="""Jarkko Toivonen, Teemu Kivioja, Arttu Jolma, Yimeng Yin, Jussi Taipale, Esko Ukkonen (2018) Modular discovery of monomeric and dimeric
-transcription factor binding motifs for large data sets, Nucleic Acids Research, to appear."""
+transcription factor binding motifs for large data sets, <i>Nucleic Acids Research</i>,
+Volume 46, Issue 8, 4 May 2018, Pages e44."""
+
 bibtex=""
 moder_doi="https://doi.org/10.1093/nar/gky027"
 
