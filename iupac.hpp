@@ -102,3 +102,5 @@ bool
 iupac_string_match(const std::string& str, const std::string& pattern);
 
 char complement(char c);
+
+char complement_rna(char c);

@@ -354,6 +354,16 @@ reverse_complement(const std::string& s)
 }
 
 std::string
+reverse_complement_rna(const std::string& s) 
+{
+  std::string t(s.size(), '-');
+  int j=s.size()-1;
+  for (int i=0; i < s.size(); ++i, --j)
+    t[j] = complement_rna(s[i]);
+  return t;
+}
+
+std::string
 reverse(const std::string& s) 
 {
   std::string t(s.size(), ' ');

@@ -3643,6 +3643,22 @@ get_all_cob_combinations(int fixed_p)
   return cob_combinations;
 }
 
+void
+reverse_complement_sequences(std::vector<std::string>& sequences)
+{
+  int lines = sequences.size();
+  for (int i=0; i < lines; ++i)
+    sequences[i] = reverse_complement(sequences[i]);
+}
+
+void
+reverse_complement_rna_sequences(std::vector<std::string>& sequences)
+{
+  int lines = sequences.size();
+  for (int i=0; i < lines; ++i)
+    sequences[i] = reverse_complement_rna(sequences[i]);
+}
+
 int main(int argc, char* argv[])
 {
   TIME_START(t);
@@ -3660,6 +3676,7 @@ int main(int argc, char* argv[])
   bool dmin_given = false;
   bool dmax_given = false;
   bool max_dist_for_deviation_given = false;
+  bool use_reverse_strand=false;
   int unique_param = -1; // either -1, 0, 1, ...
   std::vector<int> dmina;
   std::vector<int> dmaxa;
@@ -3739,6 +3756,7 @@ int main(int argc, char* argv[])
     ("number-of-threads", po::value<int>(), m("Number of parallel threads", number_of_threads).c_str())
     ("prior", po::value<std::string>(), m("Choose either addone or dirichlet prior, or none for no pseudo-counts", prior_parameter).c_str())
     ("single-strand", m("Only consider binding sites in forward strand", not use_two_strands).c_str())
+    ("reverse-strand", m("Take reverse complement of each input strand. Implies single strand.", use_reverse_strand).c_str())
     ("rna", m("Assume input sequences are RNA (experimental)", use_rna).c_str())
     ("unique", po::value<std::string>(), "Uniqueness of sequences. Either off, unique, 1, 2, 3, ..., default: off")
     ("quiet", m("Don't print intermediate results", not local_debug).c_str())
@@ -3791,6 +3809,11 @@ int main(int argc, char* argv[])
 
     if (vm.count("rna")) 
       use_rna = true;
+
+    if (vm.count("reverse-strand")) {
+      use_two_strands = false;
+      use_reverse_strand = true;
+    }
 
     if (vm.count("markov-model")) 
       use_markov_background = true;
@@ -4119,6 +4142,13 @@ int main(int argc, char* argv[])
   else    
     check_data(sequences);
   
+  if (use_reverse_strand) {
+    if (use_rna)
+      reverse_complement_rna_sequences(sequences);
+    else
+      reverse_complement_sequences(sequences);
+  }
+
   printf("Read %zu good lines from file %s\n", sequences.size(), seqsfile.c_str());
   printf("Discarded %i bad lines\n", bad_lines);
   if (unique_param >= 0) {
@@ -4146,6 +4176,7 @@ int main(int argc, char* argv[])
   printf("Use RNA alphabet: %s\n", yesno(use_rna));
   printf("Use two dna strands: %s\n", yesno(use_two_strands));
   printf("Avoid palindromes: %s\n", yesno(avoid_palindromes));
+  printf("Use reverse strand: %s\n", yesno(use_reverse_strand));
   printf("Use multinomial model: %s\n", yesno(use_multinomial));
   if (use_multinomial)
     printf("Hamming radius is %i\n", hamming_radius);  

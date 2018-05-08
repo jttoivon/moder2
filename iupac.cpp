@@ -157,6 +157,32 @@ char complement(char c)
   }
 }
 
+char complement_rna(char c) 
+{
+  switch(c) {
+  case 'A': return 'U';
+  case 'C': return 'G';
+  case 'G': return 'C';
+  case 'U': return 'A';
+
+  case 'W': return 'W';
+  case 'S': return 'S';
+  case 'M': return 'K';
+  case 'K': return 'M';
+  case 'R': return 'Y';
+  case 'Y': return 'R';
+
+  case 'B': return 'V';
+  case 'D': return 'H';
+  case 'H': return 'D';
+  case 'V': return 'B';
+
+  case 'N': return 'N';
+    
+  default:  return c;
+  }
+}
+
 // Return a probability distribution.
 // Probability is distributed evenly between nucleotides in the iupac class 'c'
 dvector

@@ -163,6 +163,9 @@ std::string
 reverse_complement(const std::string& s);
 
 std::string
+reverse_complement_rna(const std::string& s);
+
+std::string
 reverse(const std::string& s);
 
 bool
