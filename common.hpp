@@ -673,7 +673,7 @@ public:
   }
 
   void
-  add(matrix<T>& m)
+  add(matrix<T>& m) const
   {
     int rows = m.get_rows();
     int columns = m.get_columns();
@@ -685,7 +685,7 @@ public:
   }
 
   void
-  add(std::vector<T>& v)
+  add(std::vector<T>& v) const 
   {
     int size = v.size();
     
@@ -694,7 +694,7 @@ public:
   }
 
   std::vector<double>
-  get()
+  get() const
   {
     return pseudo_counts;
   }

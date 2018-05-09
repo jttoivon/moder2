@@ -19,6 +19,9 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
+#ifndef IUPAC_HPP
+#define IUPAC_HPP
+
 #include <string>
 #include <cassert>
 #include <vector>
@@ -83,6 +86,7 @@ private:
   static char_bits_t  char_bits[16];
 };
 
+
 static iupac_class_type iupac_class;
 
 dvector
@@ -104,3 +108,23 @@ iupac_string_match(const std::string& str, const std::string& pattern);
 char complement(char c);
 
 char complement_rna(char c);
+
+// The most significant bit in the bit vector corresponds to position 0 in strings.
+// If length of strings is n, then
+// result & 1 == 1 iff str[n-1] does not match pattern[n-1]. 
+template <typename T>
+T
+iupac_mismatch_positions(const std::string& str, const std::string& pattern)
+{
+  assert(str.length() == pattern.length());
+  assert(str.length() * 2 <= sizeof(T)*8);
+  T result = 0;
+  for (int i=0; i < str.length(); ++i) {
+    result <<= 1;
+    result |= (iupac_match(str[i], pattern[i]) ? static_cast<T>(0) : static_cast<T>(1));
+  }
+  
+  return result;
+}
+
+#endif // IUPAC_HPP
