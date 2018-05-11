@@ -109,23 +109,6 @@ read_matrix(FILE* fp)
 
 
 
-void
-write_matrix(FILE* fp, const matrix<double>& m, const std::string& tag, 
-	     std::string format, bool dimensions)
-{
-  fprintf(fp, "%s", tag.c_str());
-
-  int r = m.get_rows();
-  int c = m.get_columns();
-  if (dimensions)
-    fprintf(fp, "%ix%i\n", r, c);
-
-  if (format != "") 
-    m.print3(fp, format);
-  else
-    m.print3(fp, "%10lf", "\t");
-
-}
 
 void
 write_matrix_file(const std::string& matrixfile, const dmatrix& M, std::string format)
@@ -222,19 +205,6 @@ normalize_matrix_rows(matrix<double>& m)
   }
 }
 
-void
-normalize_matrix_columns(matrix<double>& m)
-{
-  // sums of cols should be 1
-  for (int i=0; i < m.get_columns(); ++i) {
-    double sum = 0;
-    for (int j=0; j < m.get_rows(); ++j)
-      sum += m(j,i);
-    
-    for (int j=0; j < m.get_rows(); ++j)
-      m(j,i) /= sum;
-  }
-}
 
 dmatrix
 normalize_matrix_columns_copy(matrix<double> m)
@@ -250,32 +220,6 @@ normalize_matrix_rows_copy(matrix<double> m)
   return m;
 }
 
-bool
-is_stochastic_matrix(const matrix<double>& m)
-{
-  //const double delta = 0.000001;
-  const double delta = 0.00001;
-  for (int i=0; i < m.get_rows(); ++i) {
-    double sum = 0;
-    for (int j=0; j < m.get_columns(); ++j)
-      sum += m(i,j);
-    if (fabs(1.0 - sum) >= delta)  // isn't close enough to 1
-      return false;
-  }
-  return true;
-}
-
-bool
-is_column_stochastic_matrix(const matrix<double>& m)
-{
-  return is_stochastic_matrix(transpose(m));
-}
-
-bool
-is_row_stochastic_matrix(const matrix<double>& m)
-{
-  return is_stochastic_matrix(m);
-}
 
 bool
 is_palindromic_matrix(const matrix<double>& m)

@@ -51,6 +51,29 @@ get_matrices_according_to_hetero_orientation(int o, const dmatrix& m1, const dma
   return boost::make_tuple(x, y);
 }
 
+boost::tuple<boost::shared_ptr<binding_model<> >, boost::shared_ptr<binding_model<> > >
+get_matrices_according_to_hetero_orientation(int o, const binding_model<> & m1, const binding_model<>& m2, bool use_rna)
+{
+  boost::shared_ptr<binding_model<> > x, y;
+  if (use_rna) {
+    assert(o >= 0 and o <=1);
+    switch (o) {
+    case HT: x = m1.clone(); y = m2.clone(); break;                      // HT
+    case RNA_TH: x = m2.clone(); y = m1.clone(); break;  // TH
+    }
+  }
+  else {
+    assert(o >= 0 and o <=3);
+    switch (o) {
+    case HT: x = m1.clone(); y = m2.clone(); break;                      // HT
+    case HH: x = m1.clone(); y = m2.reverse_complement(); break;  // HH
+    case TT: x = m1.reverse_complement(); y = m2.clone(); break;  // TT
+    case TH: x = m1.reverse_complement(); y = m2.reverse_complement(); break;  // TH
+    }
+  }
+  return boost::make_tuple(x, y);
+}
+
 boost::tuple<std::string,std::string>
 get_seeds_according_to_hetero_orientation(int o, const std::string& s1, const std::string& s2, bool use_rna)
 {

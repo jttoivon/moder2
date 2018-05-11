@@ -178,8 +178,24 @@ bool
 is_nucleotide_string(const std::string& str);
 
 
-matrix<double>
-reverse_complement(const matrix<double>& m);
+
+// Reflects over both diagonals, that is rotate 180 degrees. This is NOT the transpose of the matrix
+template<typename T>
+matrix<T>
+reverse_complement(const matrix<T>& m)
+{
+  assert( m.get_rows() == 4 );
+  
+  int c = m.get_columns();
+  matrix<T> result(4, c);
+  for (int i = 0; i < 4; ++i)
+    for (int j = 0; j < c; ++j) {
+      result(i, j) = m(4-i-1, c-j-1);
+    }
+
+  return result;
+}
+
 
 matrix<double>
 reverse(const matrix<double>& m);

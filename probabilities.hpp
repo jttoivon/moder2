@@ -22,16 +22,156 @@
 #ifndef PROBABILITIES_HPP
 #define PROBABILITIES_HPP
 
+#include "type.hpp"
 #include "matrix.hpp"
 #include "data.hpp"
 #include "parameters.hpp"
-#include "common.hpp"
+//#include "common.hpp"
 
 #include <string>
 #include <vector>
 #include <boost/tuple/tuple.hpp>
+#include <boost/shared_ptr.hpp>
+
+
+void
+error(bool b, const std::string& message);
+
+std::string
+reverse_complement(const std::string& s);
+
+extern matrix<double> positional_background;
 
 enum {atleast, atmost, exactly};
+
+
+template <typename T=double>
+class binding_model
+{
+public:
+
+
+  binding_model(const std::vector<std::string>& sequences, const std::string& seed, int n=2); // n tells the size of the hamming neighbourhood
+  binding_model(const std::string& filename);
+
+  binding_model() {};
+
+  binding_model(const matrix<T>& dm_, bool normalize=true);
+
+  virtual ~binding_model() { };
+
+
+  // Creates a copy of the object, not a copy of the pointer 
+  virtual
+  boost::shared_ptr<binding_model>
+  clone() const=0;
+  
+  virtual
+  void
+  init(const matrix<T>& dm_, bool normalize=true)=0;     // initialize the position dependent first order model using dinucleotide count array
+
+  virtual
+  matrix<T>
+  representation() const=0;
+
+  virtual
+  boost::shared_ptr<binding_model>
+  reverse_complement() const=0;
+
+  
+  //boost::shared_ptr<binding_model> sub_model(int start_pos, int length) const =0;   // Tarvitaanko????
+  
+  virtual
+  int
+  get_length() const=0;   // returns k, the width of the binding site
+
+  virtual
+  std::vector<double>
+  information_content(std::vector<T> bg = std::vector<T>(4, 0.25)) const =0;
+
+  // Check consistency. Do not call this when the model is in log-form
+  virtual
+  bool
+  is_probability_model() const =0;
+  
+  virtual
+  std::pair<int,int>
+  dim() const=0;
+  
+  virtual
+  void
+  print(const std::string& header, const std::string& format, FILE* f=stdout) const=0;  // Prints the counts in a 16 x (k-1) matrix
+
+  virtual
+  T
+  probability(const std::string& s, int start_pos = 0) const=0; // start_pos is the starting position in the model
+
+  virtual
+  T
+  probability(std::string::const_iterator begin,
+              std::string::const_iterator end,
+              int start_pos = 0) const=0; // start_pos is the starting position in the model
+
+  virtual
+  T
+  log_probability(const std::string& s, int start_pos = 0) const=0; // start_pos is the starting position in the model
+
+  virtual
+  T
+  log_probability(std::string::const_iterator begin,
+		  std::string::const_iterator end,
+		  int start_pos = 0) const=0; // start_pos is the starting position in the model
+
+  virtual
+  boost::shared_ptr<binding_model<FloatType> >
+  log2() const=0;
+
+
+  virtual
+  double
+  score(const std::string& s, int start_pos = 0) const=0; // start_pos is the starting position in the model
+  
+  virtual
+  std::string
+  string_giving_max_probability(bool use_rna=false) const=0;
+  
+  virtual
+  double
+  distance(const binding_model& other) const=0;
+
+  virtual
+  boost::shared_ptr<binding_model>
+  cut(int start_pos, int width) const=0;
+};
+
+
+template <typename T>
+void
+write_matrix_file(const std::string& matrixfile, const binding_model<T>& M, const std::string& format = "%.6f")
+{
+  FILE* fp=fopen(matrixfile.c_str(), "w");
+  if (fp == NULL) {
+    fprintf(stderr, "Couldn't create matrixfile %s\n", matrixfile.c_str());
+    perror("write_matrix_file");
+    exit(1);
+  }
+  M.print("", format, fp); // write used to file
+  fclose(fp);
+  
+}
+
+template <typename T>
+double
+average_information_content(const binding_model<T>& M, const std::vector<double>& bg=std::vector<double>(4, 0.25))
+{
+  std::vector<double> ic = M.information_content(bg);
+  int k=ic.size();
+  double sum = 0.0;
+  for (int i=0; i < k; ++i)
+    sum += ic[i];
+
+  return sum / k;
+}
 
 typedef double (*score_function_t)(const std::string&, const dmatrix&);
 
@@ -73,15 +213,39 @@ expectation(const std::vector<double>& p);
 double
 entropy(const std::vector<double>& v);
 
-double
-KL_distance(const std::vector<double>& p, const std::vector<double>& q);
+// double
+// KL_distance(const std::vector<double>& p, const std::vector<double>& q);
 
 double
 symmetric_KL_distance(const std::vector<double>& p, const std::vector<double>& q);
 
+// double
+// information_content(const std::vector<double>& p, 
+// 		    std::vector<double> q = std::vector<double>());
+
+template<typename T>
 double
-information_content(const std::vector<double>& p, 
-		    std::vector<double> q = std::vector<double>());
+KL_distance(const std::vector<T>& p, const std::vector<T>& q)
+{
+  assert(p.size() == q.size());
+  T sum=0;
+  for (int i=0; i < p.size(); ++i)
+    if (p[i] !=0)
+      sum += p[i]*log2(p[i]/q[i]);
+  return sum;
+}
+
+template<typename T>
+double
+information_content(const std::vector<T>& p, 
+		    std::vector<T> q = std::vector<T>())
+{
+  if (q.size() == 0)
+    q = std::vector<T>(p.size(), 0.25);
+  assert(p.size() == q.size());
+  return KL_distance(p, q);
+}
+
 
 double
 average_information_content(const matrix<double>& m, std::vector<double> q = std::vector<double>());
@@ -330,7 +494,8 @@ template <typename T, typename S>
 T
 compute_log_probability(const std::string& line_orig, const std::string& line_orig_rev,
 			int pos, int direction,
-			const matrix<T>& m, 
+			//	const matrix<T>& m, 
+			const binding_model<T>& m, 
 			const std::vector<S>& q,
 			const matrix<double>& q2)
 {
@@ -342,7 +507,7 @@ compute_log_probability(const std::string& line_orig, const std::string& line_or
   assert(q[3]>0 && q[3]<=1);
   */
   assert(q.size() == 4);
-  int k = m.get_columns();
+  int k = m.get_length();
 
   const std::string& line = direction == 1 ? line_orig : line_orig_rev;
   
@@ -353,11 +518,12 @@ compute_log_probability(const std::string& line_orig, const std::string& line_or
   T log_prob = 0.0;
 
   // compute probability of motif part
-  std::string seq = line.substr(pos,k);
-  for (int i=0; i < k; ++i) {
-    assert(pos+i < L);
-    log_prob += m(to_int(line[pos+i]),i);
-  }
+  log_prob += m.log_probability(line.begin()+pos,line.begin()+pos+k);
+  // std::string seq = line.substr(pos,k);
+  // for (int i=0; i < k; ++i) {
+  //   assert(pos+i < L);
+  //   log_prob += m(to_int(line[pos+i]),i);
+  // }
 
   if (use_markov_background) {
     // compute probability on the left side of motif
@@ -523,8 +689,10 @@ template <typename T>
 T
 compute_log_dimer_probability(const std::string& line_orig, const std::string& line_orig_rev,
 			      int pos, int direction,
-			      const matrix<T>& m1, 
-			      const matrix<T>& m2,
+			      const binding_model<T>& m1, 
+			      const binding_model<T>& m2,
+			      // const matrix<T>& m1, 
+			      // const matrix<T>& m2,
 			      int d,
 			      const std::vector<T>& q,
 			      const matrix<double>& q2)
@@ -541,8 +709,8 @@ compute_log_dimer_probability(const std::string& line_orig, const std::string& l
   int L = line_orig.length();
   
   T log_prob = 0.0;
-  int k1 = m1.get_columns();
-  int k2 = m2.get_columns();
+  int k1 = m1.get_length();
+  int k2 = m2.get_length();
   int dimer_len = k1 + k2 + d;
 
   const std::string& line = direction == 1 ? line_orig : line_orig_rev;
@@ -553,16 +721,18 @@ compute_log_dimer_probability(const std::string& line_orig, const std::string& l
   int pos2 = pos + dimer_len - k2;  // Starting position of the second motif
   
   // compute probability of the first motif part
-  for (int i=0; i < k1; ++i) {
-    assert(pos+i < line.length());
-    log_prob += m1(to_int(line[pos+i]), i);
-  }
+  log_prob += m1.log_probability(line.begin()+pos,line.begin()+pos+k1);
+  // for (int i=0; i < k1; ++i) {
+  //   assert(pos+i < line.length());
+  //   log_prob += m1(to_int(line[pos+i]), i);
+  // }
 
   // compute probability of the second motif part
-  for (int i=0; i < k2; ++i) {
-    assert(pos2+i < L);
-    log_prob += m2(to_int(line[pos2+i]), i);
-  }
+  log_prob += m2.log_probability(line.begin()+pos2,line.begin()+pos2+k2);
+  // for (int i=0; i < k2; ++i) {
+  //   assert(pos2+i < L);
+  //   log_prob += m2(to_int(line[pos2+i]), i);
+  // }
 
   if (use_markov_background) {
     // compute probability on the left side of motif

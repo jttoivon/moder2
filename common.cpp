@@ -393,22 +393,6 @@ palindromic_index(const std::string& s)
   return hamming_distance(s, reverse_complement(s));
 }
 
-// Reflects over both diagonals, that is rotate 180 degrees. This is NOT the transpose of the matrix
-matrix<double>
-reverse_complement(const matrix<double>& m)
-{
-  assert( m.get_rows() == 4 );
-  
-  int c = m.get_columns();
-  matrix<double> result(4, c);
-  for (int i = 0; i < 4; ++i)
-    for (int j = 0; j < c; ++j) {
-      result(i, j) = m(4-i-1, c-j-1);
-    }
-
-  return result;
-}
-
 matrix<double>
 reverse(const matrix<double>& m)
 {

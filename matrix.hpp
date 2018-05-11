@@ -466,7 +466,7 @@ distance(const matrix<T>& s, const matrix<T>& t)
  
  for (int i=0;i<rows;++i) {
     for (int j=0;j<columns;++j) 
-      max_dist = std::max( fabs(s(i,j)-t(i,j)) , max_dist);
+      max_dist = std::max( std::abs(s(i,j)-t(i,j)) , max_dist);
   }
 
  return max_dist;

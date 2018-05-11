@@ -23,8 +23,10 @@
 #define ORIENTATION_HPP
 
 #include "matrix.hpp"
-#include "boost/tuple/tuple.hpp"
+#include "probabilities.hpp"
 
+#include <boost/tuple/tuple.hpp>
+#include <boost/shared_ptr.hpp>
 #include <vector>
 #include <set>
 #include <map>
@@ -36,6 +38,8 @@ extern const char** orients;
 extern const char* dna_orients[];
 extern const char* rna_orients[];
 
+//template <typename T>
+//class binding_model;
 
 class string_to_orientation_type
 {
@@ -67,6 +71,9 @@ orientation2(int o1, int o2);  // four different orientations
 
 boost::tuple<dmatrix,dmatrix>
 get_matrices_according_to_hetero_orientation(int o, const dmatrix& m1, const dmatrix& m2, bool use_rna);
+
+boost::tuple<boost::shared_ptr<binding_model<> >, boost::shared_ptr<binding_model<> > >
+get_matrices_according_to_hetero_orientation(int o, const binding_model<>& m1, const binding_model<>& m2, bool use_rna);
 
 boost::tuple<std::string,std::string>
 get_seeds_according_to_hetero_orientation(int o, const std::string& s1, const std::string& s2, bool use_rna);
