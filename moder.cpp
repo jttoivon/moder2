@@ -4129,11 +4129,11 @@ int main(int argc, char* argv[])
   std::string extension = boost::to_lower_copy(parts.back());
 
   if (extension == "fasta" or extension == "fa") {
-    printf("Reading from fasta file\n");
+    printf("Reading from fasta file %s\n", seqsfile.c_str());
     boost::tie(lines, bad_lines) = read_fasta_sequences(seqsfile, sequences);
   }
   else {
-    printf("Reading from sequence-per-line file\n");
+    printf("Reading from sequence-per-line file %s\n", seqsfile.c_str());
     boost::tie(lines, bad_lines) = read_sequences(seqsfile, sequences);
   }
 
