@@ -25,6 +25,7 @@
 #include "type.hpp"
 #include "matrix.hpp"
 #include "data.hpp"
+#include "iupac.hpp"
 #include "parameters.hpp"
 //#include "common.hpp"
 
@@ -32,6 +33,7 @@
 #include <vector>
 #include <boost/tuple/tuple.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/foreach.hpp>
 
 
 void
@@ -128,7 +130,7 @@ public:
 
 
   virtual
-  double
+  T
   score(const std::string& s, int start_pos = 0) const=0; // start_pos is the starting position in the model
   
   virtual
@@ -855,5 +857,31 @@ compute_dimer_probability(const std::string& line_orig, const std::string& line_
 
 boost::tuple<std::vector<double>, dmatrix, std::vector<int> >
 count_background(const std::vector<std::string>& sequences, bool use_rna=false);
+
+class iupac_probability_in_background
+{
+public:
+  iupac_probability_in_background(const std::vector<double>& bg)
+    : iupac_probabilities(256)
+  {
+    BOOST_FOREACH(char iupac_char, iupac_chars) {
+      BOOST_FOREACH(char c, iupac_class(iupac_char)) {
+	iupac_probabilities[(unsigned char)iupac_char] += bg[to_int(c)];
+      }
+    }
+  }
+
+  double
+  operator()(const std::string& s) {
+    assert(is_iupac_string(s));
+    double result = 1.0;
+    for (int i=0; i < s.length(); ++i)
+      result *= iupac_probabilities[s[i]];
+    return result;
+  }
+  
+private:
+  std::vector<double> iupac_probabilities;
+};
 
 #endif // PROBABILITIES_HPP

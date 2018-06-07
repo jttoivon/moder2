@@ -24,6 +24,7 @@
 
 #include <string>
 #include <cassert>
+#include <cstring>
 #include <vector>
 
 typedef std::vector<double> dvector;
@@ -126,5 +127,68 @@ iupac_mismatch_positions(const std::string& str, const std::string& pattern)
   
   return result;
 }
+
+class sequences_of_iupac_string
+{
+public:
+  sequences_of_iupac_string(const std::string& s)
+    : k(s.length()), iupac_classes(k), base(k, 0), pattern(k, '-'), v(k, 0)
+  {
+
+    number_of_combinations = 1;
+    for (int i=0; i < k; ++i) {
+      iupac_classes[i] = iupac_class(s[i]);
+      int size = strlen(iupac_classes[i]);
+      base[i] = size - 1;
+      number_of_combinations *= size;
+    }
+    reset();
+  }
+
+  int number_of_strings() const
+  {
+    return number_of_combinations;
+  }
+  
+  void
+  reset()
+  {
+    for (int i=0; i < k; ++i) {
+      v[i] = 0;
+      pattern[i] = iupac_classes[i][0];          // Initialize pattern to the first sequence of iupac string
+    }
+    v[k-1]=-1;  // Initialize
+    current_string = 0;
+  }
+
+  // The loop goes through nucleotide sequences that belong to
+  //given iupac sequence in alphabetical order
+  std::string
+  next()
+  {
+    if (current_string == number_of_combinations)
+      return "";
+    
+    int i;
+    for (i=k-1; v[i] == base[i]; --i) {
+      v[i]=0;
+      pattern[i] = iupac_classes[i][v[i]];
+    }
+    v[i]++;
+    pattern[i] = iupac_classes[i][v[i]];
+
+    ++current_string;
+    return pattern;
+  }
+  
+private:
+  int k;
+  int number_of_combinations;
+  int current_string;
+  std::vector<const char*> iupac_classes;
+  std::vector<int> base;
+  std::string pattern;
+  std::vector<int> v;  // helper array
+};
 
 #endif // IUPAC_HPP

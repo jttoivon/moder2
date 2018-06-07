@@ -39,7 +39,7 @@ OBJDIR=.
 PRGPREFIX=
 ifeq ($(DEBUG),1)
 #    CFLAGS =-g3 -gdwarf2 -DDEBUG
-	CXXFLAGS +=-O0
+	CXXFLAGS +=-O0 # -D_GLIBCXX_DEBUG does not work because of BOOST
 	OBJDIR=debug
 	PRGPREFIX=debug_
 	RESULT:=$(shell mkdir -p $(OBJDIR))
@@ -166,6 +166,10 @@ $(distdir):
 	cp huddinge.hpp $(distdir)
 	cp kmer_tools.hpp $(distdir)
 	cp unordered_map.hpp $(distdir)
+	cp count_object.hpp $(distdir)
+	cp pwm_model.hpp $(distdir)
+	cp dinucleotide.hpp $(distdir)
+	cp dinucleotide.cpp $(distdir)
 	cp CPM03/checker.hpp $(distdir)/CPM03
 	cp CPM03/COPYING $(distdir)/CPM03
 	cp CPM03/difference_cover.cpp $(distdir)/CPM03
@@ -186,7 +190,7 @@ $(distdir):
 
 
 MODER_OBJS=moder.o common.o  probabilities.o parameters.o matrix_tools.o my_assert.o combinatorics.o\
-	multinomial_helper.o bndm.o orientation.o data.o iupac.o suffix_array_wrapper.o kmer_tools.o huddinge.o
+	multinomial_helper.o bndm.o orientation.o data.o iupac.o suffix_array_wrapper.o kmer_tools.o huddinge.o dinucleotide.o
 $(PRGPREFIX)moder: $(addprefix $(OBJDIR)/, $(MODER_OBJS)) | CPM03
 	$(CXX) $(CXXFLAGS) $(addprefix $(OBJDIR)/, $(MODER_OBJS)) CPM03/difference_cover.o -o $@ $(LDFLAGS)
 

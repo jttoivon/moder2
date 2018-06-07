@@ -259,18 +259,6 @@ normalize_vector(std::vector<double>& v)
   return;
 }
 
-std::vector<double>
-normalize_vector_copy(const std::vector<double>& v)
-{
-  double s = sum(v);
-
-  std::vector<double> result(v.size());
-
-  for (size_t i=0; i < v.size(); ++i)
-    result[i] = v[i]/s;
-
-  return result;
-}
 
 
 std::vector<double>
@@ -437,6 +425,20 @@ hamming_distance(const std::string& s, const std::string& t)
 
   return count;
 }
+
+std::vector<int>
+iupac_hamming_mismatches(const std::string& s, const std::string& pattern)
+{
+  assert(s.length() == pattern.length());
+
+  std::vector<int> result;
+  for (int i=0; i < s.length(); ++i)
+    if (not iupac_match(s[i], pattern[i]))
+      result.push_back(i);
+
+  return result;
+}
+
 
 int
 iupac_hamming_dist(const std::string& str, const std::string& pattern, int max_hd)
@@ -694,3 +696,80 @@ SSS(const char* s)
 
 
 
+std::vector<std::string>
+get_n_neighbourhood(const std::string&seed, int n)
+{
+  const int k = seed.length();
+  assert(n >= 0);
+  assert(n <= k);
+  //  char nucs[] = "ACGT";
+
+  std::vector<std::string> result;
+
+  std::vector<std::string> complements(k);  // These are set complements, not nucleotide complements
+  std::vector<int> bases(k);
+  unsigned long long N_mask=0;          // bitmask for positions that contain 'N'. Those positions cannot contain an error
+  for (int i=0; i < k; ++i) {
+    complements[i] = complement_set(seed[i]);
+    bases[i]=complements[i].length() - 1;
+    if (seed[i]=='N')
+      N_mask |=  (1 << (k-1-i));
+  }
+
+  result.push_back(seed);                   // hamming distance 0
+  for (int error=1; error <= n; ++error) { // handles hamming distances 1 <= hd <= n
+    // bitvector c has 1-bit for each member of the subset, rightmost bit is bit number k-1
+    unsigned long long c = (1ull<<error)-1;  // initially rightmost 'error' bits are 1
+    // iterate through all subsets c of {0, ..., k-1} that have size 'error'
+    while (c < (1ull<<k)) {   // Superset has only k elements
+      assert(__builtin_popcountll(c) == error);
+      if ((c & N_mask) == 0)  { // subset positions don't contain 'N'
+	std::vector<int> P;  // positions that contain error
+	int number_of_combinations = 1;
+	std::string temp = seed;
+	for (int pos=0; pos < k; ++pos) {
+	  if ((c & (1ull << (k-1-pos))) != 0) {   // pos belongs to set c
+	    P.push_back(pos);
+	    temp[pos] = complements[pos][0];  // initialize to first string that has mismatches at these positions
+	    number_of_combinations *= complements[pos].length();
+	  }
+	}
+	  
+	std::vector<int> y(error, 0);
+	y[error-1]=-1;  // Initialize
+	for (int r=0; r < number_of_combinations; ++r) {
+      
+	  int i;
+	  for (i=error-1; y[i] == bases[P[i]]; --i) {
+	    y[i]=0;
+	    temp[P[i]] = complements[P[i]][y[i]];
+	  }
+	  y[i]++;
+	  temp[P[i]] = complements[P[i]][y[i]];
+
+	  result.push_back(temp);
+	}  // end for r
+	
+      }    // end if subset doesn't contain 'N'
+
+      unsigned long long a = c&-c;
+      unsigned long long b = c+a;   // update bitvector c. This is "Gosper's hack"
+      c = (c^b)/4/a|b;
+      
+    } // end foreach subset c
+  }  // end for error
+
+  if (is_iupac_string(seed)) {                     // expand iupac strings into nucleic strings
+    std::set<std::string> expanded;                // Tämä on tod. näk. turha, koska eri patternien laajennokset ovat pistevieraita
+    BOOST_FOREACH(std::string pattern, result) {
+      sequences_of_iupac_string x(pattern);
+      int size = x.number_of_strings();
+      for (int i=0; i < size; ++i)
+	expanded.insert(x.next());
+      
+    }
+    return std::vector<std::string>(expanded.begin(), expanded.end());
+  }
+  else
+    return result;
+}

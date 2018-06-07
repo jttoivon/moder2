@@ -188,9 +188,9 @@ most_common_pattern_multimer(const std::vector<std::string>& sequences, int k, s
   }
 
   printf("Seed %s has %i occurences\n",
-	 result.c_str(),number_of_occurrences[dna_to_number(result)]);
+	 result.c_str(),number_of_occurrences[dna_to_number<big_int>(result)]);
 
-  return boost::make_tuple(result, number_of_occurrences[dna_to_number(result)]);
+  return boost::make_tuple(result, number_of_occurrences[dna_to_number<big_int>(result)]);
   //return result;
 }
 
@@ -220,11 +220,11 @@ most_common_pattern_monomer(const std::vector<std::string>& sequences, int k, st
 
     // find all occurrences in sequence
     for (int j=0; j < line.length()-k+1; ++j) {
-      id = dna_to_number(line.substr(j,k));
+      id = dna_to_number<big_int>(line.substr(j,k));
       occurrences[id].push_back(j);
       ids.insert(id);
       if (use_two_strands) {
-	id2 = dna_to_number(reverse_complement(line.substr(j,k)));
+	id2 = dna_to_number<big_int>(reverse_complement(line.substr(j,k)));
 	occurrences[id2].push_back(j);
       }
     }
@@ -307,9 +307,9 @@ most_common_pattern_monomer(const std::vector<std::string>& sequences, int k, st
       result = result1;
   }
   printf("Seed %s has %i occurences\n",
-	 result.c_str(),number_of_occurrences[dna_to_number(result)]);
+	 result.c_str(),number_of_occurrences[dna_to_number<big_int>(result)]);
 
-  return boost::make_tuple(result, number_of_occurrences[dna_to_number(result)]);
+  return boost::make_tuple(result, number_of_occurrences[dna_to_number<big_int>(result)]);
 }
 
 
@@ -411,7 +411,7 @@ find_snips_multimer(const std::string& consensus, const std::vector<std::string>
 }
 
 string_to_tuple_type
-get_n_neighbourhood(const std::string&seed, int n)
+get_n_neighbourhood_mononucleotide_contributions(const std::string&seed, int n)
 {
   const int k = seed.length();
   //const int L = sequences[0].length();
@@ -510,7 +510,7 @@ std::vector<std::pair<std::string, std::vector<boost::tuple<int, int> > > >
 get_n_neighbourhood_in_vector(const std::string&seed, int n)
 {
   std::vector<std::pair<std::string, std::vector<boost::tuple<int, int> > > > result;
-  string_to_tuple_type neigh = get_n_neighbourhood(seed, n);
+  string_to_tuple_type neigh = get_n_neighbourhood_mononucleotide_contributions(seed, n);
   std::pair<std::string, std::vector<boost::tuple<int, int> > > t;
   string_to_tuple_type::iterator it = neigh.find(seed);   // Make sure that the pair corresponding to the seed is first on the vector
   result.push_back(*it);
@@ -522,31 +522,6 @@ get_n_neighbourhood_in_vector(const std::string&seed, int n)
 }
 
 
-class iupac_probability_in_background
-{
-public:
-  iupac_probability_in_background(const std::vector<double>& bg)
-    : iupac_probabilities(256)
-  {
-    BOOST_FOREACH(char iupac_char, iupac_chars) {
-      BOOST_FOREACH(char c, iupac_class(iupac_char)) {
-	iupac_probabilities[(unsigned char)iupac_char] += bg[to_int(c)];
-      }
-    }
-  }
-
-  double
-  operator()(const std::string& s) {
-    assert(is_iupac_string(s));
-    double result = 1.0;
-    for (int i=0; i < s.length(); ++i)
-      result *= iupac_probabilities[s[i]];
-    return result;
-  }
-  
-private:
-  std::vector<double> iupac_probabilities;
-};
 
 
 double
@@ -577,7 +552,7 @@ public:
   init(const std::string& seed)
   {
     int k=seed.length();
-    code_t s = dna_to_number(seed);
+    code_t s = dna_to_number<code_t>(seed);
     code_t s_rev_comp = reverse_complement_2bitstring(s, k);
     unsigned int number_of_sequences = pow(4, k);
     v.resize(number_of_sequences);
@@ -616,7 +591,7 @@ public:
   {
     d = d_;
     e = e_;
-    s = dna_to_number(seed);
+    s = dna_to_number<code_t>(seed);
     q = q_;
     f = f_;
     k = seed.length();
@@ -732,7 +707,7 @@ public:
   double
   operator()(const std::string& u, int cluster_len)
   {
-    code_t code = dna_to_number(u);
+    code_t code = dna_to_number<code_t>(u);
     code_t code_rev = reverse_2bitstring(code, k);
     double p = 0.0;
     double div = compute_bernoulli_probability<double>(code, k, q);
@@ -806,7 +781,7 @@ public:
   double
   operator()(const std::string& u) const
   {
-    code_t code = dna_to_number(u);
+    code_t code = dna_to_number<code_t>(u);
     return result[code];
   }
   
@@ -833,7 +808,7 @@ find_multinomial_n_background(const std::string& seed, const std::vector<std::st
   dmatrix result(4, k);
 
   string_to_tuple_type string_to_tuple;
-  string_to_tuple = get_n_neighbourhood(seed, n);
+  string_to_tuple = get_n_neighbourhood_mononucleotide_contributions(seed, n);
 
   //printf("Number of patterns %lu\n", string_to_tuple.size());
   //double seed_count=0;
@@ -1307,7 +1282,7 @@ find_multinomial_n_suffix_array(const std::string& seed, const std::vector<std::
   //code_to_tuple_type code_to_tuple;
 
   string_to_tuple_type string_to_tuple;
-  string_to_tuple = get_n_neighbourhood(seed, n);
+  string_to_tuple = get_n_neighbourhood_mononucleotide_contributions(seed, n);
 
   printf("Number of patterns %lu\n", string_to_tuple.size());
   unsigned long seed_count=0;

@@ -67,8 +67,8 @@ static my_to_int_type to_int;
 
 // interpret string of nucleid acids as a number in base 4
 // The first nucleotide of the string is in the most significant end
-big_int
-dna_to_number(const std::string& s);
+//big_int
+//dna_to_number(const std::string& s);
 
 template <typename T>
 T

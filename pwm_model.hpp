@@ -24,8 +24,14 @@ public:
 
   pwm_model() { }
 
+  pwm_model(int k) : dm(4, k) { }
+
   pwm_model(const matrix<T>& dm_, bool normalize=true)
   { init(dm_, normalize); }
+
+  boost::shared_ptr<binding_model<T> >
+  clone() const;
+
 
   void
   init(const matrix<T>& dm_, bool normalize=true);     // initialize the position dependent first order model using mononucleotide count array
@@ -46,7 +52,7 @@ public:
   dim() const;
   
   void
-  print(const std::string& header, const std::string& format, FILE* f) const;    // Prints the counts in a 16 x (k-1) matrix
+  print(const std::string& header, const std::string& format, FILE* f) const; 
 
   T
   probability(std::string::const_iterator begin,
@@ -65,7 +71,7 @@ public:
 		  int start_pos = 0) const; // start_pos is the starting position in the model
 
   
-  double
+  T
   score(const std::string& s, int start_pos = 0) const; // start_pos is the starting position in the model
 
 
@@ -76,9 +82,6 @@ public:
   boost::shared_ptr<binding_model<T> >
   cut(int start_pos, int width) const;
   
-  boost::shared_ptr<binding_model<T> >
-  clone() const;
-
 
   boost::shared_ptr<binding_model<T> >
   reverse_complement() const;
@@ -91,7 +94,7 @@ public:
   string_giving_max_probability(bool use_rna) const;
 
   
-  matrix<T> dm;  // 16 x k   mononucleotide array
+  matrix<T> dm;  // 4 x k   mononucleotide array
 };
 
 
@@ -230,7 +233,7 @@ pwm_model<T>::log_probability(const std::string& s, int start_pos) const
 }
 
 template <typename T>
-double
+T
 pwm_model<T>::score(const std::string& s, int start_pos) const // start_pos is the starting position in the model
 {
   return -100;
@@ -276,7 +279,7 @@ template <typename T>
 std::string
 pwm_model<T>::string_giving_max_probability(bool use_rna) const
 {
-  const char* nucs = use_rna ? "ACGU" : "ACGT";;
+  const char* nucs = use_rna ? "ACGU" : "ACGT";
   int k = dm.get_columns();
   std::string result(k, '-');
   for (int i=0; i<k; ++i)

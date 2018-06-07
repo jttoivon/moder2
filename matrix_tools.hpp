@@ -103,6 +103,27 @@ log2(const matrix<F>& orig)
   for (int i=0; i < rows; ++i)
     for (int j=0; j < cols; ++j)
       result(i, j) = log2l(orig(i, j));
+  //      result(i, j) = orig(i,j)==0.0 ? 0.0 : log2l(orig(i, j));
+
+  return result;
+}
+
+// This version assumes that on the first column only first four values are non-zero.
+template <typename T, typename F>
+matrix<T>
+log2_special(const matrix<F>& orig)
+{
+  matrix<T> result(orig.dim());
+  int rows=orig.get_rows();
+  int cols=orig.get_columns();
+  for (int i=0; i < 4; ++i)
+    for (int j=0; j < cols; ++j)
+      result(i, j) = log2l(orig(i, j));
+  //result(i, j) = orig(i,j)==0.0 ? 0.0 : log2l(orig(i, j));
+  for (int i=4; i < rows; ++i)
+    for (int j=1; j < cols; ++j)
+      result(i, j) = log2l(orig(i, j));
+  //result(i, j) = orig(i,j)==0.0 ? 0.0 : log2l(orig(i, j));
 
   return result;
 }

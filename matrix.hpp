@@ -61,20 +61,21 @@ public:
     return *this;
   }
 
-  // inject another matrix to coordinates (n,m) of *this matrix
+  // inject another matrix to coordinates (a,b) of *this matrix
   void
-  inject(const matrix& other, int n, int m) {
+  inject(const matrix& other, int a, int b) {
     int orows=other.rows;
     int ocolumns=other.columns;
-    assert(n >= 0 && m >= 0);
-    assert(n+orows <= rows && m+ocolumns <= columns);
+    assert(a >= 0 && b >= 0);
+    assert(a+orows <= rows && b+ocolumns <= columns);
 
     for (int i=0;i<orows;++i) {
       for (int j=0;j<ocolumns;++j) 
-	(*this)(n+i,m+j)=other(i,j);
+	(*this)(a+i,b+j)=other(i,j);
     }
   }
 
+  // Cut out a matrix of size nxm from coordinates (a,b)
   matrix
   cut(int a, int b, int n, int m) const
   {

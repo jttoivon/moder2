@@ -42,6 +42,7 @@
 #include "matrix_tools.hpp"
 #include "common.hpp"
 #include "pwm_model.hpp"
+#include "dinucleotide.hpp"
 #include "count_object.hpp"
 #include "probabilities.hpp"
 #include "parameters.hpp"
@@ -116,6 +117,7 @@ dmatrix background_probability_matrix(4,4); // for Markov background
 
 
 prior<double> pseudo_counts;
+dinucleotide_prior<double> dinucleotide_pseudo_counts;
 
 double cob_cutoff = 0.001;  // if an element in a cob table is smaller than this constant,
                            // the element is excluded. Note! This works for spaced dimers as well
@@ -123,7 +125,7 @@ double cob_cutoff = 0.001;  // if an element in a cob table is smaller than this
 bool adjust_seeds = true;
 bool use_multinomial=true;
 bool local_debug = true;
-bool extra_debug = true;   // Even more printing
+bool extra_debug = false;   // Even more printing
 bool allow_extension = false;
 bool use_dimers = true;
 bool seeds_given = false;
@@ -531,7 +533,9 @@ struct cob_params_t
     deviation.resize(boost::extents[number_of_orientations][range(dmin, max_dist_for_deviation+1)]);
     for (int o=0; o < number_of_orientations; ++o) {
       for (int d=dmin; d <= max_dist_for_deviation; ++d) {
-	deviation[o][d] = dmatrix(4, k1 + k2 + d);  // This contains redundant flanks. Just to ease
+	int dimer_len = k1 + k2 + d;
+	int rows = model_type == ppm ? 4 : 16;
+	deviation[o][d] = dmatrix(rows, dimer_len);  // This contains redundant flanks. Just to ease
 	                                            // operating with matrices expected and observed
 	                                            // which have the same dimensions.
       }
@@ -594,17 +598,21 @@ struct cob_params_t
     // Compute expected matrices
     for (int o=0; o < number_of_orientations; ++o) {
       for (int d=dmin; d <= max_dist_for_deviation; ++d) {
-	dmatrix expected = matrix_product(oriented_dimer_matrices[o].get<0>()->representation(),
-					  oriented_dimer_matrices[o].get<1>()->representation(), d);
-	normalize_matrix_columns(expected);
-	if (model_type == ppm)
+	if (model_type == ppm) {
+	  dmatrix expected = matrix_product(oriented_dimer_matrices[o].get<0>()->representation(),
+					    oriented_dimer_matrices[o].get<1>()->representation(), d);
+	  normalize_matrix_columns(expected);
 	  expected_overlapping_dimer_PWMs[o][d] = pwm_model<double>(expected).clone();
+	}
 	else 
-	  ; // FIX MEEEEEEEEEEEEEEEEEE! expected_overlapping_dimer_PWMs[o][d] = dinuc_model<double>(expected).clone();
+	  expected_overlapping_dimer_PWMs[o][d] =
+	    boost::make_shared<dinuc_model<double> >(dinuc_model_product(*boost::dynamic_pointer_cast<dinuc_model<double> >(oriented_dimer_matrices[o].get<0>()),
+									 *boost::dynamic_pointer_cast<dinuc_model<double> >(oriented_dimer_matrices[o].get<1>()), d));
       } // end for d
     }   // end for o
   }
 
+  // only used in the main program
   void
   compute_deviation_matrices()
   {
@@ -632,7 +640,8 @@ struct cob_params_t
 	    last = w1 + d - 1;
 	  }
 	}
-	for (int row = 0; row < 4; ++row) {
+	int rows = model_type == ppm ? 4 : 16;
+	for (int row = 0; row < rows; ++row) {
 	  for (int column = first - 1; column <= last + 1; ++column) // The overlapping part with flanks of 1bp on both sides
 	    deviation[o][d](row,column) = 
 	      overlapping_dimer_PWM[o][d]->representation()(row,column)
@@ -748,7 +757,10 @@ complete_data_log_likelihood(const std::vector<boost::shared_ptr<binding_model<>
       log_oriented_dimer_matrices[r][o][0] = my_cob_params[r].oriented_dimer_matrices[o].get<0>()->log2();
       log_oriented_dimer_matrices[r][o][1] = my_cob_params[r].oriented_dimer_matrices[o].get<1>()->log2();
       for (int d=dmin; d <= max_dist_for_deviation; ++d) {
-	overlapping_models[r][o][d] = pwm_model<>(my_cob_params[r].expected_overlapping_dimer_PWMs[o][d]->representation() + my_cob_params[r].deviation[o][d]).log2();
+	if (model_type == ppm)
+	  overlapping_models[r][o][d] = pwm_model<>(my_cob_params[r].expected_overlapping_dimer_PWMs[o][d]->representation() + my_cob_params[r].deviation[o][d]).log2();
+	else
+	  overlapping_models[r][o][d] = dinuc_model<>(my_cob_params[r].expected_overlapping_dimer_PWMs[o][d]->representation() + my_cob_params[r].deviation[o][d]).log2();
       }
     }
   }
@@ -1148,6 +1160,7 @@ get_new_weights(int j1, int dir, double z, int w, const std::string& seed,
 {
   assert(seed.length() == w);
   typedef myuint128 bitstring_t;
+  //typedef unsigned long long bitstring_t;
   const std::string& line = dir == 1 ? line_orig : line_rev_orig;
   int L = line.length();
   if (dir == -1)
@@ -2205,7 +2218,10 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	  log_oriented_dimer_matrices[r][o][0] = my_cob_params[r].oriented_dimer_matrices[o].get<0>()->log2();
 	  log_oriented_dimer_matrices[r][o][1] = my_cob_params[r].oriented_dimer_matrices[o].get<1>()->log2();
 	  for (int d=dmin; d <= max_dist_for_deviation; ++d) {
-	    log_overlapping_models[r][o][d] = pwm_model<>(my_cob_params[r].expected_overlapping_dimer_PWMs[o][d]->representation() + my_cob_params[r].deviation[o][d]).log2();
+	    if (model_type == ppm)
+	      log_overlapping_models[r][o][d] = pwm_model<>(my_cob_params[r].expected_overlapping_dimer_PWMs[o][d]->representation() + my_cob_params[r].deviation[o][d]).log2();
+	    else
+	      log_overlapping_models[r][o][d] = dinuc_model<>(my_cob_params[r].expected_overlapping_dimer_PWMs[o][d]->representation() + my_cob_params[r].deviation[o][d]).log2();
 	  }
 	  for (int d=dmin; d <= dmax; ++d)
 	    if (my_cob_params[r].dimer_lambdas[o][d] != 0.0)
@@ -2355,13 +2371,19 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
 
       // Fixed models
-      for (int k=0; k < fixed_p; ++k) { 
-	new_monomer_models.push_back(boost::make_shared<pwm_model<> >(dmatrix(4, fixed_w[k]), false));
-	new_monomer_models2.push_back(boost::make_shared<pwm_model<> >(dmatrix(4, fixed_w[k]), false));
+      for (int k=0; k < fixed_p; ++k) {
+	if (model_type == ppm) {
+	  new_monomer_models.push_back(boost::make_shared<pwm_model<> >(fixed_w[k]));
+	  new_monomer_models2.push_back(boost::make_shared<pwm_model<> >(fixed_w[k]));
+	}
+	else {
+	  new_monomer_models.push_back(boost::make_shared<dinuc_model<> >(fixed_w[k]));
+	  new_monomer_models2.push_back(boost::make_shared<dinuc_model<> >(fixed_w[k]));
+	}
 	// new_fixed_weights.push_back(dmatrix(4, fixed_w[k]));
 	// new_fixed_weights2.push_back(dmatrix(4, fixed_w[k]));
-	new_fixed_weights.push_back(count_object(ppm, fixed_w[k]));
-	new_fixed_weights2.push_back(count_object(ppm, fixed_w[k]));
+	new_fixed_weights.push_back(count_object(model_type, fixed_w[k]));
+	new_fixed_weights2.push_back(count_object(model_type, fixed_w[k]));
 	if (allow_extension) {
 	  pred_flank[k].assign(4, 0.0);
 	  succ_flank[k].assign(4, 0.0);
@@ -2372,10 +2394,10 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       for (int r = 0; r < number_of_cobs; ++r) {
 	int width1 = fixed_w[my_cob_params[r].tf1];
 	int width2 = fixed_w[my_cob_params[r].tf2];
-	spaced_dimer_weights_sum.push_back(boost::make_tuple(count_object(ppm, width1), 
-							     count_object(ppm, width2)));
-	spaced_dimer_weights2_sum.push_back(boost::make_tuple(count_object(ppm, width1), 
-							      count_object(ppm, width2)));
+	spaced_dimer_weights_sum.push_back(boost::make_tuple(count_object(model_type, width1), 
+							     count_object(model_type, width2)));
+	spaced_dimer_weights2_sum.push_back(boost::make_tuple(count_object(model_type, width1), 
+							      count_object(model_type, width2)));
       }
 
       // Overlapping dimer models
@@ -2387,8 +2409,10 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	const int& k2 = my_cob_params[r].k2;
 	overlapping_dimer_weights.push_back(cob_of_count_objects(boost::extents[no][range(my_cob_params[r].dmin,max_dist_for_deviation+1)]));
 	overlapping_dimer_models.push_back(cob_of_binding_models(boost::extents[no][range(my_cob_params[r].dmin,max_dist_for_deviation+1)]));
-	gap_weights.push_back(cob_of_count_objects(boost::extents[no][range(0, max_dist_for_deviation+1)]));
-	gap_models.push_back(cob_of_binding_models(boost::extents[no][range(0, max_dist_for_deviation+1)]));
+	// Because in range finish must be greater than begin, the following hack is needed:
+	int finish = max_dist_for_deviation < 0 ? 1 : max_dist_for_deviation+1;
+	gap_weights.push_back(cob_of_count_objects(boost::extents[no][range(0, finish)]));
+	gap_models.push_back(cob_of_binding_models(boost::extents[no][range(0, finish)]));
 	
 	new_deviation.push_back(cob_of_matrices(boost::extents[no][range(dmin,max_dist_for_deviation+1)]));
 	
@@ -2396,14 +2420,24 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	for (int o=0; o < no; ++o) {
 	  for (int d=dmin; d <= max_dist_for_deviation; ++d) {
 	    empty_gap[r][o][d] = false;
-	    new_deviation[r][o][d] = dmatrix(4, k1 + k2 + d);  // This contains redundant flanks. Just to ease things
+	    int dimer_len = k1 + k2 + d;
+	    int rows = model_type == ppm ? 4 : 16;
+	    new_deviation[r][o][d] = dmatrix(rows, dimer_len);  // This contains redundant flanks. Just to ease things
 	    if (d < 0) {
 	      overlapping_dimer_weights[r][o][d] = count_object(ppm, my_cob_params[r].dimer_w[d]);
-	      overlapping_dimer_models[r][o][d] = boost::make_shared<pwm_model<> >(dmatrix(4, my_cob_params[r].dimer_w[d]), false);
+	      if (model_type == ppm) 
+		overlapping_dimer_models[r][o][d] = boost::make_shared<pwm_model<> >(my_cob_params[r].dimer_w[d]);
+	      else
+		overlapping_dimer_models[r][o][d] = boost::make_shared<dinuc_model<> >(my_cob_params[r].dimer_w[d]);;
 	    }
 	    else {
-	      gap_weights[r][o][d] = count_object(ppm, my_cob_params[r].dimer_w[d]);
-	      gap_models[r][o][d] = boost::make_shared<pwm_model<> >(dmatrix(4, my_cob_params[r].dimer_w[d]), false);
+	      // Note! Type is non- fixed adm since no seed is used for gapped area.
+	      enum model_type temp_t = model_type == ppm ? ppm : adm;
+	      gap_weights[r][o][d] = count_object(temp_t, my_cob_params[r].dimer_w[d]);
+	      if (model_type == ppm)
+		gap_models[r][o][d] = boost::make_shared<pwm_model<> >(my_cob_params[r].dimer_w[d]);
+	      else
+		gap_models[r][o][d] = boost::make_shared<dinuc_model<> >(my_cob_params[r].dimer_w[d]);
 	    }
 	  }
 	}
@@ -2496,7 +2530,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       // Signal from monomeric models
       for (int k=0; k < fixed_p; ++k) {
 	//	dmatrix pwm(4, fixed_w[k]);
-	count_object pwm(ppm, fixed_w[k]);
+	count_object pwm(model_type, fixed_w[k]);
 	std::vector<double>& signal = is_fixed_pwm_part_of_cob[k] ? fixed2_signal_sum : fixed_signal_sum;
 
 	dmatrix temp_dinucleotide_signal(4, 4);
@@ -2571,7 +2605,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    std::vector<double> temp_signal(4, 0.0);
 
 	    //dmatrix pwm(overlapping_dimer_weights[r][o][d].dim());
-	    count_object pwm(ppm, w);
+	    count_object pwm(model_type, w);
 	    // This requires gcc 4.9
 	    // clang (at least not 3.8) does not support 'declare reduction' even
 	    // though it defines _OPENMP to 201307 (that is openmp 4.0).
@@ -2631,8 +2665,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	  // temps for spaced
 	  // dmatrix m1(4, fixed_w[tf1]);
 	  // dmatrix m2(4, fixed_w[tf2]);
-	  count_object m1(ppm, fixed_w[tf1]);
-	  count_object m2(ppm, fixed_w[tf2]);
+	  count_object m1(model_type, fixed_w[tf1]);
+	  count_object m2(model_type, fixed_w[tf2]);
 	  for (int d=0; d <= my_cob_params[r].dmax; ++d) {
 
 	    m1.fill_with(0.0);
@@ -2789,7 +2823,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      continue;
 	    
 	    int dimer_len = fixed_w[tf1] + d + fixed_w[tf2];
-	    count_object m1(ppm, dimer_len);
+	    count_object m1(model_type, dimer_len);
 
 	    m1.fill_with(0.0);
 	    //	    bool local_use_two_strands;
@@ -2918,12 +2952,15 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
       // Monomer models
       for (int k=0; k < fixed_p; ++k) {
-        if (local_debug)
-	  write_matrix(stdout, new_fixed_weights[k].counts[0], to_string("Unnormalized fixed matrix %i:\n", k).c_str(), "%.6f");
-
+        if (local_debug) {
+	  new_fixed_weights[k].write_counts(stdout, to_string("Unnormalized fixed matrix %i:\n", k).c_str(), "%.6f");
+	  //write_matrix(stdout, new_fixed_weights[k].counts[0], to_string("Unnormalized fixed matrix %i:\n", k).c_str(), "%.6f");
+	}
+	
 	if (use_pseudo_counts)
-	  pseudo_counts.add(new_fixed_weights[k].counts[0]);
-	new_monomer_models[k] = new_fixed_weights[k].normalized_pwm();
+	  //	  pseudo_counts.add(new_fixed_weights[k].counts[0]);
+	  new_fixed_weights[k].add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts);
+	new_monomer_models[k] = new_fixed_weights[k].normalized(fixed_seed[k]);
 
 	  //assert(is_column_stochastic_matrix(new_monomer_models[k]));
 
@@ -2954,11 +2991,11 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
 	  for (int d=my_cob_params[r].dmin; d < std::min(0, my_cob_params[r].dmax+1); ++d) {
 	    if (use_pseudo_counts) {
-	      overlapping_dimer_weights[r][o][d].add_pseudo_counts(pseudo_counts);
+	      overlapping_dimer_weights[r][o][d].add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts);
 	      //	      pseudo_counts.add(overlapping_dimer_weights[r][o][d]);
 	    }
 	    //	    overlapping_dimer_models[r][o][d] = normalize_matrix_columns_copy(overlapping_dimer_weights[r][o][d]);
-	    overlapping_dimer_models[r][o][d] = overlapping_dimer_weights[r][o][d].normalized_pwm();
+	    overlapping_dimer_models[r][o][d] = overlapping_dimer_weights[r][o][d].normalized(my_cob_params[r].dimer_seeds[o][d]);
 	    assert(overlapping_dimer_models[r][o][d]->is_probability_model());
 	  }
 	}
@@ -2979,8 +3016,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    if (mysum == 0.0)
 	      empty_gap[r][o][d]=true;
 	    if (use_pseudo_counts)
-	      gap_weights[r][o][d].add_pseudo_counts(pseudo_counts);
-	    gap_models[r][o][d] = gap_weights[r][o][d].normalized_pwm();
+	      gap_weights[r][o][d].add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts);
+	    gap_models[r][o][d] = gap_weights[r][o][d].normalized("");  // Note! No seed used for gap
 	    assert(gap_models[r][o][d]->is_probability_model());
 	  }
 	}
@@ -3146,6 +3183,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       ////////////////////////////
       
       for (int r = 0; r < number_of_cobs; ++r) {
+	int rows = model_type == ppm ? 4 : 16;
 	const int& w1 = my_cob_params[r].k1;
 	//	const int& w2 = my_cob_params[r].k2;
 	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
@@ -3154,7 +3192,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	     // The interval [first,last] is the overlapping area.
 	     int first = w1+d;
 	     int last = w1 - 1;
-	      for (int row = 0; row < 4; ++row) {
+	      for (int row = 0; row < rows; ++row) {
 		for (int column = first - 1; column <= last + 1; ++column)// The overlapping part with flanks of 1bp on both sides
 		  new_deviation[r][o][d](row,column) = 
 		    overlapping_dimer_models[r][o][d]->representation()(row,column) -
@@ -3170,7 +3208,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	     // The interval [first,last] is the gap.
 	     first = w1;
 	     last = w1 + d - 1;
-	     for (int row = 0; row < 4; ++row) {
+	     for (int row = 0; row < rows; ++row) {
 	       for (int column = first - 1; column <= last + 1; ++column) // The gap part with flanks of 1bp on both sides
 		 new_deviation[r][o][d](row,column) = 
 		   gap_models[r][o][d]->representation()(row,column) -
@@ -3290,23 +3328,31 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    if (my_cob_params[r].dimer_lambdas[o][d] != 0.0) {
 	      deviation_dist[r][o][d]=gap_models[r][o][d]->cut(first-1, 2+d)->distance(
 						 *(my_cob_params[r].overlapping_dimer_PWM[o][d]->cut(first-1, 2+d)));
-	      overlapping_dimer_models[r][o][d] = my_cob_params[r].expected_overlapping_dimer_PWMs[o][d];
+	      //overlapping_dimer_models[r][o][d] = my_cob_params[r].expected_overlapping_dimer_PWMs[o][d];
 
 	      // The next line is doing a little too much, since the flanks of overlapping_dimer_PWM aren't used anywhere
-	      overlapping_dimer_models[r][o][d]->representation().inject(gap_models[r][o][d]->cut(first-1, 2+d)->representation(), 0, first-1);
+	      // The next line does not work, because representation() does not return a reference, but a copy.
+	      //overlapping_dimer_models[r][o][d]->representation().inject(gap_models[r][o][d]->cut(first-1, 2+d)->representation(),
+	      // 0, first-1);
+	      	      overlapping_dimer_models[r][o][d] = gap_models[r][o][d];
+
+	      // overlapping_dimer_models[r][o][d]->print(
+	      // 					       to_string("Test %s %s %i:\n", 
+	      // 							 my_cob_params[r].name().c_str(), orients[o], d).c_str(), "%.6f");
+
 	    }
 	    else
 	      deviation_dist[r][o][d]=0.0;
 	  } // for d
 	}
-	if (local_debug and my_cob_params[r].dmin < 0) {
+	if (local_debug and my_cob_params[r].dmin < 0) {     ///// TÄMÄ PITÄÄ KORJATA!!!!!!!!!!!!!!!!!!
 	  print_cob(stdout, deviation_dist[r], to_string("Deviation %s distances are\n", 
 		    my_cob_params[r].name().c_str()), "%f");
 	  printf("Max distance in deviation %s is %f\n", my_cob_params[r].name().c_str(),
 		 max_element(deviation_dist[r]));
 	}
 	acc(max_element(deviation_dist[r]));
-      }
+      } // end for r
 
       double total_maximum_distance = acc.get();
       if (local_debug)
@@ -3759,20 +3805,35 @@ create_cob(cob_combination_t cob_combination,
     
     for (int d=dmin; d < std::min(0, dmax+1); ++d) {
       std::string seed = dimer_seeds[o][d];
-      dmatrix temp = multinomial1_multimer_bernoulli_corrected(seed, sequences);
-      //       = find_snips_multimer(seed, sequences);
-      if (use_pseudo_counts)
-	pseudo_counts.add(temp);
-      normalize_matrix_columns(temp);
-      overlapping_dimer_PWM[o][d] = pwm_model<>(temp).clone();
+      if (model_type == ppm) {
+	dmatrix temp = multinomial1_multimer_bernoulli_corrected(seed, sequences);
+	if (use_pseudo_counts)
+	  pseudo_counts.add(temp);
+	normalize_matrix_columns(temp);
+	overlapping_dimer_PWM[o][d] = pwm_model<>(temp).clone();
+      }
+      else {
+	count_object co = dinucleotide_counts_suffix_array(seed, sequences, 2);
+	//	co.write_counts(stdout, to_string("Unnormalized initial fixed matrix %i from seed %s:\n", 
+	//					  k, fixedseedlist[k].c_str()), "%.6f");
+	if (use_pseudo_counts)
+	  co.add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts);
+	overlapping_dimer_PWM[o][d] = co.normalized(seed);
+      }
     }  // end for d
     for (int d=0; d <= max_dist_for_deviation; ++d) {
-      dmatrix temp =
-	normalize_matrix_columns_copy(matrix_product(oriented_dimer_matrices[o].get<0>()->representation(),
-						     oriented_dimer_matrices[o].get<1>()->representation(),
-						     d));
-      overlapping_dimer_PWM[o][d] = pwm_model<>(temp).clone();
-
+      if (model_type == ppm) {
+	dmatrix temp =
+	  normalize_matrix_columns_copy(matrix_product(oriented_dimer_matrices[o].get<0>()->representation(),
+						       oriented_dimer_matrices[o].get<1>()->representation(),
+						       d));
+	overlapping_dimer_PWM[o][d] = pwm_model<>(temp).clone();
+      }
+      else {
+	overlapping_dimer_PWM[o][d] =
+	    boost::make_shared<dinuc_model<double> >(dinuc_model_product(*boost::dynamic_pointer_cast<dinuc_model<double> >(oriented_dimer_matrices[o].get<0>()),
+									 *boost::dynamic_pointer_cast<dinuc_model<double> >(oriented_dimer_matrices[o].get<1>()), d));
+      }
 
 	}
   } // end for o
@@ -3986,6 +4047,20 @@ int main(int argc, char* argv[])
       return 1;
     }
 
+    if (vm.count("model")) {
+      std::string temp = vm["model"].as< string >();
+      if (model_type_strings[ppm] == temp)
+	model_type = ppm;
+      else if (model_type_strings[adm] == temp)
+	model_type = adm;
+      else if (model_type_strings[adm_fixed] == temp)
+	model_type = adm_fixed;
+      else {
+	fprintf(stderr, "Unknown parameter %s to --model option\n", temp.c_str());
+	exit(1);
+      }
+    }
+    
     if (vm.count("rna")) 
       use_rna = true;
 
@@ -4352,6 +4427,7 @@ int main(int argc, char* argv[])
 	 yesno(use_markov_background));
   printf("Use positional model for background: %s\n", 
 	 yesno(use_positional_background));
+  printf("Using binding model: %s\n", model_type_strings[model_type]);
   printf("Use RNA alphabet: %s\n", yesno(use_rna));
   printf("Use two dna strands: %s\n", yesno(use_two_strands));
   printf("Avoid palindromes: %s\n", yesno(avoid_palindromes));
@@ -4403,10 +4479,14 @@ int main(int argc, char* argv[])
   printf("[%g,%g,%g,%g]\n", background_probabilities[0],background_probabilities[1],
 	 background_probabilities[2],background_probabilities[3]);
 
-  if (prior_parameter == "addone")
+  if (prior_parameter == "addone") {
     pseudo_counts.use_add_one(0.000001);
-  else if (prior_parameter == "dirichlet")
+    dinucleotide_pseudo_counts.use_add_one(0.000001);
+  }
+  else if (prior_parameter == "dirichlet") {
     pseudo_counts.use_dirichlet(0.01, background_probabilities);
+    dinucleotide_pseudo_counts.use_dirichlet(0.01, background_probabilities);
+  }
 
   if (use_pseudo_counts) {
     printf("Use prior: %s\n", prior_parameter.c_str());
@@ -4442,21 +4522,32 @@ int main(int argc, char* argv[])
 	fprintf(stderr, "Nucleotide %c forbidden in current alphabet\n", forbidden_char);
 	exit(1);
       }
-      dmatrix temp;
-      if (not use_meme_init) {
-	temp = multinomial1_multimer_bernoulli_corrected(fixedseedlist[k], sequences);
-	//fixed_M[k] = find_snips_multimer_helper(fixedseedlist[k], sequences).get<0>();
-	write_matrix(stdout, temp, to_string("Unnormalized initial fixed matrix %i from seed %s:\n", 
-						   k, fixedseedlist[k].c_str()), "%.6f");
+      if (model_type == ppm) {
+	dmatrix temp;
+	if (not use_meme_init) {
+	  temp = multinomial1_multimer_bernoulli_corrected(fixedseedlist[k], sequences);
+	  //fixed_M[k] = find_snips_multimer_helper(fixedseedlist[k], sequences).get<0>();
+	  write_matrix(stdout, temp, to_string("Unnormalized initial fixed matrix %i from seed %s:\n", 
+					       k, fixedseedlist[k].c_str()), "%.6f");
+	  if (use_pseudo_counts)
+	    pseudo_counts.add(temp);
+	  normalize_matrix_columns(temp);
+	  if (use_multinomial and adjust_seeds)
+	    fixedseedlist[k] = string_giving_max_score(temp, use_rna);
+	}
+	else
+	  temp = get_meme_init_pwm(fixedseedlist[k]);
+	fixed_M[k].reset(new pwm_model<double>(temp));
+      } else {
+	count_object co = dinucleotide_counts_suffix_array(fixedseedlist[k], sequences, 2);
+	co.write_counts(stdout, to_string("Unnormalized initial fixed matrix %i from seed %s:\n", 
+					  k, fixedseedlist[k].c_str()), "%.6f");
 	if (use_pseudo_counts)
-	  pseudo_counts.add(temp);
-	normalize_matrix_columns(temp);
+	  co.add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts);
+	fixed_M[k] = co.normalized(fixedseedlist[k]);
 	if (use_multinomial and adjust_seeds)
-	  fixedseedlist[k] = string_giving_max_score(temp, use_rna);
+	  fixedseedlist[k] = fixed_M[k]->string_giving_max_probability(use_rna);
       }
-      else
-	temp = get_meme_init_pwm(fixedseedlist[k]);
-      fixed_M[k].reset(new pwm_model<double>(temp));
       fixed_M[k]->print(to_string("Initial fixed matrix %i from seed %s:\n", 
 						 k, fixedseedlist[k].c_str()), "%.6f");
       // write_matrix(stdout, fixed_M[k], to_string("Initial fixed matrix %i from seed %s:\n", 
@@ -4465,15 +4556,20 @@ int main(int argc, char* argv[])
   } else {
     fixedseedlist.resize(fixed_p);
     for (int k=0; k < fixed_p; ++k) {
-      
-      dmatrix temp = read_matrix_file(fixedmatrixfilelist[k]);
-      error(temp.get_columns() > Lmin, "Matrix is wider than the sequences");
-      if (use_pseudo_counts)
-	pseudo_counts.add(temp);
-      normalize_matrix_columns(temp);
-      assert(is_column_stochastic_matrix(temp));
-      fixedseedlist[k] = string_giving_max_score(temp, use_rna);
-      fixed_M[k].reset(new pwm_model<double>(temp));
+      if (model_type == ppm) {
+	dmatrix temp = read_matrix_file(fixedmatrixfilelist[k]);
+	error(temp.get_columns() > Lmin, "Matrix is wider than the sequences");
+	if (use_pseudo_counts)
+	  pseudo_counts.add(temp);
+	normalize_matrix_columns(temp);
+	assert(is_column_stochastic_matrix(temp));
+	fixedseedlist[k] = string_giving_max_score(temp, use_rna);
+	fixed_M[k].reset(new pwm_model<double>(temp));
+      }
+      else {
+	fixed_M[k] = boost::make_shared<dinuc_model<double> >(fixedmatrixfilelist[k]);
+	fixedseedlist[k] = fixed_M[k]->string_giving_max_probability(use_rna);
+      }
       fixed_M[k]->print(to_string("Initial matrix %i from file %s:\n", k, fixedmatrixfilelist[k].c_str()), "%.6f");
       //if (use_multinomial)
       //	assert(M[k].get_columns() == seedlist[k].length());
