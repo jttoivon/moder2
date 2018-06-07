@@ -562,6 +562,9 @@ read_sequences(const std::string& filename, std::vector<std::string>& seqs, bool
       ++bad_lines;
       continue;
     }
+    while (not line.empty() and line.back() == '\r')
+      line.pop_back();
+	   
     if ((allow_iupac and is_iupac_string(line)) || is_nucleotide_string(line))
       seqs.push_back(line);
     else
@@ -592,6 +595,9 @@ read_fasta_sequences(const std::string& filename, std::vector<std::string>& seqs
   bool header_read=false;
   std::string current;
   while (getline(f, line)) {
+    while (not line.empty() and line.back() == '\r')
+      line.pop_back();
+
     if (not header_read) {                             // wait till we find the next header line
       if (line.length() > 0 and line[0] == '>')
 	header_read = true;
