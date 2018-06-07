@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import analyze_adm
 import getopt
 import sys
 import re
@@ -150,7 +151,21 @@ def entropy(l):
 def information_content(l):
     return 2-entropy(l)
 
+def adm_information_content(adm):
+    cols = adm.k
+    result=[]
+    result.append(information_content(adm.initial_probabilities[:,0]))
+    for c in xrange(cols-1):
+        temp = 0.0
+        for a in xrange(4):
+            temp += adm.initial_probabilities[a,c] * information_content(adm.transition_probabilities[4*a:4*(a+1),c])
+        result.append(temp)
+    return result
+
 def matrix_information_content(m):
+    if is_adm(m):
+        ics = adm_information_content(m)
+        return sum(ics)
     columns=m.transpose().tolist()  # l is list of columns
     total_ic = 0.0
     for column in columns:
@@ -165,7 +180,29 @@ def normalize(m):
             m[:,i] /= sum(m[:,i])
     return m
 
+def is_adm(m):
+    return type(m) == analyze_adm.adm
+
+transform = [15, 11, 7, 3, 14, 10, 6, 2,
+             13, 9, 5, 1, 12, 8, 4, 0]
+
+
+def reverse_complement_adm(adm):
+    k = adm.k
+    i=reverse_complement_pwm(adm.initial_probabilities)
+    t = numpy.empty((16, k-1))
+    for j in xrange(k-1):
+        for ab in xrange(16):
+            a = ab / 4
+            b = ab % 4
+            divisor = adm.initial_probabilities[b, j+1]
+            if divisor != 0.0:
+                t[transform[ab], k-j-2] = adm.transition_probabilities[ab, j] * adm.initial_probabilities[a, j] / divisor
+    return analyze_adm.adm(t,i)
+
 def reverse_complement_pwm(m):
+    if is_adm(m):
+        return reverse_complement_adm(m)
     result=m.copy()
     for c in range(0,m.shape[1]):
         for r in range(0,m.shape[0]):
@@ -216,6 +253,8 @@ def readarray(lines):
     return numpy.array(result)
 
 def readmatrix(x):
+    if len(x)==20:
+        return analyze_adm.read_adm_from_list_of_lines(x)
     result=[]
     try:
         rows,cols=x[0].split("x")
@@ -229,9 +268,61 @@ def readmatrix(x):
         result.append(tmp)
     return numpy.array(result)
 
+def right_extend_adm(adm, extension):
+    assert extension >= 0
+    orig_k = adm.shape[1]
+    k = orig_k + extension
+    result = numpy.zeros((16,k))
+    result[:, 0:orig_k] = adm.representation()
+    result[:, orig_k:] = 0.25
+    return analyze_adm.adm(result)
 
+def left_extend_adm(adm, extension):
+    assert extension >= 0
+    orig_k = adm.shape[1]
+    k = orig_k + extension
+    result = numpy.zeros((16,k))
+    result[:, extension:] = adm.representation()
+    result[4:8, extension] = result[8:12, extension] = result[12:16, extension] = result[0:4, extension]
+    result[:, :extension] = 0.25
+    return analyze_adm.adm(result)
+
+def force_adms_equal(adm1, adm2):
+    k = adm1.shape[1]
+    assert k == adm2.shape[1]
+
+    product = adm1.representation() * adm2.representation()
+
+    r = numpy.zeros((4, k+1))
+    for a in xrange(4):
+        r[a, k] = 1.0
+    
+    for j in xrange(k-1, -1, -1):
+        amax = 1 if j==0 else 4
+        for a in xrange(amax):
+            for b in xrange(4):
+                r[a, j] += product[a*4+b, j] * r[b, j+1]
+
+    result = numpy.zeros((16, k))
+    for j in xrange(k):
+        amax = 1 if j==0 else 4
+        for a in xrange(amax):
+            for b in xrange(4):
+                result[4*a+b, j] = product[a*4+b, j] * r[b, j+1] / r[a, j]
+    return analyze_adm.adm(result)
+        
+def compute_expected_adm(adm1, adm2, o, d):
+    k1 = adm1.shape[1]
+    k2 = adm2.shape[1]
+    dimer_len = k1 + k2 + d
+    a1 = right_extend_adm(adm1, dimer_len - k1)
+    a2 = left_extend_adm(adm2, dimer_len - k2)
+    return force_adms_equal(a1, a2)
+    
 def compute_expected(pwm1, pwm2, o, d):
     m1,m2 = matrices_in_orientation(o, pwm1, pwm2)
+    if use_adm:
+        return compute_expected_adm(m1, m2, o, d)
     k1 = m1.shape[1]
     k2 = m2.shape[1]
     dimer_len = k1+k2+d
@@ -262,10 +353,10 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
         except AttributeError:
             flank=numpy.zeros(expected.shape)
 
-    oname="observed.%s.%s.%i.pfm" % (cob, o, d)
-    ename="expected.%s.%s.%i.pfm" % (cob, o, d)
+    oname="observed.%s.%s.%i.%s" % (cob, o, d, motif_ending)
+    ename="expected.%s.%s.%i.%s" % (cob, o, d, motif_ending)
     dname="deviation.%s.%s.%i.dev" % (cob, o, d)
-    fname="flank.%s.%s.%i.pfm" % (cob, o, d)
+    fname="flank.%s.%s.%i.%s" % (cob, o, d, motif_ending)
 
     writematrixfile(observed, oname)
     writematrixfile(expected, ename)
@@ -275,10 +366,10 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
 
 
 
-    oname_rc="observed.%s.%s.%i-rc.pfm" % (cob, o, d)
-    ename_rc="expected.%s.%s.%i-rc.pfm" % (cob, o, d)
+    oname_rc="observed.%s.%s.%i-rc.%s" % (cob, o, d, motif_ending)
+    ename_rc="expected.%s.%s.%i-rc.%s" % (cob, o, d, motif_ending)
     dname_rc="deviation.%s.%s.%i-rc.dev" % (cob, o, d)
-    fname_rc="flank.%s.%s.%i-rc.pfm" % (cob, o, d)
+    fname_rc="flank.%s.%s.%i-rc.%s" % (cob, o, d, motif_ending)
 
     observed_rc=reverse_complement_pwm(observed)
     expected_rc=reverse_complement_pwm(expected)
@@ -296,18 +387,18 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
 
 
     # Forward direction
-    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname, oname.replace(".pfm", ".svg")))
-    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename, ename.replace(".pfm", ".svg")))
+    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname, oname.replace(".%s"%motif_ending, ".svg")))
+    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename, ename.replace(".%s"%motif_ending, ".svg")))
     myrun("myspacek40 %s --difflogo %s %s" % (myspacek_flags, oname, ename))          # Deviation logo
     if get_flanks:
-        myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k1, k2, d, fname, fname.replace(".pfm", ".svg")))
+        myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k1, k2, d, fname, fname.replace(".%s"%motif_ending, ".svg")))
 
     # Reverse complement
-    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname_rc, oname_rc.replace(".pfm", ".svg")))
-    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename_rc, ename_rc.replace(".pfm", ".svg")))
+    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname_rc, oname_rc.replace(".%s"%motif_ending, ".svg")))
+    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename_rc, ename_rc.replace(".%s"%motif_ending, ".svg")))
     myrun("myspacek40 %s --difflogo %s %s" % (myspacek_flags, oname_rc, ename_rc))          # Deviation logo
     if get_flanks:
-        myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k2, k1, d, fname_rc, fname_rc.replace(".pfm", ".svg")))
+        myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k2, k1, d, fname_rc, fname_rc.replace(".%s"%motif_ending, ".svg")))
 
     for rc in ["", "-rc"]:
         with open("three.%s.%s.%i%s.html" % (cob, o, d, rc), "w") as f:
@@ -316,8 +407,8 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
             dname = "deviation.%s.%s.%i%s" % (cob, o, d, rc)
             myrun("mv %s.pfm_minus_%s.pfm.svg %s.svg" % (oname, ename, dname))
             f.write('<h1>%s %s %i</h1>' % (cob, o, d))
-            f.write('<figure><figcaption>Observed:</figcaption><a href="%s.pfm"><img src="%s.svg"\></a></figure>' % (oname,oname)) 
-            f.write('<figure><figcaption>Expected:</figcaption><a href="%s.pfm"><img src="%s.svg"\></a></figure>' % (ename,ename)) 
+            f.write('<figure><figcaption>Observed:</figcaption><a href="%s.%s"><img src="%s.svg"\></a></figure>' % (oname, motif_ending, oname)) 
+            f.write('<figure><figcaption>Expected:</figcaption><a href="%s.%s"><img src="%s.svg"\></a></figure>' % (ename,motif_ending,ename)) 
             f.write('<figure><figcaption>Deviation:</figcaption><a href="%s.dev"><img src="%s.svg"\></a></figure>' % (dname,dname)) 
 
 
@@ -333,13 +424,25 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
 
 def get_cob_case(cob, o, d, pwm1, pwm2, last_iteration_output, get_flanks):        
     expected = compute_expected(pwm1, pwm2, o, d)
+    if use_adm:
+        rows=16
+        start=2
+    else:
+        rows=4
+        start=2
     try:
-        deviation=readmatrix(find_lines(last_iteration_output, "Deviation matrix %s %s %i:" % (cob, o, d), 2, 4))
+        deviation=readmatrix(find_lines(last_iteration_output, "Deviation matrix %s %s %i:" % (cob, o, d), start, rows))
     except AttributeError:
         deviation=numpy.zeros(expected.shape)
-    observed = expected + deviation
+    if use_adm:
+        observed = expected.representation() + deviation
+    else:
+        observed = expected + deviation
     g = numpy.vectorize(lambda x : max(x,0)) # This cuts negative values to 0
     observed = normalize(g(observed)) # Because precision of (about) 6 digits is used, some elements can be slightly negative
+    if use_adm:
+        observed = analyze_adm.adm(observed)
+        
     write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_iteration_output, get_flanks)
     return observed
 
@@ -414,9 +517,9 @@ def make_table_h(f, files, headers, titles=[]):
     if len(titles) != len(files):
         titles = [""]*len(files)
     for logo, title in zip(files, titles):
-        link=logo.replace(".svg", ".pfm")
+        link=logo.replace(".svg", ".%s"%motif_ending)
         f.write("<td>")
-        f.write(logo_container(link, logo, ".pfm", title))
+        f.write(logo_container(link, logo, ".%s"%motif_ending, title))
         f.write("</td>")
     f.write("</tr>")
     f.write("</table>")
@@ -648,7 +751,10 @@ def printmatrix(x, file=sys.stdout, headers=[], colheaders=[], format="%f", sep=
 
 def writematrixfile(x, filename):
     with open(filename, "w") as f:
-        printmatrix(x, f)
+        if is_adm(x):
+            f.write(x.str2())
+        else:
+            printmatrix(x, f)
 
 # def mycommand(s):
 #     p = subprocess.Popen(s, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -671,24 +777,25 @@ def get_monomers(factors, results_output, last_iteration_output):
     factor_lengths = [0]*len(factors)
     factor_ics = [0]*len(factors)
     factor_pwms = [0]*len(factors)
+    start = 1 if use_adm else 2
     for i, factor in enumerate(factors):
-        lines=find_lines(results_output, "Fixed matrix %i:" % i, 2, 4)
+        lines=find_lines(results_output, "Fixed matrix %i:" % i, start, model_rows)
 #        with open("%s.pfm" % factor, "w") as f:
-        with open("monomer.%i.pfm" % i, "w") as f:
+        with open("monomer.%i.%s" % (i,motif_ending), "w") as f:
             f.writelines(lines)
         factor_pwms[i] = pwm = readmatrix(lines)
         pwm_rc=reverse_complement_pwm(pwm)
 #        writematrixfile(pwm_rc, "%s-rc.pfm" % factor)
-        writematrixfile(pwm_rc, "monomer.%i-rc.pfm" % i)
+        writematrixfile(pwm_rc, "monomer.%i-rc.%s" % (i,motif_ending))
         factor_lengths[i] = pwm.shape[1]
         factor_ics[i] = matrix_information_content(pwm)
         if get_flanks:
-            lines=find_lines(last_iteration_output, "Flank fixed matrix %i:" % i, 2, 4)
-            with open("flank-%i.pfm" % i, "w") as f:
+            lines=find_lines(last_iteration_output, "Flank fixed matrix %i:" % i, start, model_rows)
+            with open("flank-%i.%s" % (i,motif_ending), "w") as f:
                 f.writelines(lines)
             flank_pwm=readmatrix(lines)
             flank_pwm_rc=reverse_complement_pwm(flank_pwm)
-            writematrixfile(flank_pwm_rc, "flank-%i-rc.pfm" % i)
+            writematrixfile(flank_pwm_rc, "flank-%i-rc.%s" % (i,motif_ending))
     return factor_lengths, factor_ics, factor_pwms
 
 def get_dimer_cases(results_output, iterations, last_iteration_output):
@@ -758,12 +865,12 @@ def create_monomer_logos(factors, factor_lengths):
         #os.system("to_logo.sh -n -t %s %s.pfm" % (f, f))
 #        myrun("myspacek40 -noname -paths --logo %s.pfm %s.svg" % (f, f))
 #        myrun("myspacek40 -noname -paths --logo %s-rc.pfm %s-rc.svg" % (f, f))
-        myrun("myspacek40 %s --logo monomer.%i.pfm monomer.%i.svg" % (myspacek_flags, i, i))
-        myrun("myspacek40 %s --logo monomer.%i-rc.pfm monomer.%i-rc.svg" % (myspacek_flags, i, i))
+        myrun("myspacek40 %s --logo monomer.%i.%s monomer.%i.svg" % (myspacek_flags, i, motif_ending, i))
+        myrun("myspacek40 %s --logo monomer.%i-rc.%s monomer.%i-rc.svg" % (myspacek_flags, i, motif_ending, i))
         if get_flanks:
             g="flank-%i" % i
-            myrun("myspacek40 %s -core=%i --logo %s.pfm %s.svg" % (myspacek_flags, factor_lengths[i], g, g))
-            myrun("myspacek40 %s -core=%i --logo %s-rc.pfm %s-rc.svg" % (myspacek_flags, factor_lengths[i], g, g))
+            myrun("myspacek40 %s -core=%i --logo %s.%s %s.svg" % (myspacek_flags, factor_lengths[i], g, motif_ending, g))
+            myrun("myspacek40 %s -core=%i --logo %s-rc.%s %s-rc.svg" % (myspacek_flags, factor_lengths[i], g, motif_ending, g))
 
 def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
     new_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
@@ -1089,7 +1196,16 @@ except IOError:
     sys.stderr.write("Could not read file %s. Exiting!\n" % orig)
     sys.exit(1)
                      
-
+binding_model = extract(r"Using binding model: (.*)", full_output)
+if binding_model == "ppm":
+    use_adm=False
+    motif_ending="pfm"
+    model_rows=4
+else:
+    use_adm=True
+    motif_ending="adm"
+    model_rows=20
+    
 use_rna = extract(r"Use RNA alphabet: (.*)", full_output)
 if use_rna == "yes":
     use_rna = True
@@ -1324,7 +1440,7 @@ if get_flanks:
     f.write('<div id="flankfactors">')
     f.write('<h2>Monomer motifs with flanks</h2>')
     flank_logo_files=["flank-%i.svg" % i for i in xrange(number_of_factors)]
-    make_table_v3(f, flank_logo_files, factors, [x.replace(".svg", ".pfm") for x in flank_logo_files], ".pfm", monomer_titles)
+    make_table_v3(f, flank_logo_files, factors, [x.replace(".svg", ".%s"%motif_ending) for x in flank_logo_files], ".%s"%motif_ending, monomer_titles)
     f.write("</div>")
 
 ###################
@@ -1441,7 +1557,7 @@ for i, cob_factor in enumerate(cob_factors):
             for j in xrange(len(factors)):
                 f.write('<h3 class="tableheading">Flanked Monomer Matrix %i</h3>\n' % j)
 
-                f.write(logo_container("flank-%i.pfm" % j, "flank-%i.svg" % j, ".pfm", monomer_titles[j]))
+                f.write(logo_container("flank-%i.%s" % (j,motif_ending), "flank-%i.svg" % j, ".%s"%motif_ending, monomer_titles[j]))
                 #f.write('<img src="flank-%i.svg"\>\n' % j)
             f.write('<h3 class="tableheading">Flanked Dimer Matrices</h3>\n')
             make_better_table(f, link_flank_table, [""]+range(dmin[i], dmax[i]+1), orients, htmlclass="ppmtable")
