@@ -284,6 +284,7 @@ class gapped_kmer_context
 {
 public:
 
+  /*
   std::string
   make_string(const std::vector<std::string>& sequences)
   {
@@ -295,8 +296,9 @@ public:
 
     return str1;
   }
-
-  gapped_kmer_context(const std::vector<std::string>& sequences) : sa(make_string(sequences), use_rna)
+  */
+  
+  gapped_kmer_context(const suffix_array& sa_) : sa(sa_)
   {
     timer = 0.0;
   }
@@ -440,7 +442,7 @@ public:
   }
 
 private:
-  suffix_array sa;
+  const suffix_array& sa;
   mutable double timer;
 };
 
@@ -3746,6 +3748,7 @@ create_cob(cob_combination_t cob_combination,
 	   const std::vector<boost::shared_ptr<binding_model<> > >& fixed_M,
 	   double dimer_lambda_fraction,
 	   const std::vector<std::string>& sequences,
+	   const suffix_array& sa,
 	   const std::vector<int>& L,
 	   const gapped_kmer_context& my_gapped_kmer_context, int dmin, int dmax, int max_dist_for_deviation)
 {
@@ -3813,7 +3816,7 @@ create_cob(cob_combination_t cob_combination,
 	overlapping_dimer_PWM[o][d] = pwm_model<>(temp).clone();
       }
       else {
-	count_object co = dinucleotide_counts_suffix_array(seed, sequences, 2);
+	count_object co = dinucleotide_counts_suffix_array(seed, sequences, sa, 2);
 	//	co.write_counts(stdout, to_string("Unnormalized initial fixed matrix %i from seed %s:\n", 
 	//					  k, fixedseedlist[k].c_str()), "%.6f");
 	if (use_pseudo_counts)
@@ -4411,6 +4414,15 @@ int main(int argc, char* argv[])
     TIME_PRINT("\tRemoving Hamming duplicates took %.2f seconds.\n", s1);
   }
   printf("Using %zu sequences\n", sequences.size());
+
+  std::string str1=join(sequences, '#');
+  if (use_two_strands) {
+    str1.append("#");
+    str1 += join_rev(sequences, '#');
+  }
+  suffix_array sa(str1, use_rna);
+
+  
   std::vector<int> L(lines);
   int Lmin = std::numeric_limits<int>::max();
   int Lmax = std::numeric_limits<int>::min();
@@ -4539,7 +4551,7 @@ int main(int argc, char* argv[])
 	  temp = get_meme_init_pwm(fixedseedlist[k]);
 	fixed_M[k].reset(new pwm_model<double>(temp));
       } else {
-	count_object co = dinucleotide_counts_suffix_array(fixedseedlist[k], sequences, 2);
+	count_object co = dinucleotide_counts_suffix_array(fixedseedlist[k], sequences, sa, 2);
 	co.write_counts(stdout, to_string("Unnormalized initial fixed matrix %i from seed %s:\n", 
 					  k, fixedseedlist[k].c_str()), "%.6f");
 	if (use_pseudo_counts)
@@ -4582,7 +4594,7 @@ int main(int argc, char* argv[])
 
 
 
-  gapped_kmer_context my_gapped_kmer_context(sequences);
+  gapped_kmer_context my_gapped_kmer_context(sa);
 
   if (outputdir != ".")
     mkdir(outputdir.c_str(), S_IRWXU);
@@ -4625,7 +4637,7 @@ int main(int argc, char* argv[])
     error(dmax < dmin, "Requested dimeric cases do not fit into the input sequence");
     max_dist_for_deviation = std::min(max_dist_for_deviation, dmax);
     cob_params_t cp = create_cob(cob_combination, fixedseedlist, fixed_M, dimer_lambda_fraction, 
-				 sequences, L, my_gapped_kmer_context, dmin, dmax, max_dist_for_deviation);
+				 sequences, sa, L, my_gapped_kmer_context, dmin, dmax, max_dist_for_deviation);
     cp.update_oriented_matrices(fixed_M, fixedseedlist);
     cp.compute_expected_matrices(fixed_M);
     cp.compute_deviation_matrices();
@@ -4662,6 +4674,7 @@ int main(int argc, char* argv[])
   }
   
   printf("Initial background lambda is %.4f\n", background_lambda);
+
 
 
   // run the algorithm

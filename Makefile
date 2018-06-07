@@ -242,7 +242,7 @@ $(OBJDIR)/%.o: %.cpp
 
 .PHONY: clean
 clean:
-	rm -f $(OBJDIR)/*.o $(addprefix $(PRGPREFIX), $(PROGRAMS))
+	rm -f $(OBJDIR)/*.o $(OBJDIR)/*.d $(addprefix $(PRGPREFIX), $(PROGRAMS))
 	@$(MAKE) -C CPM03 clean
 
 .PHONY: showprograms

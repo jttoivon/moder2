@@ -6,6 +6,8 @@
 #include "common.hpp"
 #include "probabilities.hpp"
 #include "matrix_tools.hpp"
+#include "suffix_array_wrapper.hpp"
+
 #include <string>
 #include <vector>
 #include <fstream>
@@ -129,7 +131,8 @@ bool
 operator==(const dinuc_model<double>& dm1, const dinuc_model<double>& dm2);
 
 std::vector<dmatrix>
-dinucleotide_counts_suffix_array(const std::string& seed, const std::vector<std::string>& sequences, int n);
+dinucleotide_counts_suffix_array(const std::string& seed, const std::vector<std::string>& sequences,
+				 const suffix_array& sa, int n);
 
 
 template <typename T>
