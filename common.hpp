@@ -239,6 +239,9 @@ read_sequences(const std::string& filename, std::vector<std::string>& seqs, bool
 std::pair<int,int>
 read_fasta_sequences(const std::string& filename, std::vector<std::string>& seqs, bool allow_iupac=false);
 
+std::pair<int,int>
+read_fastq_sequences(const std::string& filename, std::vector<std::string>& seqs, bool allow_iupac=false);
+
 std::string
 join(const std::vector<std::string>& v, char c);
 

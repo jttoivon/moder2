@@ -4132,6 +4132,10 @@ int main(int argc, char* argv[])
     printf("Reading from fasta file %s\n", seqsfile.c_str());
     boost::tie(lines, bad_lines) = read_fasta_sequences(seqsfile, sequences);
   }
+  else if (extension == "fastq") {
+    printf("Reading from fastq file %s\n", seqsfile.c_str());
+    boost::tie(lines, bad_lines) = read_fastq_sequences(seqsfile, sequences);
+  }
   else {
     printf("Reading from sequence-per-line file %s\n", seqsfile.c_str());
     boost::tie(lines, bad_lines) = read_sequences(seqsfile, sequences);

@@ -592,6 +592,95 @@ read_sequences(const std::string& filename, std::vector<std::string>& seqs, bool
   return std::make_pair(lines, bad_lines);
 }
 
+std::istream&
+mygetline(std::istream& f, std::string& line)
+{
+  std::getline(f, line);
+  while (not line.empty() and line.back() == '\r')
+    line.pop_back();
+  return f;
+}
+
+std::pair<int,int>
+read_fastq_sequences(const std::string& filename, std::vector<std::string>& seqs, bool allow_iupac)
+{
+  assert(seqs.size() == 0);
+  std::ifstream f;
+  std::string line;
+  int bad_lines = 0;
+  f.open(filename.c_str(), std::ios_base::in);
+  if (not f.is_open()) {
+    std::cerr << "Couldn't open file " << filename << std::endl;
+    exit(1);
+  }
+
+  std::string msg = "Does not appear to be a fastq file\n";
+  std::string sequence;
+  int block=0;
+  int offset=0;
+  bool e=false;
+  while (mygetline(f, line)) {
+    if (line.empty() or line[0] != '@') {
+      e=true;
+      offset=0;
+      break;
+    }
+
+    if (not mygetline(f, sequence) or sequence.empty() or not is_iupac_string(sequence)) {
+      e=true;
+      offset=1;
+      break;
+    }
+    
+    if (not mygetline(f, line) or line.empty() or line[0] != '+') {
+      e=true;
+      offset=2;
+      break;
+    }
+
+    if (not mygetline(f, line) or line.length() != sequence.length()) {
+      e=true;
+      offset=3;
+      break;
+    }
+
+    ++block;
+    if (sequence.length() == 0) {
+      ++bad_lines;
+      continue;
+    }
+	   
+    if ((allow_iupac and is_iupac_string(sequence)) || is_nucleotide_string(sequence))
+      seqs.push_back(sequence);
+    else
+      ++bad_lines;
+  }
+  f.close();
+  if (e) {
+    fprintf(stderr, "Read error on line %i\n", 4*block+offset+1);
+    switch (offset) {
+    case 0:
+      fprintf(stderr, "Expected a line beginning with @\n");
+      break;
+    case 1:
+      fprintf(stderr, "Expected a sequence of nucleotides\n");
+      line = sequence;
+      break;
+    case 2:
+      fprintf(stderr, "Expected a line beginning with +\n");
+      break;
+    case 3:
+      fprintf(stderr, "Expected a sequence of quality codes, one for each nucleotide\n");
+      break;
+    }
+    fprintf(stderr, "Instead got:\n%s\n", line.c_str());
+    exit(1);
+  }
+  error(seqs.size() == 0, "No valid sequences found! Exiting.\n");
+  int lines = seqs.size();
+
+  return std::make_pair(lines, bad_lines);
+}
 
 
 std::pair<int,int>
