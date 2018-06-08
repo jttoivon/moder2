@@ -4062,6 +4062,8 @@ int main(int argc, char* argv[])
 	fprintf(stderr, "Unknown parameter %s to --model option\n", temp.c_str());
 	exit(1);
       }
+      if (model_type != ppm and vm.count("hamming-radius") == 0)
+	hamming_radius = 2;
     }
     
     if (vm.count("rna")) 
@@ -4388,6 +4390,10 @@ int main(int argc, char* argv[])
   if (extension == "fasta" or extension == "fa") {
     printf("Reading from fasta file %s\n", seqsfile.c_str());
     boost::tie(lines, bad_lines) = read_fasta_sequences(seqsfile, sequences);
+  }
+  else if (extension == "fastq") {
+    printf("Reading from fastq file %s\n", seqsfile.c_str());
+    boost::tie(lines, bad_lines) = read_fastq_sequences(seqsfile, sequences);
   }
   else {
     printf("Reading from sequence-per-line file %s\n", seqsfile.c_str());
