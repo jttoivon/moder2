@@ -165,7 +165,7 @@ template <typename T>
 void
 pwm_model<T>::print(const std::string& header, const std::string& format, FILE* f) const    // Prints the counts in a 4 x k) matrix
 {
-  write_matrix(f, dm, header, format);
+  write_matrix(f, dm, header, format, false);
 }
 
 
