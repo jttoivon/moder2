@@ -190,13 +190,13 @@ transform = [15, 11, 7, 3, 14, 10, 6, 2,
 def reverse_complement_adm(adm):
     k = adm.k
     i=reverse_complement_pwm(adm.initial_probabilities)
-    t = numpy.empty((16, k-1))
+    t = numpy.zeros((16, k-1))
     for j in xrange(k-1):
         for ab in xrange(16):
             a = ab / 4
             b = ab % 4
             divisor = adm.initial_probabilities[b, j+1]
-            if divisor != 0.0:
+            if divisor > 0.0:
                 t[transform[ab], k-j-2] = adm.transition_probabilities[ab, j] * adm.initial_probabilities[a, j] / divisor
     return analyze_adm.adm(t,i)
 
@@ -308,7 +308,10 @@ def force_adms_equal(adm1, adm2):
         amax = 1 if j==0 else 4
         for a in xrange(amax):
             for b in xrange(4):
-                result[4*a+b, j] = product[a*4+b, j] * r[b, j+1] / r[a, j]
+                if r[a, j] > 0.0:
+                    result[4*a+b, j] = product[a*4+b, j] * r[b, j+1] / r[a, j]
+                else:
+                    assert product[a*4+b, j] * r[b, j+1] == 0.0
     return analyze_adm.adm(result)
         
 def compute_expected_adm(adm1, adm2, o, d):
@@ -389,14 +392,16 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
     # Forward direction
     myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname, oname.replace(".%s"%motif_ending, ".svg")))
     myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename, ename.replace(".%s"%motif_ending, ".svg")))
-    myrun("myspacek40 %s --difflogo %s %s" % (myspacek_flags, oname, ename))          # Deviation logo
+    if not use_adm:         # This does not work for adm models
+        myrun("myspacek40 %s --difflogo %s %s" % (myspacek_flags, oname, ename))          # Deviation logo
     if get_flanks:
         myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k1, k2, d, fname, fname.replace(".%s"%motif_ending, ".svg")))
 
     # Reverse complement
     myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname_rc, oname_rc.replace(".%s"%motif_ending, ".svg")))
     myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename_rc, ename_rc.replace(".%s"%motif_ending, ".svg")))
-    myrun("myspacek40 %s --difflogo %s %s" % (myspacek_flags, oname_rc, ename_rc))          # Deviation logo
+    if not use_adm:         # This does not work for adm models
+        myrun("myspacek40 %s --difflogo %s %s" % (myspacek_flags, oname_rc, ename_rc))          # Deviation logo
     if get_flanks:
         myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k2, k1, d, fname_rc, fname_rc.replace(".%s"%motif_ending, ".svg")))
 
@@ -659,7 +664,7 @@ def get_lambda_table(results_output):
 
 def get_info(results_output, full_output, cob_codes):
     maxiter = int(extract(r"Maximum number of iterations is (.*)", full_output))
-    iterations =  int(extract(r"EM-algorithm took (.*) = .* iterations", results_output))
+    iterations =  int(extract(r"EM-algorithm took (.*) iterations", results_output))
     Lmin =  int(extract(r"Minimum sequence length is (.*)", full_output))
     Lmax =  int(extract(r"Maximum sequence length is (.*)", full_output))
     try:
@@ -1263,7 +1268,7 @@ dmax=[0]*number_of_cobs
 
 get_flanks = extract(r"Get full flanks: (.*)", full_output) == "yes"
 
-iterations =  int(extract(r"EM-algorithm took (.*) = .* iterations", results_output))
+iterations =  int(extract(r"EM-algorithm took (.*) iterations", results_output))
 
 command="sed -n '/Round %i/,/^-+$/p' %s" % (iterations-1,inputfile)   # Output from last iteration onwards
 (ret_val, last_iteration_output, error) = mycommand(command)

@@ -3039,9 +3039,11 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       // Adjust seeds
       //
       ///////////////
-      
-      for (int k=0; k < fixed_p; ++k) {
-	fixed_seed[k] = new_monomer_models[k]->string_giving_max_probability(use_rna);
+
+      if (adjust_seeds) {
+	for (int k=0; k < fixed_p; ++k) {
+	  fixed_seed[k] = new_monomer_models[k]->string_giving_max_probability(use_rna);
+	}
       }
       
       if (use_multinomial and adjust_seeds) {
@@ -3065,6 +3067,14 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
       } // end if use_multinomial
 
+
+      
+      /////////////////////////////////////////////
+      //
+      // Update oriented models and expected models
+      //
+      /////////////////////////////////////////////
+      
 
       for (int r=0; r < my_cob_params.size(); ++r) {
 	my_cob_params[r].update_oriented_matrices(new_monomer_models, fixed_seed);
@@ -3501,7 +3511,10 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	 (int)first_maximum_log_likelihood);
   printf("Maximum log likelihood in the end: %i\n", (int)mll);
 
-  printf("EM-algorithm took %s = %d iterations \n", print_vector(iterations, "+", 0).c_str(), sum(iterations));
+  if (iterations.size() == 1)
+    printf("EM-algorithm took %d iterations \n", sum(iterations));
+  else
+    printf("EM-algorithm took %s = %d iterations \n", print_vector(iterations, "+", 0).c_str(), sum(iterations));
   printf("\n");
   printf("Background lambda is %f\n", background_lambda);
   printf("Fixed lambdas are %s\n", print_vector(fixed_lambda).c_str());
@@ -3564,10 +3577,11 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
   printf("Background distribution: %s\n", print_vector(bg_model).c_str());
   printf("Fixed seeds are %s\n", print_vector(fixed_seed).c_str());
 
+  std::string ending = model_type == ppm ? "pfm" : "adm";
   for (int k=0; k < fixed_p; ++k) {
     fixed_PWM[k]->print(to_string("Fixed matrix %i:\n", k), "%.6f");
     if (use_output)
-      write_matrix_file(to_string("%s/%s.pfm", outputdir.c_str(), names[k].c_str()), *fixed_PWM[k]);
+      write_matrix_file(to_string("%s/%s.%s", outputdir.c_str(), names[k].c_str(), ending.c_str()), *fixed_PWM[k]);
     fixed_av_ic[k] = average_information_content(*fixed_PWM[k], bg_model);
   }
   printf("Average information content in fixed PWMs: %s\n", print_vector(fixed_av_ic).c_str());
@@ -3959,6 +3973,7 @@ int main(int argc, char* argv[])
     ("matrices",                          "Matrix filenames are given as parameters instead of seeds")
     ("keep-monomer-fixed",            po::value<std::string>(), "A list of indices of monomers to keep fixed during EM algorithms. You can also specify 'all' as parameter, default: no monomers are fixed.")
     ("disable-multinomial",                    m("Use plain alignment of sequences instead of the multinomial model", not use_multinomial).c_str())
+    ("no-adjust-seeds",                    m("Do not adjust seeds in every EM iteration", not adjust_seeds).c_str())
     ("directional-seed",                    m("Are overlapping seeds required to be non-palindromic", require_directional_seed).c_str())
     ("hamming-radius", po::value<int>(),     m("Hamming radius", hamming_radius).c_str())
     ("model", po::value<std::string>(), m("Model type, either ppm, adm, or adm-fixed.", model_type_strings[model_type]).c_str())
@@ -4107,6 +4122,9 @@ int main(int argc, char* argv[])
  
     if (vm.count("directional-seed")) 
       require_directional_seed = true;
+
+    if (vm.count("no-adjust-seeds")) 
+      adjust_seeds = false;
 
     if (vm.count("meme-init")) 
       use_meme_init = true;
@@ -4525,6 +4543,7 @@ int main(int argc, char* argv[])
   // write_matrix(stdout, positional_background, "Positional background probility matrix:\n", "%10lf");
 
   printf("Keep monomer fixed: %s\n", print_vector(keep_monomer_fixed).c_str());
+  printf("Adjust seeds: %s\n", yesno(adjust_seeds));
 
   // initial motifs
   std::vector<boost::shared_ptr<binding_model<double> > > fixed_M(fixed_p);

@@ -33,6 +33,8 @@
 //extern bool use_multimer;
 bool use_grouped_dinucleotide_method = false;
 
+extern bool require_directional_seed;
+
 //static char nucs[] = "ACGT";
 
 std::vector<std::string> dinuc_headers =
@@ -934,7 +936,8 @@ force_adms_equal(const dinuc_model<double>& adm1, const dinuc_model<double>& adm
     int amax = j == 0 ? 1 : 4;
     for (int a=0; a < amax; ++a) {
       for (int b=0; b < 4; ++b) {
-	result(4*a+b, j) = product(4*a+b, j) * r(b, j+1) / r(a, j);
+	if (r(a, j) > 0.0)
+	  result(4*a+b, j) = product(4*a+b, j) * r(b, j+1) / r(a, j);
       }
     }
   }
@@ -965,29 +968,53 @@ dinuc_model<T>::string_giving_max_probability(bool use_rna) const
   const char* nucs = use_rna ? "ACGU" : "ACGT";
   //  int k = length();
   std::string result(k, '-');
-  matrix<int> prev(4,k);
-  for (int i=0; i < 4; ++i)
-    prev(i, 0) = -1;
-  
-  std::vector<T> score_prev = ip.column(0);
-  std::vector<T> score(4);
-  for (int i=1; i<k; ++i) {
-    for (int current=0; current < 4; ++current) {
-      std::vector<T> temp(4);
-      for (int p=0; p < 4; ++p)  // previous nucleotide
-        temp[p] = score_prev[p] * cond(i, p, current);
-      int best = arg_max(temp);  // best previous nucleotide for this currect nucleotide
-      score[current] = max_element(temp);
-      prev(current, i) = best;
+  //  if (require_directional_seed) {
+  if (false) {                   // This did not seem to help with convergence of ID4
+    typedef std::pair<double, std::string> value_t;
+    std::vector<value_t > probabilities;
+    code_t size = pow(4,k);
+    probabilities.reserve(size);
+    for (code_t code=0; code < size; ++code) {
+      const std::string& s = number_to_dna(code, k);
+      probabilities.push_back(std::make_pair(probability(s), s));
     }
-    score_prev = score;
+    std::sort(probabilities.begin(), probabilities.end(),
+	      [](value_t a, value_t b) { return a.first >= b.first;}
+	      );
+    double probability;
+    int counter=0;
+    BOOST_REVERSE_FOREACH(boost::tie(probability, result), probabilities) {
+      if (palindromic_index(result) > 1)
+	break;
+      ++counter;
+    }
+    printf("Counter is %i\n", counter);
   }
-  int current = arg_max(score);
-  for (int i=k-1; i >= 0; --i) {
-    result[i] = nucs[current];
-    current = prev(current, i);
+  else {
+    matrix<int> prev(4,k);
+    for (int i=0; i < 4; ++i)
+      prev(i, 0) = -1;
+  
+    std::vector<T> score_prev = ip.column(0);
+    std::vector<T> score(4);
+    for (int i=1; i<k; ++i) {
+      for (int current=0; current < 4; ++current) {
+	std::vector<T> temp(4);
+	for (int p=0; p < 4; ++p)  // previous nucleotide
+	  temp[p] = score_prev[p] * cond(i, p, current);
+	int best = arg_max(temp);  // best previous nucleotide for this currect nucleotide
+	score[current] = max_element(temp);
+	prev(current, i) = best;
+      }
+      score_prev = score;
+    }
+    int current = arg_max(score);
+    for (int i=k-1; i >= 0; --i) {
+      result[i] = nucs[current];
+      current = prev(current, i);
+    }
   }
-
+  
   return result;
 }
 

@@ -154,7 +154,10 @@ generate_initial_probabilities(const matrix<T>& dm, matrix<T>& ip)
 	temp[b] += ip(a, i-1) * dm(a*4+b, i);
       }
     }
-    ip.set_column(i, normalize_vector_copy(temp));
+    if (sum(temp) > 0.0)
+      ip.set_column(i, normalize_vector_copy(temp));
+    else
+      ip.set_column(i, std::vector<T>(4, 0.0));
   }
 }
 
@@ -190,8 +193,8 @@ conditional_probabilities(const matrix<T>& dm)
     }
   }
 
-  if (count != 0)
-    printf("In conditional_probabilities: division by zero %i times\n", count);
+  //  if (count != 0)
+  //    printf("In conditional_probabilities: division by zero %i times\n", count);
   return result;
 }
 

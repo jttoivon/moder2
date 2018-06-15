@@ -72,6 +72,7 @@ public:
       return boost::make_shared<dinuc_model<> >(counts[0]);
     else {
       if (false) {
+	int count=0;
 	// Zero-out too small counts
 	double absolute_min = 5.0;
 	for (int r2=0; r2 < counts.size(); ++r2) {
@@ -79,11 +80,16 @@ public:
 	    double s = ::sum(counts[r2].cut(0, j, 16, 1));
 	    for (int ab=0; ab < 16; ++ab) {
 	      double& c = counts[r2](ab, j);
-	      if (c < 0.01*s or c < absolute_min)
+	      //	      if ((c < 0.01*s or c < absolute_min) and c > 0.0) {
+	      if ((c < 0.01*s) and c > 0.0) {
+		++count;
+		printf("r=%i, ab=%i, j=%i, count=%e\n", r2, ab, j, c);
 		c = 0.0;
+	      }
 	    }
 	  }
 	}
+	printf("Cut %i numbers.\n", count);
       }
       return boost::make_shared<dinuc_model<> >(correct_seed_bias(counts, seed, hamming_radius));
     }
@@ -245,10 +251,32 @@ count_object::operator+=(const count_object& rhs)
   return *this;
 }
 
+double
+count_helper(double count)
+{
+  return std::min(count/10.0, 1.0);
+}
+
+double
+lowest_dinucleotide_count(const std::string& w, const dmatrix& all_counts)
+{
+  int k = all_counts.get_columns();
+  double result = std::numeric_limits<double>::max();
+  int j=k-w.length()-1;
+  for (int i=1; i < w.length(); ++i) {
+    result = std::min(all_counts(to_int(w[i-1])*4+to_int(w[i]), i+j+1), result);
+  }
+  return result;
+}
+
+
 dmatrix
 correct_seed_bias(const std::vector<dmatrix>& grouped_dinucleotide_counts, const std::string& seed, int hamming_radius)
 {
   int k = seed.length();
+  dmatrix all_counts(16, k);
+  for (int r=0; r < grouped_dinucleotide_counts.size(); ++r)
+    all_counts += grouped_dinucleotide_counts[r];
   
   //  write_matrix(stdout, motif, to_string("%s dinucleotide motif matrix counts:\n", name.c_str()), "%.0f");
   dmatrix corrected(16, k);
@@ -261,6 +289,7 @@ correct_seed_bias(const std::vector<dmatrix>& grouped_dinucleotide_counts, const
     
     int tmax = std::min(hamming_radius-1, k-j-1);          // Compute the correction factors tau[b][t]
     boost::multi_array<double, 2> tau(boost::extents[4][tmax+1]);
+    boost::multi_array<double, 2> low_counts(boost::extents[4][tmax+1]);
     if (j == k-1) {
       for (int t=0; t <= tmax; ++t)
 	for (int b=0; b < 4; ++b) 
@@ -268,11 +297,14 @@ correct_seed_bias(const std::vector<dmatrix>& grouped_dinucleotide_counts, const
     }
     else {
       for (int t=0; t <= tmax; ++t) {
-	for (int b=0; b < 4; ++b)
+	for (int b=0; b < 4; ++b) {
 	  tau[b][t] = 0.0;
+	  low_counts[b][t] = std::numeric_limits<double>::lowest();
+	}
 	int suffix_len = k-j-1;
 	std::vector<std::string> neighbourhood = get_n_neighbourhood(seed.substr(j+1, suffix_len), t);
 	BOOST_FOREACH(std::string w, neighbourhood) {
+	  double low_count = lowest_dinucleotide_count(w, all_counts);
 	  double temp = 1.0;
 	  for (int i=1; i < w.length(); ++i) {
 	    temp *= corrected(to_int(w[i-1])*4+to_int(w[i]), i+j+1);
@@ -280,6 +312,8 @@ correct_seed_bias(const std::vector<dmatrix>& grouped_dinucleotide_counts, const
 	  for (int b=0; b < 4; ++b) {
 	    int a = (b << 2) + to_int(w[0]);
 	    tau[b][t] += corrected(a, j+1) * temp;
+	    double low_count2 = std::min(low_count, all_counts(a, j+1));
+	    low_counts[b][t] = std::max(low_count2, low_counts[b][t]);
 	  }
 	}
       }
@@ -307,11 +341,17 @@ correct_seed_bias(const std::vector<dmatrix>& grouped_dinucleotide_counts, const
     dmatrix quotient(16, rmax+1);
     for (int a=0; a < 16; ++a) {
       for (int r=0; r <= rmax; ++r) {
-	double divisor = tau[a & 3][std::min(hamming_radius-r-1, k-j-1)];
+	int tr = std::min(hamming_radius-r-1, k-j-1);
+	double divisor = tau[a & 3][tr];
+	//	double alpha = j == k-1 ? 1.0 : count_helper(all_counts((a&3)*4 + to_int(seed[j+1]), j+1));
+	double alpha = j == k-1 ? 1.0 : count_helper(low_counts[a&3][tr]);
+	N[a] += quotient(a, r) = grouped_dinucleotide_counts[r](a, j) / (divisor*alpha + (1-alpha));
+	/*
 	if (divisor != 0.0)
 	  N[a] += quotient(a, r) = grouped_dinucleotide_counts[r](a, j) / divisor;
 	else
 	  N[a] += quotient(a, r) = grouped_dinucleotide_counts[r](a, j);
+	*/
       }
     }
     if (extra_debug) {
