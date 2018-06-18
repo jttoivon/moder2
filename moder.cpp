@@ -2135,8 +2135,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    for (int d=max_dist_for_deviation+1; d <= my_cob_params[r].dmax; ++d){
 	      expectation_Z_dir_j_spaced(my_cob_params[r].spaced_dimer_Z, i, o, d, line, line_rev,
 					 my_cob_params[r].dimer_m[i][d], log_dimer_lambda[r][o][d],
-					 *log_oriented_dimer_matrices[r][o][0],
-					 *log_oriented_dimer_matrices[r][o][1],
+					 log_oriented_dimer_matrices[r][o][0],
+					 log_oriented_dimer_matrices[r][o][1],
 					 log_bg_model, log_bg_model_rev, 
 					 bg_model_markov, bg_model_markov_rev);
 	    }
