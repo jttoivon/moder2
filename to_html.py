@@ -782,7 +782,8 @@ def get_monomers(factors, results_output, last_iteration_output):
     factor_lengths = [0]*len(factors)
     factor_ics = [0]*len(factors)
     factor_pwms = [0]*len(factors)
-    start = 1 if use_adm else 2
+#    start = 1 if use_adm else 2
+    start = 1
     for i, factor in enumerate(factors):
         lines=find_lines(results_output, "Fixed matrix %i:" % i, start, model_rows)
 #        with open("%s.pfm" % factor, "w") as f:

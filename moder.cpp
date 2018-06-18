@@ -1377,7 +1377,7 @@ weight_with_flanks_helper(const std::string& line, const std::string& seed, int 
       weights(to_int(line[j1+pos]), motif_pos + pos) += z; // update columns of pwm marked by bit vector positions
   }
 
-  if (not force_multinomial or hd < hamming_radius) {
+  if (not force_multinomial or hd <= hamming_radius) {
     // Left flank
     for (int i = 0; i < j1; ++i)
       weights(to_int(line[i]), seq_pos + i) += z;
