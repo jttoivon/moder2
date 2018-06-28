@@ -135,6 +135,8 @@ dna_orient_dict = {"HT" : 0, "HH" : 1, "TT" : 2, "TH" : 3}
 rna_orients=["HT", "TH"]
 rna_orient_dict = {"HT" : 0, "TH" : 1}
 
+max_logo_width = 500 # This is defined in myspacek40
+
 # Entropy of a probability distribution 'l'
 def entropy(l):
     sum=0
@@ -300,14 +302,20 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
     myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename, ename.replace(".pfm", ".svg")))
     myrun("myspacek40 %s --difflogo %s %s" % (myspacek_flags, oname, ename))          # Deviation logo
     if get_flanks:
-        myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k1, k2, d, fname, fname.replace(".pfm", ".svg")))
-
+        if flank.shape[1] <= max_logo_width:
+            myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k1, k2, d, fname, fname.replace(".pfm", ".svg")))
+        else:
+            print "Could not create logo for flanked dimer %s %s %i: too wide logo" % (cob, o, d)
+            
     # Reverse complement
     myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname_rc, oname_rc.replace(".pfm", ".svg")))
     myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename_rc, ename_rc.replace(".pfm", ".svg")))
     myrun("myspacek40 %s --difflogo %s %s" % (myspacek_flags, oname_rc, ename_rc))          # Deviation logo
     if get_flanks:
-        myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k2, k1, d, fname_rc, fname_rc.replace(".pfm", ".svg")))
+        if flank_rc.shape[1] <= max_logo_width:
+            myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k2, k1, d, fname_rc, fname_rc.replace(".pfm", ".svg")))
+        else:
+            print "Could not create logo for flanked dimer %s %s %i: too wide logo" % (cob, o, d)
 
     for rc in ["", "-rc"]:
         with open("three.%s.%s.%i%s.html" % (cob, o, d, rc), "w") as f:
@@ -671,6 +679,8 @@ def get_monomers(factors, results_output, last_iteration_output):
     factor_lengths = [0]*len(factors)
     factor_ics = [0]*len(factors)
     factor_pwms = [0]*len(factors)
+    factor_flanked_pwms = [0]*len(factors)
+    
     for i, factor in enumerate(factors):
         lines=find_lines(results_output, "Fixed matrix %i:" % i, 2, 4)
 #        with open("%s.pfm" % factor, "w") as f:
@@ -687,9 +697,10 @@ def get_monomers(factors, results_output, last_iteration_output):
             with open("flank-%i.pfm" % i, "w") as f:
                 f.writelines(lines)
             flank_pwm=readmatrix(lines)
+            factor_flanked_pwms[i] = flank_pwm
             flank_pwm_rc=reverse_complement_pwm(flank_pwm)
             writematrixfile(flank_pwm_rc, "flank-%i-rc.pfm" % i)
-    return factor_lengths, factor_ics, factor_pwms
+    return factor_lengths, factor_ics, factor_pwms, factor_flanked_pwms
 
 def get_dimer_cases(results_output, iterations, last_iteration_output):
     for i, cob_factor in enumerate(cob_factors):
@@ -762,8 +773,11 @@ def create_monomer_logos(factors, factor_lengths):
         myrun("myspacek40 %s --logo monomer.%i-rc.pfm monomer.%i-rc.svg" % (myspacek_flags, i, i))
         if get_flanks:
             g="flank-%i" % i
-            myrun("myspacek40 %s -core=%i --logo %s.pfm %s.svg" % (myspacek_flags, factor_lengths[i], g, g))
-            myrun("myspacek40 %s -core=%i --logo %s-rc.pfm %s-rc.svg" % (myspacek_flags, factor_lengths[i], g, g))
+            if monomer_flanked_pwms[i].shape[1] <= max_logo_width:
+                myrun("myspacek40 %s -core=%i --logo %s.pfm %s.svg" % (myspacek_flags, factor_lengths[i], g, g))
+                myrun("myspacek40 %s -core=%i --logo %s-rc.pfm %s-rc.svg" % (myspacek_flags, factor_lengths[i], g, g))
+            else:
+                print "Could not create logo for flanked monomer %i: too wide logo" % i
 
 def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
     new_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
@@ -1152,7 +1166,7 @@ iterations =  int(extract(r"EM-algorithm took (.*) = .* iterations", results_out
 command="sed -n '/Round %i/,/^-+$/p' %s" % (iterations-1,inputfile)   # Output from last iteration onwards
 (ret_val, last_iteration_output, error) = mycommand(command)
 
-monomer_lengths, monomer_ics, monomer_pwms = get_monomers(factors, results_output, last_iteration_output)
+monomer_lengths, monomer_ics, monomer_pwms, monomer_flanked_pwms = get_monomers(factors, results_output, last_iteration_output)
 
 best_cases_titles=[0]*number_of_cobs
 get_dimer_cases(results_output, iterations, last_iteration_output)

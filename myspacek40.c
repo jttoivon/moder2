@@ -17,7 +17,7 @@ char *COMMAND;
 float pseudocount = 0.0001;
 short int Nlength = 20;
 short int max_Nlength = 40;
-short int max_width_of_pwm = 84;	/* Nlength * 2 + 2 */
+short int max_width_of_pwm = 500;
 long int max_number_of_sequences = 10000000;
 short int number_of_files = 2;
 double pvalue_cache[1001][1001];
