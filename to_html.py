@@ -431,7 +431,7 @@ def get_cob_case(cob, o, d, pwm1, pwm2, last_iteration_output, get_flanks):
     expected = compute_expected(pwm1, pwm2, o, d)
     if use_adm:
         rows=16
-        start=2
+        start=1
     else:
         rows=4
         start=2

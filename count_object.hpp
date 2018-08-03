@@ -9,6 +9,8 @@
 #include <vector>
 #include <cassert>
 
+bool esko_tau_method=true;
+
 extern bool use_multinomial;
 extern int hamming_radius;
 extern bool extra_debug;
@@ -258,6 +260,15 @@ count_helper(double count)
 }
 
 double
+esko_count_helper(double count)
+{
+  if (count==0.0)
+    return 0.0;
+  double relative_standard_deviation = 1.0/sqrt(count);
+  return 1.0 - relative_standard_deviation;
+}
+
+double
 lowest_dinucleotide_count(const std::string& w, const dmatrix& all_counts)
 {
   int k = all_counts.get_columns();
@@ -344,7 +355,11 @@ correct_seed_bias(const std::vector<dmatrix>& grouped_dinucleotide_counts, const
 	int tr = std::min(hamming_radius-r-1, k-j-1);
 	double divisor = tau[a & 3][tr];
 	//	double alpha = j == k-1 ? 1.0 : count_helper(all_counts((a&3)*4 + to_int(seed[j+1]), j+1));
-	double alpha = j == k-1 ? 1.0 : count_helper(low_counts[a&3][tr]);
+	double alpha;
+	if (esko_tau_method)
+	  alpha = j == k-1 ? 1.0 : esko_count_helper(low_counts[a&3][tr]);
+	else
+	  alpha = j == k-1 ? 1.0 : count_helper(low_counts[a&3][tr]);
 	N[a] += quotient(a, r) = grouped_dinucleotide_counts[r](a, j) / (divisor*alpha + (1-alpha));
 	/*
 	if (divisor != 0.0)
