@@ -259,9 +259,9 @@ write_matrix(FILE* fp, const matrix<T>& m, const std::string& tag,
 {
   fprintf(fp, "%s", tag.c_str());
 
+  /*
   int r = m.get_rows();
   int c = m.get_columns();
-  /*
   if (dimensions)
     fprintf(fp, "%ix%i\n", r, c);
   */

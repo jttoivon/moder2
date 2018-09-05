@@ -96,6 +96,8 @@ bool use_multimer=true;
 bool use_meme_init=false;
 bool get_full_flanks=false;  // make motifs for each model that have width 2*L-motif_width
 bool use_rna = false;
+bool use_iupac = true;
+//bool use_iupac = false;
 
 int max_iter = 50;  // was 300
 int minimum_distance_for_learning = 4;
@@ -324,7 +326,7 @@ public:
 
     std::vector<int> v(k, 0);  // helper array
 
-    std::vector<int> base(k, 0);
+    std::vector<int> base(k, 0); 
     //    std::vector<const char*> iupac_classes(k);
     std::vector<std::string> iupac_classes(k);
     std::string pattern(k, '-');
@@ -3042,7 +3044,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
       if (adjust_seeds) {
 	for (int k=0; k < fixed_p; ++k) {
-	  fixed_seed[k] = new_monomer_models[k]->string_giving_max_probability(use_rna);
+	  fixed_seed[k] = new_monomer_models[k]->string_giving_max_probability(use_rna, use_iupac);
 	}
       }
       
@@ -4360,7 +4362,11 @@ int main(int argc, char* argv[])
     exit(1);
   }
 
-
+  if (not use_multinomial and model_type == adm_fixed) {
+    fprintf(stderr, "Cannot have --disable-multinomial and adm-fixed model at the same time\n");
+    exit(1);
+  }
+  
   char hostname[200+1];
   hostname[200] = 0;
   gethostname(hostname, 200);
@@ -4569,12 +4575,13 @@ int main(int argc, char* argv[])
 	  if (use_pseudo_counts)
 	    pseudo_counts.add(temp);
 	  normalize_matrix_columns(temp);
-	  if (use_multinomial and adjust_seeds)
-	    fixedseedlist[k] = string_giving_max_score(temp, use_rna);
 	}
 	else
 	  temp = get_meme_init_pwm(fixedseedlist[k]);
 	fixed_M[k].reset(new pwm_model<double>(temp));
+	if (use_multinomial and adjust_seeds) {
+	  fixedseedlist[k] = fixed_M[k]->string_giving_max_probability(use_rna, use_iupac);
+	}
       } else {
 	count_object co = dinucleotide_counts_suffix_array(fixedseedlist[k], sequences, sa, 2);
 	co.write_counts(stdout, to_string("Unnormalized initial fixed matrix %i from seed %s:\n", 
@@ -4583,7 +4590,7 @@ int main(int argc, char* argv[])
 	  co.add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts);
 	fixed_M[k] = co.normalized(fixedseedlist[k]);
 	if (use_multinomial and adjust_seeds)
-	  fixedseedlist[k] = fixed_M[k]->string_giving_max_probability(use_rna);
+	  fixedseedlist[k] = fixed_M[k]->string_giving_max_probability(use_rna, use_iupac);
       }
       fixed_M[k]->print(to_string("Initial fixed matrix %i from seed %s:\n", 
 						 k, fixedseedlist[k].c_str()), "%.6f");
@@ -4600,13 +4607,12 @@ int main(int argc, char* argv[])
 	  pseudo_counts.add(temp);
 	normalize_matrix_columns(temp);
 	assert(is_column_stochastic_matrix(temp));
-	fixedseedlist[k] = string_giving_max_score(temp, use_rna);
 	fixed_M[k].reset(new pwm_model<double>(temp));
       }
       else {
 	fixed_M[k] = boost::make_shared<dinuc_model<double> >(fixedmatrixfilelist[k]);
-	fixedseedlist[k] = fixed_M[k]->string_giving_max_probability(use_rna);
       }
+      fixedseedlist[k] = fixed_M[k]->string_giving_max_probability(use_rna, use_iupac);
       fixed_M[k]->print(to_string("Initial matrix %i from file %s:\n", k, fixedmatrixfilelist[k].c_str()), "%.6f");
       //if (use_multinomial)
       //	assert(M[k].get_columns() == seedlist[k].length());

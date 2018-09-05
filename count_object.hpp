@@ -73,6 +73,7 @@ public:
     else if (type==adm or seed.length()==0)  // for gapped motifs no seed is used.
       return boost::make_shared<dinuc_model<> >(counts[0]);
     else {
+      /*
       if (false) {
 	int count=0;
 	// Zero-out too small counts
@@ -93,6 +94,7 @@ public:
 	}
 	printf("Cut %i numbers.\n", count);
       }
+      */
       return boost::make_shared<dinuc_model<> >(correct_seed_bias(counts, seed, hamming_radius));
     }
   }
@@ -262,10 +264,13 @@ count_helper(double count)
 double
 esko_count_helper(double count)
 {
-  if (count==0.0)
+  if (count <= 1.0)
     return 0.0;
   double relative_standard_deviation = 1.0/sqrt(count);
-  return 1.0 - relative_standard_deviation;
+  double result = 1.0 - relative_standard_deviation;
+  assert(result <= 1.0);
+  assert(result >= 0.0);
+  return result;
 }
 
 double
@@ -360,6 +365,7 @@ correct_seed_bias(const std::vector<dmatrix>& grouped_dinucleotide_counts, const
 	  alpha = j == k-1 ? 1.0 : esko_count_helper(low_counts[a&3][tr]);
 	else
 	  alpha = j == k-1 ? 1.0 : count_helper(low_counts[a&3][tr]);
+	printf("Beta=%.4f, j=%i, row=%i, r=%i\n", alpha, j, a, r);
 	N[a] += quotient(a, r) = grouped_dinucleotide_counts[r](a, j) / (divisor*alpha + (1-alpha));
 	/*
 	if (divisor != 0.0)

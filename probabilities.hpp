@@ -135,7 +135,7 @@ public:
   
   virtual
   std::string
-  string_giving_max_probability(bool use_rna=false) const=0;
+  string_giving_max_probability(bool use_rna=false, bool use_iupac=false) const=0;
   
   virtual
   double

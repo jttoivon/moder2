@@ -112,7 +112,7 @@ public:
 
   
   std::string
-  string_giving_max_probability(bool use_rna) const;
+  string_giving_max_probability(bool use_rna, bool use_iupac) const;
 
   int k;
   matrix<T> dm;  // 16 x k   transition probabilities

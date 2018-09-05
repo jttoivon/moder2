@@ -355,6 +355,34 @@ iupac_hamming_mismatches(const std::string& s, const std::string& pattern);
 int
 iupac_hamming_dist(const std::string& str, const std::string& pattern, int max_hd);
 
+template <typename T>
+std::string
+iupac_string_giving_max_probability(const matrix<T>& dm, bool use_rna)
+{
+
+  const char* nucs = use_rna ? "ACGU" : "ACGT";
+  int k = dm.get_columns();
+  std::string result(k, '-');
+
+  for (int i=0; i < k; ++i) {
+    const std::vector<T>& c = dm.column(i);
+    std::vector<int> v = {0,1,2,3};  // sort indexes for the column
+    std::sort(v.begin(), v.end(), [c,v](int a, int b) { return c[v[a]] >= c[v[b]]; });
+    if (c[v[0]] > 0.5 and c[v[0]] >= 2*c[v[1]])
+      result[i] = nucs[v[0]];   // single nucleotide
+    else if (c[v[0]]+c[v[1]] > 0.75)  // two nucleotides
+      result[i] = iupac_class.bits_to_char(iupac_class.char_to_bits(nucs[v[0]]) |
+					   iupac_class.char_to_bits(nucs[v[1]]));
+    else if (c[v[3]] < 0.01)    // three nucleotides
+      result[i] = iupac_class.bits_to_char(iupac_class.char_to_bits(nucs[v[0]]) |
+					   iupac_class.char_to_bits(nucs[v[1]]) |
+					   iupac_class.char_to_bits(nucs[v[2]]));
+    else
+      result[i] = 'N';
+  }
+  return result;
+}
+
 // finds the minimum Hamming distance between t and the substrings of s
 int
 min_hamming_distance(const std::string& s, const std::string& t);

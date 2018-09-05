@@ -676,6 +676,10 @@ find_dinucleotide_n_background(const std::string& seed, const std::vector<std::s
       if (use_two_strands)
 	p += iupac_prob(reverse_complement(neighbour));
       prob_sum += p;
+    case sequence_contains_one:
+    case neighbourhood_contains_one:
+    case choose_one_per_cluster:
+      error(true, "Not implemented");
     }
       
     if (iupac_string_match(neighbour, seed))
@@ -963,13 +967,14 @@ dinuc_model_product(const dinuc_model<double>& adm1, const dinuc_model<double>& 
 
 template<typename T>
 std::string
-dinuc_model<T>::string_giving_max_probability(bool use_rna) const
+dinuc_model<T>::string_giving_max_probability(bool use_rna, bool use_iupac) const
 {
   const char* nucs = use_rna ? "ACGU" : "ACGT";
   //  int k = length();
   std::string result(k, '-');
   //  if (require_directional_seed) {
   if (false) {                   // This did not seem to help with convergence of ID4
+    // Tries to choose sequence with palindromic index greater than one as seed
     typedef std::pair<double, std::string> value_t;
     std::vector<value_t > probabilities;
     code_t size = pow(4,k);
@@ -991,6 +996,11 @@ dinuc_model<T>::string_giving_max_probability(bool use_rna) const
     printf("Counter is %i\n", counter);
   }
   else {
+    if (use_iupac) {
+      result = iupac_string_giving_max_probability(ip, use_rna);
+      if (std::count(result.begin(), result.end(), 'N') / (double) k <= 1.0/3.0) // not too many Ns
+	return result;
+    }
     matrix<int> prev(4,k);
     for (int i=0; i < 4; ++i)
       prev(i, 0) = -1;
