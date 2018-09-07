@@ -2326,6 +2326,13 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
       } // for i in lines
 
+      mll = complete_data_log_likelihood(fixed_PWM,
+					 bg_model, bg_model_markov,
+					 bg_model_rev, bg_model_markov_rev,
+					 fixed_lambda, background_lambda, my_cob_params, fixed_Z,
+					 sequences, sequences_rev, fixed_w, fixed_m);
+      if (local_debug)
+	printf("Log likelihood is %f\n", mll);
 
 
 
@@ -3393,12 +3400,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       bg_model_rev = std::vector<double>(bg_model.rbegin(), bg_model.rend()); // use this model when considering the reverse strand
       bg_model_markov_rev = reverse_complement_markov_model(bg_model_markov);
 
-      mll = complete_data_log_likelihood(fixed_PWM,
-					 bg_model, bg_model_markov,
-					 bg_model_rev, bg_model_markov_rev,
-					 fixed_lambda, background_lambda, my_cob_params, fixed_Z, sequences, sequences_rev, fixed_w, fixed_m);
-      if (local_debug)
-	printf("Log likelihood is %f\n", mll);
 
       bool deviation_converged = true;
       for (int r=0; r < my_cob_params.size(); ++r) {
