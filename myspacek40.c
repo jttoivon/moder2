@@ -1281,6 +1281,414 @@ short int Svg_riverlake_logo(char *filename, long int offset, long int yoffset, 
   return (0);
 }
 
+/* SUBROUTINE THAT GENERATES A RIVERLAKE LOGO FILE FOR ADMS */
+short int Svg_riverlake_logo_jarkko(char *filename, long int offset, long int yoffset, struct adjacent_dinucleotide_model *a,
+				    double mononucleotide_frequency_cutoff, double log_fold_change_cutoff, double absolute_deviation_cutoff,
+				    double gray_dinucleotide_cutoff,
+				    int use_constant_radius,
+				    int use_transition_probability_width)
+{
+  absolute_deviation_cutoff = -1;
+  FILE *outfile;
+  outfile = fopen(filename, "w");
+
+  short int rivers;
+  double width;
+  double tot_deviation;
+  char *rivercolor;
+  short int max_riverwidth = 20;
+  short int max_radius = 20;
+  short int constant_radius = 5;  // Jarkko
+ 
+  short int nucleotide_height = max_radius * 1.2;
+  short int nucleotide_width = max_radius * 1.7;
+  short int top_position;
+  short int counter;
+  short int first;
+  short int second;
+  double starty;
+  double endy;
+  short int nucleotide_value;
+  short int pwm_position = 0;
+  short int warning = 0;
+  //  short int shift_right = 0;
+  double **order;
+  order = malloc(sizeof(double *) * 4 + 5);
+  for (counter = 0; counter < 3; counter++)
+    order[counter] = malloc(sizeof(double) * 6 + 5);
+  double **position_memory;
+  position_memory = malloc(sizeof(double *) * 4 + 5);
+  for (counter = 0; counter < 3; counter++) {
+    position_memory[counter] = malloc(sizeof(double) * 6 + 5);
+  }
+  for (counter = 0; counter < 4; counter++)
+    position_memory[1][counter] = 0;
+
+  double swap;
+  double font_position;
+  char *forward;
+  if (rna == 0)
+    forward = dnaforward;
+  else
+    forward = rnaforward;
+
+  char **colors;
+  colors = malloc(sizeof(char *) * 7 + 5);
+  for (counter = 0; counter < 7; counter++)
+    colors[counter] = malloc(sizeof(char) * 20 + 5);
+  strcpy(colors[0], "green");
+  strcpy(colors[1], "blue");
+  strcpy(colors[2], "orange");
+  strcpy(colors[3], "red");
+  strcpy(colors[4], "black");
+  strcpy(colors[5], "black");
+
+  short int total_width = nucleotide_width * ((*a).width - 1) + 2*(offset + max_radius);
+  short int total_height = (nucleotide_height * 3 + 2*(yoffset + max_radius)) * 1.25;
+  char *font = "Courier";
+  fprintf(outfile,
+	  "<?xml version=\"1.0\" standalone=\"no\"?> <!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">");
+  fprintf(outfile, "<!--%s : command %s -->\n", svgsafe(VERSION), svgsafe(COMMAND));
+
+  if (noname == 1) {
+    fprintf(outfile, "<svg ");
+    //    fprintf(outfile, "%i", (*a).width);
+    fprintf(outfile, "width=\"%i\" height=\"%i\" ", total_width, total_height);   // JARKKO 26.4.2017
+    fprintf(outfile,
+	    "x=\"0\" y=\"%i\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">",
+	    300);
+  }
+
+  else
+    fprintf(outfile,
+	    "<svg width=\"2000\" height=\"200\" x=\"0\" y=\"%i\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">",
+	    300);
+
+  /* SCALES SVG RIVERLAKE LOGO */
+  fprintf(outfile, "<title>%s</title><g transform=\"scale(%f,%f)\">", (*a).name, 1.0, 1.25);
+
+  //fprintf(outfile, "<defs><filter id=\"fractalnoise\" in=\"SourceGraphic\"> <feTurbulence type=\"fractalNoise\" baseFrequency=\"0.4\" numOctaves=\"4\"/></filter></defs>");
+  //filterUnits=\"objectBoundingBox\" x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\"
+
+  Add_nucleotide_paths(outfile);	/* Adds nucleotide paths */
+
+  /* GENERATES LOGO */
+  top_position = 20;
+
+  for (pwm_position = 0; pwm_position < (*a).width; pwm_position++) {
+
+    /* USES ALPHABETIC ORDER (NO SORT), AND SHIFTS BASE GRAPHICAL POSITION MEMORY */
+    for (counter = 0; counter < 4; counter++) {
+      order[0][counter] = counter;
+      order[1][counter] = (*a).mononuc_fraction[counter][pwm_position];
+    }
+
+
+    for (starty = max_radius, first = 0; first < 4; first++) {
+
+      //(*a).mononuc_fraction[first][pwm_position] * 50;
+      if ((*a).mononuc_fraction[first][pwm_position] > mononucleotide_frequency_cutoff || use_transition_probability_width) {
+	printf("\nBase %c at position %i over cutoff", forward[first], pwm_position);
+	for (endy = max_radius, second = 0; second < 4; second++) {
+	  /* DRAWS LINE TO CONNECT PREFERENTIAL PAIR AND SETS SHIFT RIGHT FLAG IF DEVIATION FROM PWM IS DETECTED */
+	  if ((*a).mononuc_fraction[second][pwm_position + 1] > mononucleotide_frequency_cutoff || use_transition_probability_width) {
+	    printf("\nDinucleotide %c%c at position %i over both cutoffs; cond %.3f vs mono %.3f: log fold %.3f", forward[first], forward[second],
+		   pwm_position, (*a).fraction[first * 4 + second][pwm_position], ((*a).mononuc_fraction[second][pwm_position + 1] + pseudocount),
+		   (log10((*a).fraction[first * 4 + second][pwm_position] / ((*a).mononuc_fraction[second][pwm_position + 1] + pseudocount))));
+	    // HUOM. ALLA OLEVA ON AINA TOSI, SILLÄ FUNKTION ALUSSA ASETETAAN absolute_deviation_cutoff = -1
+	    if (((log10((*a).fraction[first * 4 + second][pwm_position] / ((*a).mononuc_fraction[second][pwm_position + 1] + pseudocount)))) >
+		log_fold_change_cutoff
+		|| (*a).fraction[first * 4 + second][pwm_position] - (*a).mononuc_fraction[second][pwm_position + 1] > absolute_deviation_cutoff) {
+	      printf("\t ***over LOGFOLD or ABSDEV cutoff");
+
+	      tot_deviation =
+		((*a).fraction[first * 4 + second][pwm_position] -
+		 (*a).mononuc_fraction[second][pwm_position + 1]) * (*a).mononuc_fraction[first][pwm_position] * 2; // KERROIN 2 TÄYSIN TURHA
+
+	      /* DRAWS WIDER RIVER */
+	      float multiplier = use_transition_probability_width ? 0.5 : (*a).mononuc_fraction[first][pwm_position];
+	      width = (*a).fraction[first * 4 + second][pwm_position] * multiplier * max_riverwidth; // HARMAA
+	      fprintf(outfile, "<g><title>observed %.2f expected %.2f</title><line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" ",
+		      (*a).fraction[first * 4 + second][pwm_position] * (*a).mononuc_fraction[first][pwm_position],
+		      (*a).mononuc_fraction[second][pwm_position + 1] * (*a).mononuc_fraction[first][pwm_position],
+		      (float)pwm_position * nucleotide_width + offset + max_radius, starty,
+		      (float)(pwm_position + 1) * nucleotide_width + offset + max_radius, endy);
+	      /* SETS WIDER RIVER COLOR AND DASH */
+	      rivercolor = "#A0B4CE";                                                                                                  // BLUEISH GRAY
+	      // filter=\"url(#fractalnoise)\" stroke-dasharray=\"0.25,0.75\"
+	      fprintf(outfile, "stroke = \"%s\" stroke-width = \"%f\"/></g>\n", rivercolor, width);
+
+
+	    } // end if 
+
+	  }
+	  endy += nucleotide_height;
+	} // end for second
+      } // end if
+
+      if ((*a).mononuc_fraction[first][pwm_position] > mononucleotide_frequency_cutoff || use_constant_radius) {
+	  //printf("\nDEBUG--pwm position %i, base %c value %.6f", pwm_position, dnaforward[first], order[1][first]);
+	if (order[1][first] > 0) {
+	  /* PRINTS LAKES */
+	  float radius = use_constant_radius ? constant_radius : (float)order[1][first] * max_radius; 
+	  float radius2 = use_constant_radius ? 0.1*constant_radius : (float)order[1][first] * max_radius; 
+	  fprintf(outfile, "<g><title>%.2f</title><circle cx=\"%.2f\" cy=\"%.2f\" r=\"%.2f\" fill=\"%s\" stroke-width=\"%.2f\"/></g>\n",
+		  order[1][first],
+		  (float)pwm_position * nucleotide_width + offset + max_radius,
+		  (float)first * nucleotide_height + yoffset + max_radius,
+		  radius,
+		  "lightsteelblue", (float)0);
+	  // font_position += (order[1][nucleotide_value] * 100);
+	  /* PRINTS OUT SCALED NUCLEOTIDE LABELS */
+	  fprintf(outfile, "<use xlink:href=\"#%c\" ", forward[(int)order[0][first]]);
+	  if (use_constant_radius) 
+	    fprintf(outfile, " transform=\"translate(%f,%f) scale(%f,%f)\" visibility=\"visible\" />\n",
+		    (float)pwm_position * nucleotide_width + offset + max_radius - constant_radius/2.0,
+		    (float)first * nucleotide_height + yoffset + max_radius + constant_radius/2.0,
+		    radius2,
+		    radius2);
+	  else {
+	    float temp = order[1][first];
+	    fprintf(outfile, " transform=\"translate(%f,%f) scale(%f,%f)\" visibility=\"visible\" />\n",
+		    (float)pwm_position * nucleotide_width + offset + max_radius - 10 * temp,
+		    (float)first * nucleotide_height + yoffset + max_radius + 10 * temp, temp * 2, temp * 2);
+	  }
+	} // end if
+
+      } // end if
+      
+      starty += nucleotide_height;
+    } // end for first
+
+  }  // for pwm_position
+
+  /* PRINTS OUT NAME OF LOGO AND OTHER DATA */
+  fprintf(outfile, "</g>");
+  if (noname == 0) {
+    fprintf(outfile, "<text  x=\"");
+    fprintf(outfile, "%li", pwm_position * nucleotide_width + 20 + offset);
+    fprintf(outfile, "\" y=\"");
+    fprintf(outfile, "%i", top_position + 30);
+    fprintf(outfile, "\" fill = \"black\" stroke = \"%s\" font-size=\"30\" font-family = \"", colors[4 - 2 * warning + 3 * (warning == 2)]);
+    fprintf(outfile, "%s", font);
+    fprintf(outfile, "\" >");
+    fprintf(outfile, "%s", (*a).name);
+    fprintf(outfile, "</text>\n");
+  }
+  
+  fprintf(outfile, "</svg>");
+  fclose(outfile);
+  return (0);
+} // Svg_riverlake_logo_jarkko
+
+
+/* SUBROUTINE THAT GENERATES A RIVERLAKE LOGO FILE FOR ADMS */
+short int Svg_riverlake_logo_jarkko_diff(char *filename, long int offset, long int yoffset, struct adjacent_dinucleotide_model *a,
+					 double mononucleotide_frequency_cutoff, double log_fold_change_cutoff, double absolute_deviation_cutoff,
+					 double gray_dinucleotide_cutoff,
+					 int use_constant_radius,
+					 int use_transition_probability_width)
+{
+  absolute_deviation_cutoff = -1;
+  FILE *outfile;
+  outfile = fopen(filename, "w");
+
+  short int rivers;
+  double width;
+  double tot_deviation;
+  char *rivercolor;
+  short int max_riverwidth = 20;
+  short int max_radius = 20;
+  short int constant_radius = 5;  // Jarkko
+ 
+  short int nucleotide_height = max_radius * 1.2;
+  short int nucleotide_width = max_radius * 1.7;
+  short int top_position;
+  short int counter;
+  short int first;
+  short int second;
+  double starty;
+  double endy;
+  short int nucleotide_value;
+  short int pwm_position = 0;
+  short int warning = 0;
+  //  short int shift_right = 0;
+  double **order;
+  order = malloc(sizeof(double *) * 4 + 5);
+  for (counter = 0; counter < 3; counter++)
+    order[counter] = malloc(sizeof(double) * 6 + 5);
+  double **position_memory;
+  position_memory = malloc(sizeof(double *) * 4 + 5);
+  for (counter = 0; counter < 3; counter++) {
+    position_memory[counter] = malloc(sizeof(double) * 6 + 5);
+  }
+  for (counter = 0; counter < 4; counter++)
+    position_memory[1][counter] = 0;
+
+  double swap;
+  double font_position;
+  char *forward;
+  if (rna == 0)
+    forward = dnaforward;
+  else
+    forward = rnaforward;
+
+  char **colors;
+  colors = malloc(sizeof(char *) * 7 + 5);
+  for (counter = 0; counter < 7; counter++)
+    colors[counter] = malloc(sizeof(char) * 20 + 5);
+  strcpy(colors[0], "green");
+  strcpy(colors[1], "blue");
+  strcpy(colors[2], "orange");
+  strcpy(colors[3], "red");
+  strcpy(colors[4], "black");
+  strcpy(colors[5], "black");
+
+  short int total_width = nucleotide_width * ((*a).width - 1) + 2*(offset + max_radius);
+  short int total_height = (nucleotide_height * 3 + 2*(yoffset + max_radius)) * 1.25;
+  char *font = "Courier";
+  fprintf(outfile,
+	  "<?xml version=\"1.0\" standalone=\"no\"?> <!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">");
+  fprintf(outfile, "<!--%s : command %s -->\n", svgsafe(VERSION), svgsafe(COMMAND));
+
+  if (noname == 1) {
+    fprintf(outfile, "<svg ");
+    //    fprintf(outfile, "%i", (*a).width);
+    fprintf(outfile, "width=\"%i\" height=\"%i\" ", total_width, total_height);   // JARKKO 26.4.2017
+    fprintf(outfile,
+	    "x=\"0\" y=\"%i\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">",
+	    300);
+  }
+
+  else
+    fprintf(outfile,
+	    "<svg width=\"2000\" height=\"200\" x=\"0\" y=\"%i\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">",
+	    300);
+
+  /* SCALES SVG RIVERLAKE LOGO */
+  fprintf(outfile, "<title>%s</title><g transform=\"scale(%f,%f)\">", (*a).name, 1.0, 1.25);
+
+  //fprintf(outfile, "<defs><filter id=\"fractalnoise\" in=\"SourceGraphic\"> <feTurbulence type=\"fractalNoise\" baseFrequency=\"0.4\" numOctaves=\"4\"/></filter></defs>");
+  //filterUnits=\"objectBoundingBox\" x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\"
+
+  Add_nucleotide_paths(outfile);	/* Adds nucleotide paths */
+
+  /* GENERATES LOGO */
+  top_position = 20;
+
+  for (pwm_position = 0; pwm_position < (*a).width; pwm_position++) {
+
+    /* USES ALPHABETIC ORDER (NO SORT), AND SHIFTS BASE GRAPHICAL POSITION MEMORY */
+    for (counter = 0; counter < 4; counter++) {
+      order[0][counter] = counter;
+      order[1][counter] = (*a).mononuc_fraction[counter][pwm_position];
+    }
+
+    /* DETERMINES IF ADJACENT BASES AFFECT EACH OTHER MORE THAN CUTOFF */
+    //for(shift_right = 0, first = 0; first < 4; first++) if((*a).mononuc_fraction[first][pwm_position] > mononucleotide_frequency_cutoff) for(second = 0; second < 4; second++) if((*a).mononuc_fraction[second][pwm_position+1] > mononucleotide_frequency_cutoff && (((log10((*a).fraction[first*4+second][pwm_position] / ((*a).mononuc_fraction[second][pwm_position+1] + pseudocount)))) > log_fold_change_cutoff || (*a).fraction[first*4+second][pwm_position] - (*a).mononuc_fraction[second][pwm_position+1] > absolute_deviation_cutoff)) shift_right = 1;
+
+    for (starty = max_radius, first = 0; first < 4; first++) {
+
+      //(*a).mononuc_fraction[first][pwm_position] * 50;
+      if (fabs((*a).mononuc_fraction[first][pwm_position]) > mononucleotide_frequency_cutoff || use_transition_probability_width) {
+	printf("\nBase %c at position %i over cutoff", forward[first], pwm_position);
+	for (endy = max_radius, second = 0; second < 4; second++) {
+	  /* DRAWS LINE TO CONNECT PREFERENTIAL PAIR AND SETS SHIFT RIGHT FLAG IF DEVIATION FROM PWM IS DETECTED */
+	  if (fabs((*a).mononuc_fraction[second][pwm_position + 1]) > mononucleotide_frequency_cutoff || use_transition_probability_width) {
+	    printf("\nDinucleotide %c%c at position %i over both cutoffs; cond %.3f vs mono %.3f: log fold %.3f", forward[first], forward[second],
+		   pwm_position, (*a).fraction[first * 4 + second][pwm_position], ((*a).mononuc_fraction[second][pwm_position + 1] + pseudocount),
+		   (log10((*a).fraction[first * 4 + second][pwm_position] / ((*a).mononuc_fraction[second][pwm_position + 1] + pseudocount))));
+	    // HUOM. ALLA OLEVA ON AINA TOSI, SILLÄ FUNKTION ALUSSA ASETETAAN absolute_deviation_cutoff = -1
+	    /*
+	    if (((log10((*a).fraction[first * 4 + second][pwm_position] / ((*a).mononuc_fraction[second][pwm_position + 1] + pseudocount)))) >
+		log_fold_change_cutoff
+		|| (*a).fraction[first * 4 + second][pwm_position] - (*a).mononuc_fraction[second][pwm_position + 1] > absolute_deviation_cutoff) {
+	    */
+	    if (1) {
+	      printf("\t ***over LOGFOLD or ABSDEV cutoff");
+
+	      /*
+	      tot_deviation =
+		((*a).fraction[first * 4 + second][pwm_position] -
+		 (*a).mononuc_fraction[second][pwm_position + 1]) * (*a).mononuc_fraction[first][pwm_position] * 2; // KERROIN 2 TÄYSIN TURHA
+	      */
+	      
+	      /* DRAWS WIDER RIVER */
+	      //float multiplier = use_transition_probability_width ? 0.5 : (*a).mononuc_fraction[first][pwm_position];
+	      width = fabs((*a).fraction[first * 4 + second][pwm_position]) * max_riverwidth; // HARMAA
+	      fprintf(outfile, "<g><title>observed %.2f expected %.2f</title><line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" ",
+		      (*a).fraction[first * 4 + second][pwm_position] * (*a).mononuc_fraction[first][pwm_position],
+		      (*a).mononuc_fraction[second][pwm_position + 1] * (*a).mononuc_fraction[first][pwm_position],
+		      (float)pwm_position * nucleotide_width + offset + max_radius, starty,
+		      (float)(pwm_position + 1) * nucleotide_width + offset + max_radius, endy);
+	      /* SETS WIDER RIVER COLOR AND DASH */
+	      rivercolor = (*a).fraction[first * 4 + second][pwm_position] >= 0.0 ? "#A0B4CE" : "purple";                          // BLUEISH GRAY
+	      // filter=\"url(#fractalnoise)\" stroke-dasharray=\"0.25,0.75\"
+	      fprintf(outfile, "stroke = \"%s\" stroke-width = \"%f\"/></g>\n", rivercolor, width);
+
+
+	    } // end if 
+
+	  }
+	  endy += nucleotide_height;
+	} // end for second
+      } // end if
+
+      if (fabs((*a).mononuc_fraction[first][pwm_position]) > mononucleotide_frequency_cutoff || use_constant_radius) {
+	  //printf("\nDEBUG--pwm position %i, base %c value %.6f", pwm_position, dnaforward[first], order[1][first]);
+	if (order[1][first] != 0.0) {
+	  /* PRINTS LAKES */
+	  float radius = use_constant_radius ? constant_radius : (float)order[1][first] * max_radius; 
+	  float radius2 = use_constant_radius ? 0.1*constant_radius : (float)order[1][first] * max_radius; 
+	  fprintf(outfile, "<g><title>%.2f</title><circle cx=\"%.2f\" cy=\"%.2f\" r=\"%.2f\" fill=\"%s\" stroke-width=\"%.2f\"/></g>\n",
+		  order[1][first],
+		  (float)pwm_position * nucleotide_width + offset + max_radius,
+		  (float)first * nucleotide_height + yoffset + max_radius,
+		  fabsf(radius),
+		  radius >= 0.0 ? "lightsteelblue" : "purple", (float)0);
+	  // font_position += (order[1][nucleotide_value] * 100);
+	  /* PRINTS OUT SCALED NUCLEOTIDE LABELS */
+	  fprintf(outfile, "<use xlink:href=\"#%c\" ", forward[(int)order[0][first]]);
+	  if (use_constant_radius) 
+	    fprintf(outfile, " transform=\"translate(%f,%f) scale(%f,%f)\" visibility=\"visible\" />\n",
+		    (float)pwm_position * nucleotide_width + offset + max_radius - constant_radius/2.0,
+		    (float)first * nucleotide_height + yoffset + max_radius + constant_radius/2.0,
+		    radius2,
+		    radius2);
+	  else {
+	    float temp = fabs(order[1][first]);
+	    fprintf(outfile, " transform=\"translate(%f,%f) scale(%f,%f)\" visibility=\"visible\" />\n",
+		    (float)pwm_position * nucleotide_width + offset + max_radius - 10 * temp,
+		    (float)first * nucleotide_height + yoffset + max_radius + 10 * temp, temp * 2, temp * 2);
+	  }
+	} // end if
+
+      } // end if
+      
+      starty += nucleotide_height;
+    } // end for first
+
+  }  // for pwm_position
+
+  /* PRINTS OUT NAME OF LOGO AND OTHER DATA */
+  fprintf(outfile, "</g>");
+  if (noname == 0) {
+    fprintf(outfile, "<text  x=\"");
+    fprintf(outfile, "%li", pwm_position * nucleotide_width + 20 + offset);
+    fprintf(outfile, "\" y=\"");
+    fprintf(outfile, "%i", top_position + 30);
+    fprintf(outfile, "\" fill = \"black\" stroke = \"%s\" font-size=\"30\" font-family = \"", colors[4 - 2 * warning + 3 * (warning == 2)]);
+    fprintf(outfile, "%s", font);
+    fprintf(outfile, "\" >");
+    fprintf(outfile, "%s", (*a).name);
+    fprintf(outfile, "</text>\n");
+  }
+  
+  fprintf(outfile, "</svg>");
+  fclose(outfile);
+  printf("\n");
+  return (0);
+} // Svg_riverlake_logo_jarkko_diff
 
 
 /* SUBROUTINE THAT SUBTRACTS NORMALIZED c FROM NORMALIZED PWM n */
@@ -1403,7 +1811,7 @@ short int Load_ADM(struct adjacent_dinucleotide_model *a, char *filename)
 		|| current_string[0] == '4' || current_string[0] == '5' || current_string[0] == '6' || current_string[0] == '7'
 		|| current_string[0] == '8' || current_string[0] == '9' || current_string[0] == ' ' || current_string[0] == '-')) {
 	  (*a).fraction[line][pwm_position] = atof(current_string);
-	  printf("\t%f", (*a).fraction[line][pwm_position]);
+	  printf("%f\t", (*a).fraction[line][pwm_position]);
 	  fflush(stdout);
 	  pwm_position++;
 	}
@@ -1411,6 +1819,7 @@ short int Load_ADM(struct adjacent_dinucleotide_model *a, char *filename)
 	  (*a).width = pwm_position;
 	  line++;
 	  pwm_position = 0;
+	  printf("\n");
 	}
 	break;
       }
@@ -1429,7 +1838,7 @@ short int Load_ADM(struct adjacent_dinucleotide_model *a, char *filename)
 		|| current_string[0] == '4' || current_string[0] == '5' || current_string[0] == '6' || current_string[0] == '7'
 		|| current_string[0] == '8' || current_string[0] == '9' || current_string[0] == ' ' || current_string[0] == '-')) {
 	  (*a).mononuc_fraction[line][pwm_position] = atof(current_string);
-	  printf("\t%f", (*a).mononuc_fraction[line][pwm_position]);
+	  printf("%f\t", (*a).mononuc_fraction[line][pwm_position]);
 	  fflush(stdout);
 	  pwm_position++;
 	}
@@ -1437,6 +1846,7 @@ short int Load_ADM(struct adjacent_dinucleotide_model *a, char *filename)
 	  (*a).width = pwm_position;
 	  line++;
 	  pwm_position = 0;
+	  printf("\n");
 	}
 	break;
       }
@@ -1452,6 +1862,33 @@ short int Load_ADM(struct adjacent_dinucleotide_model *a, char *filename)
   else
     return (0);
 }
+
+/* SUBROUTINE THAT SUBTRACTS NORMALIZED c FROM NORMALIZED ADM n */
+short int Subtract_normalized_ADM(struct adjacent_dinucleotide_model *n, struct adjacent_dinucleotide_model *c)
+{
+  short int counter;
+  short int position;
+  //  double total_nucleotides = 0;
+  printf("Subtracted ADM\n");
+  for (counter = 0; counter < 16; counter++) {
+    for (position = 0; position < (*n).width-1; position++) {// difference of dinucleotide probabilities
+      (*n).fraction[counter][position] = (*n).mononuc_fraction[counter/4][position] * (*n).fraction[counter][position] - (*c).mononuc_fraction[counter/4][position] * (*c).fraction[counter][position];
+      printf("%f\t", (*n).fraction[counter][position]);
+    }
+    printf("\n");
+  }
+  for (counter = 0; counter < 4; counter++) {
+    for (position = 0; position < (*n).width; position++) {
+      (*n).mononuc_fraction[counter][position] -= (*c).mononuc_fraction[counter][position];
+      printf("%f\t", (*n).mononuc_fraction[counter][position]);
+    }
+    printf("\n");
+  }
+
+  return (0);
+}
+
+
 
 /* ########################## MAIN PROGRAM ############################# */
 /* ########################## MAIN PROGRAM ############################# */
@@ -1755,6 +2192,7 @@ int main(int argc, char *argv[])
 
   /* ADM STRUCTURES */
   struct adjacent_dinucleotide_model unflanked_adm;
+  struct adjacent_dinucleotide_model unflanked_adm2;  // for subtraction of two ADMs, Jarkko
   struct adjacent_dinucleotide_model flanked_adm;
   struct adjacent_dinucleotide_model *flanked_adm_p;
 
@@ -1812,19 +2250,41 @@ for(counter = 0; counter < Nlength * 2; counter++) total_relative_deviation[coun
       Svg_logo(tempstring, 1, np_p, '\0', '\0', '\0', '\0', '\0', '\0', 0, 0);
     }
     else {
-      printf("\nloads ADM");
+      printf("\nloads ADM\n");
       adjacent_dinucleotide_model_init(&unflanked_adm, "unflanked_adm", Nlength);
       Load_ADM(&unflanked_adm, searchstring);
       strcpy(unflanked_adm.name, searchstring);
-      strcpy(tempstring, unflanked_adm.name);
-      strcpy(searchstring, unflanked_adm.name);
-      strcat(tempstring, ".svg");
-      if (argc >= 3 + firstnoncommandposition) {   // JARKKO 28.4.2017
-    	strcpy(tempstring, argv[2 + firstnoncommandposition]);
-    	strcpy(searchstring, argv[2 + firstnoncommandposition]);
+
+      if (difference_logo == 1) {
+	int use_constant_radius = 0;
+	int use_transition_probability_width = 0;
+
+	strcpy(tempstring, argv[2 + firstnoncommandposition]);
+	printf("\nloads ADM2\n");
+	adjacent_dinucleotide_model_init(&unflanked_adm2, "unflanked_adm2", Nlength);
+	Load_ADM(&unflanked_adm2, tempstring);
+	Subtract_normalized_ADM(&unflanked_adm, &unflanked_adm2);
+	//unflanked_adm.negative_values_allowed = 1;
+	strcat(unflanked_adm.name, "_minus_");
+	strcat(unflanked_adm.name, tempstring);
+	strcpy(tempstring, unflanked_adm.name);
+	strcat(tempstring, ".svg");
+	Svg_riverlake_logo_jarkko_diff(tempstring, 0, 0, &unflanked_adm, 0.03, 0.1, 1000, 0.1, use_constant_radius, use_transition_probability_width);
       }
-      Svg_riverlake_logo(tempstring, 0, 0, &unflanked_adm, 0.05, 0.1, 1000, 0.1);
-    }
+      else {
+	int use_constant_radius = 0;
+	int use_transition_probability_width = 0;
+	strcpy(tempstring, unflanked_adm.name);
+	strcpy(searchstring, unflanked_adm.name);
+	strcat(tempstring, ".svg");
+	if (argc >= 3 + firstnoncommandposition) {   // JARKKO 28.4.2017
+	  strcpy(tempstring, argv[2 + firstnoncommandposition]);
+	  strcpy(searchstring, argv[2 + firstnoncommandposition]);
+	}
+	Svg_riverlake_logo(tempstring, 0, 0, &unflanked_adm, 0.05, 0.1, 1000, 0.1);
+	//Svg_riverlake_logo_jarkko(tempstring, 0, 0, &unflanked_adm, 0.05, 0.1, 1000, 0.1, use_constant_radius, use_transition_probability_width);
+      }
+  }
 
     char *system_command;
     system_command = malloc(2000);

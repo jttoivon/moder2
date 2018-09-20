@@ -392,16 +392,16 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
     # Forward direction
     myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname, oname.replace(".%s"%motif_ending, ".svg")))
     myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename, ename.replace(".%s"%motif_ending, ".svg")))
-    if not use_adm:         # This does not work for adm models
-        myrun("myspacek40 %s --difflogo %s %s" % (myspacek_flags, oname, ename))          # Deviation logo
+    #if not use_adm:         # This does not work for adm models
+    myrun("myspacek40 %s --difflogo %s %s" % (myspacek_flags, oname, ename))          # Deviation logo
     if get_flanks:
         myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k1, k2, d, fname, fname.replace(".%s"%motif_ending, ".svg")))
 
     # Reverse complement
     myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname_rc, oname_rc.replace(".%s"%motif_ending, ".svg")))
     myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename_rc, ename_rc.replace(".%s"%motif_ending, ".svg")))
-    if not use_adm:         # This does not work for adm models
-        myrun("myspacek40 %s --difflogo %s %s" % (myspacek_flags, oname_rc, ename_rc))          # Deviation logo
+#    if not use_adm:         # This does not work for adm models
+    myrun("myspacek40 %s --difflogo %s %s" % (myspacek_flags, oname_rc, ename_rc))          # Deviation logo
     if get_flanks:
         myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k2, k1, d, fname_rc, fname_rc.replace(".%s"%motif_ending, ".svg")))
 
@@ -410,7 +410,10 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
             oname = "observed.%s.%s.%i%s" % (cob, o, d, rc)
             ename = "expected.%s.%s.%i%s" % (cob, o, d, rc)
             dname = "deviation.%s.%s.%i%s" % (cob, o, d, rc)
-            myrun("mv %s.pfm_minus_%s.pfm.svg %s.svg" % (oname, ename, dname))
+            if use_adm:
+                myrun("mv %s.adm_minus_%s.adm.svg %s.svg" % (oname, ename, dname))
+            else:
+                myrun("mv %s.pfm_minus_%s.pfm.svg %s.svg" % (oname, ename, dname))
             f.write('<h1>%s %s %i</h1>' % (cob, o, d))
             f.write('<figure><figcaption>Observed:</figcaption><a href="%s.%s"><img src="%s.svg"\></a></figure>' % (oname, motif_ending, oname)) 
             f.write('<figure><figcaption>Expected:</figcaption><a href="%s.%s"><img src="%s.svg"\></a></figure>' % (ename,motif_ending,ename)) 
