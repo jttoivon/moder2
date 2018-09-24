@@ -789,7 +789,7 @@ public:
     assert( q.size() == 4 );
     for (int i=0; i < 4; ++i)
       for (int j=0; j < 4; ++j)
-        pseudo_counts[(i<<2) + j] = q[i] *q[j] * b;
+        pseudo_counts[(i<<2) + j] = q[i] * q[j] * b;
   }
 
   void
@@ -808,6 +808,7 @@ public:
   add(std::vector<T>& v) const
   {
     int size = v.size();
+    assert(size == 16);
     
     for (int i=0; i < size; ++i)
       v[i] += pseudo_counts[i];

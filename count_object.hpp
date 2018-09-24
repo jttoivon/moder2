@@ -153,7 +153,7 @@ public:
       }
     }
     else {
-      int shift = 2*w-2;
+      int shift = 2*(w-1);
       BitString code = dna_to_number<BitString>(substr);
       if (type == adm) {
 	for (int pos=0; pos < w; ++pos, mask>>=1, shift -= 2) {
@@ -191,7 +191,7 @@ public:
       positions = 0;   // update nothing
     int first = w1-1;  // last position of the first half-site
     int last = w1+d;   // first position of the second half-site
-    BitString mask = static_cast<BitString>(1)<<(d+w2);
+    BitString mask = static_cast<BitString>(1)<<(d+w2);  // 1-bit is in the 'first' position
     if (type == ppm) {
       for (int pos=first; pos <= last; ++pos, mask>>=1) {
 	if (positions & mask)
@@ -200,10 +200,10 @@ public:
     }
     else {
       BitString code = dna_to_number<BitString>(substr);
-      int w = d+w2;
-      BitString mask2 = (static_cast<BitString>(1) << (w*2)) - 1;
-      int shift = 2*w-2;
-      code &= mask2;  // zero-out the prefix bits
+      int w = d+w2+1;
+      //      BitString mask2 = (static_cast<BitString>(1) << (w*2)) - 1;
+      //      code &= mask2;  // zero-out the prefix bits
+      int shift = 2*(w-1);   // shifting this much to right puts the bits of char in the 'first' position to bits 1 and 0
       for (int pos=first; pos <= last; ++pos, mask>>=1, shift -= 2) {
 	if (positions & mask)
 	  counts[0]((code>>shift)&15, pos) += z; // update all columns

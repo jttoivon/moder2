@@ -437,7 +437,7 @@ def get_cob_case(cob, o, d, pwm1, pwm2, last_iteration_output, get_flanks):
         start=1
     else:
         rows=4
-        start=2
+        start=1
     try:
         deviation=readmatrix(find_lines(last_iteration_output, "Deviation matrix %s %s %i:" % (cob, o, d), start, rows))
     except AttributeError:

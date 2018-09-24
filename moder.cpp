@@ -127,7 +127,7 @@ double cob_cutoff = 0.001;  // if an element in a cob table is smaller than this
 bool adjust_seeds = true;
 bool use_multinomial=true;
 bool local_debug = true;
-bool extra_debug = false;   // Even more printing
+bool extra_debug = true;   // Even more printing
 bool allow_extension = false;
 bool use_dimers = true;
 bool seeds_given = false;
@@ -2140,7 +2140,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	
 	for (int r=0; r < my_cob_params.size(); ++r) {
 	  const cob_params_t& cp = my_cob_params[r];
-	  if (local_debug) 
+	  if (local_debug and cp.dmin < 0) 
 	    print_cob(stdout, cp.dimer_seeds, 
 		      to_string("Seeds of overlapping dimer cases %s:\n", cp.name().c_str()), "%s");
 
@@ -2162,7 +2162,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    }
 	  }
 
-	  if (local_debug) {
+	  if (local_debug and cp.dmin < 0) {
 	    print_cob(stdout, seed_counts, to_string("Seed counts %s:\n", cp.name().c_str()), "%i");
 	    print_cob(stdout, exp_counts, to_string("Exp seed counts %s:\n", cp.name().c_str()), "%.2f");
 	    printf("\n");
@@ -2941,7 +2941,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       }
       if (use_pseudo_counts) {
 	pseudo_counts.add(bg_model);
-	pseudo_counts.add(bg_model_markov);
+	pseudo_counts.add(bg_model_markov);         // TÄSSÄ ON TODENNÄKÖISESTI VIRHE
       }
       normalize_vector(bg_model);
       normalize_matrix_rows(bg_model_markov);
@@ -3018,7 +3018,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
 	  for (int d=0; d <= max_dist_for_deviation; ++d) {
 	    double mysum = gap_weights[r][o][d].sum();
-	    if (extra_debug) {
+	    if (extra_debug and false) {
 	      gap_weights[r][o][d].write_counts(stdout, 
 						to_string("Observed unnormalized gap matrix %s %s %i:\n",
 							  my_cob_params[r].name().c_str(), orients[o], d).c_str(), "%.6f");
@@ -3229,11 +3229,13 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	     // The interval [first,last] is the gap.
 	     first = w1;
 	     last = w1 + d - 1;
+	     dmatrix temp1 = gap_models[r][o][d]->representation();
+	     dmatrix temp2 = my_cob_params[r].expected_overlapping_dimer_PWMs[o][d]->representation();
 	     for (int row = 0; row < rows; ++row) {
 	       for (int column = first - 1; column <= last + 1; ++column) // The gap part with flanks of 1bp on both sides
 		 new_deviation[r][o][d](row,column) = 
-		   gap_models[r][o][d]->representation()(row,column) -
-		   my_cob_params[r].expected_overlapping_dimer_PWMs[o][d]->representation()(row,column);
+		   temp1(row,column) -
+		   temp2(row,column);
 	     } 
 	   }
 	 } // end for d
@@ -3355,7 +3357,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      // The next line does not work, because representation() does not return a reference, but a copy.
 	      //overlapping_dimer_models[r][o][d]->representation().inject(gap_models[r][o][d]->cut(first-1, 2+d)->representation(),
 	      // 0, first-1);
-	      	      overlapping_dimer_models[r][o][d] = gap_models[r][o][d];
+	      overlapping_dimer_models[r][o][d] = gap_models[r][o][d];
 
 	      // overlapping_dimer_models[r][o][d]->print(
 	      // 					       to_string("Test %s %s %i:\n", 
@@ -3824,21 +3826,38 @@ create_cob(cob_combination_t cob_combination,
     oriented_dimer_matrices[o] = get_matrices_according_to_hetero_orientation(o, *fixed_M[tf1], *fixed_M[tf2], use_rna);
     
     for (int d=dmin; d < std::min(0, dmax+1); ++d) {
-      std::string seed = dimer_seeds[o][d];
-      if (model_type == ppm) {
-	dmatrix temp = multinomial1_multimer_bernoulli_corrected(seed, sequences);
-	if (use_pseudo_counts)
-	  pseudo_counts.add(temp);
-	normalize_matrix_columns(temp);
-	overlapping_dimer_PWM[o][d] = pwm_model<>(temp).clone();
+      bool use_expected_initial_models = false;           // use expected models also for distances < 0
+      if (not use_expected_initial_models) {
+	std::string seed = dimer_seeds[o][d];
+	if (model_type == ppm) {
+	  dmatrix temp = multinomial1_multimer_bernoulli_corrected(seed, sequences);
+	  if (use_pseudo_counts)
+	    pseudo_counts.add(temp);
+	  normalize_matrix_columns(temp);
+	  overlapping_dimer_PWM[o][d] = pwm_model<>(temp).clone();
+	}
+	else {
+	  count_object co = dinucleotide_counts_suffix_array(seed, sequences, sa, 2);
+	  //	co.write_counts(stdout, to_string("Unnormalized initial fixed matrix %i from seed %s:\n", 
+	  //					  k, fixedseedlist[k].c_str()), "%.6f");
+	  if (use_pseudo_counts)
+	    co.add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts);
+	  overlapping_dimer_PWM[o][d] = co.normalized(seed);
+	}
       }
       else {
-	count_object co = dinucleotide_counts_suffix_array(seed, sequences, sa, 2);
-	//	co.write_counts(stdout, to_string("Unnormalized initial fixed matrix %i from seed %s:\n", 
-	//					  k, fixedseedlist[k].c_str()), "%.6f");
-	if (use_pseudo_counts)
-	  co.add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts);
-	overlapping_dimer_PWM[o][d] = co.normalized(seed);
+	if (model_type == ppm) {
+	  dmatrix temp =
+	    normalize_matrix_columns_copy(matrix_product(oriented_dimer_matrices[o].get<0>()->representation(),
+							 oriented_dimer_matrices[o].get<1>()->representation(),
+							 d));
+	  overlapping_dimer_PWM[o][d] = pwm_model<>(temp).clone();
+	}
+	else {
+	  overlapping_dimer_PWM[o][d] =
+	    boost::make_shared<dinuc_model<double> >(dinuc_model_product(*boost::dynamic_pointer_cast<dinuc_model<double> >(oriented_dimer_matrices[o].get<0>()),
+									 *boost::dynamic_pointer_cast<dinuc_model<double> >(oriented_dimer_matrices[o].get<1>()), d));
+	}
       }
     }  // end for d
     for (int d=0; d <= max_dist_for_deviation; ++d) {
@@ -4169,7 +4188,7 @@ int main(int argc, char* argv[])
 
     if (vm.count("cob-cutoff"))
       cob_cutoff = vm["cob-cutoff"].as< double >();
-    error(cob_cutoff <= 0.0 or cob_cutoff >= 1.0, "cob-cutoff must be between 0 and 1.");
+    error(cob_cutoff < 0.0 or cob_cutoff >= 1.0, "cob-cutoff must be between 0 and 1.");
 
     if (vm.count("minimum-distance-for-learning"))
       minimum_distance_for_learning = vm["minimum-distance-for-learning"].as< int >();
