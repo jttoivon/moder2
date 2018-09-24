@@ -2263,12 +2263,18 @@ for(counter = 0; counter < Nlength * 2; counter++) total_relative_deviation[coun
 	printf("\nloads ADM2\n");
 	adjacent_dinucleotide_model_init(&unflanked_adm2, "unflanked_adm2", Nlength);
 	Load_ADM(&unflanked_adm2, tempstring);
+	
 	Subtract_normalized_ADM(&unflanked_adm, &unflanked_adm2);
-	//unflanked_adm.negative_values_allowed = 1;
-	strcat(unflanked_adm.name, "_minus_");
-	strcat(unflanked_adm.name, tempstring);
-	strcpy(tempstring, unflanked_adm.name);
-	strcat(tempstring, ".svg");
+	if (argc >= 4 + firstnoncommandposition) {           // name of the result file was given
+	  strcpy(unflanked_adm.name, argv[3 + firstnoncommandposition]);
+	  strcpy(tempstring, unflanked_adm.name);
+	}
+	else {                                               // compose the name of the result file from the names of the first and second file
+	  strcat(unflanked_adm.name, "_minus_");
+	  strcat(unflanked_adm.name, tempstring);
+	  strcpy(tempstring, unflanked_adm.name);
+	  strcat(tempstring, ".svg");
+	}	
 	Svg_riverlake_logo_jarkko_diff(tempstring, 0, 0, &unflanked_adm, 0.03, 0.1, 1000, 0.1, use_constant_radius, use_transition_probability_width);
       }
       else {
