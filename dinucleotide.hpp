@@ -216,11 +216,29 @@ dinuc_model<T>::cut(int position, int len) const
 }
 
 template <typename T>
+T
+weighted_distance(const dinuc_model<T>& model1, const dinuc_model<T>& model2)
+{
+  T distance = 0.0;
+  int k = model1.get_length();
+  for (int c=1; c < k; ++c) {
+    for (int r=0; r < 16; ++r) {
+      distance = std::max(distance, std::abs(model1.ip(r/4, c) * model1.dm(r, c) - model2.ip(r/4, c) * model2.dm(r, c)));
+    }
+  }
+  for (int r=0; r < 4; ++r)    // initial probabilities
+    distance = std::max(distance, std::abs(model1.dm(r, 0) - model2.dm(r, 0)));
+  return distance;
+}
+
+template <typename T>
 double
 dinuc_model<T>::distance(const binding_model<T>& other) const
 {
-  return ::distance(dm, other.representation());
+  //return ::distance(dm, other.representation());
+  return weighted_distance(dynamic_cast<const dinuc_model&>(*this), dynamic_cast<const dinuc_model&>(other));
 }
+
 
 
 template <typename T>
