@@ -1281,6 +1281,9 @@ short int Svg_riverlake_logo(char *filename, long int offset, long int yoffset, 
   return (0);
 }
 
+
+// This if for testing alternative visualizations of ADM models.
+
 /* SUBROUTINE THAT GENERATES A RIVERLAKE LOGO FILE FOR ADMS */
 short int Svg_riverlake_logo_jarkko(char *filename, long int offset, long int yoffset, struct adjacent_dinucleotide_model *a,
 				    double mononucleotide_frequency_cutoff, double log_fold_change_cutoff, double absolute_deviation_cutoff,
@@ -1590,14 +1593,16 @@ short int Svg_riverlake_logo_jarkko_diff(char *filename, long int offset, long i
     for (starty = max_radius, first = 0; first < 4; first++) {
 
       //(*a).mononuc_fraction[first][pwm_position] * 50;
-      if (fabs((*a).mononuc_fraction[first][pwm_position]) > mononucleotide_frequency_cutoff || use_transition_probability_width) {
-	printf("\nBase %c at position %i over cutoff", forward[first], pwm_position);
-	for (endy = max_radius, second = 0; second < 4; second++) {
+      for (endy = max_radius, second = 0; second < 4; second++) {
+	if (pwm_position < a->width-1 && fabs(a->fraction[first * 4 + second][pwm_position]) > mononucleotide_frequency_cutoff) {
+	  printf("\nBase %c at position %i over cutoff", forward[first], pwm_position);
 	  /* DRAWS LINE TO CONNECT PREFERENTIAL PAIR AND SETS SHIFT RIGHT FLAG IF DEVIATION FROM PWM IS DETECTED */
-	  if (fabs((*a).mononuc_fraction[second][pwm_position + 1]) > mononucleotide_frequency_cutoff || use_transition_probability_width) {
+	  //if (fabs((*a).mononuc_fraction[second][pwm_position + 1]) > mononucleotide_frequency_cutoff || use_transition_probability_width) {
+	  /*
 	    printf("\nDinucleotide %c%c at position %i over both cutoffs; cond %.3f vs mono %.3f: log fold %.3f", forward[first], forward[second],
 		   pwm_position, (*a).fraction[first * 4 + second][pwm_position], ((*a).mononuc_fraction[second][pwm_position + 1] + pseudocount),
 		   (log10((*a).fraction[first * 4 + second][pwm_position] / ((*a).mononuc_fraction[second][pwm_position + 1] + pseudocount))));
+	  */
 	    // HUOM. ALLA OLEVA ON AINA TOSI, SILLÄ FUNKTION ALUSSA ASETETAAN absolute_deviation_cutoff = -1
 	    /*
 	    if (((log10((*a).fraction[first * 4 + second][pwm_position] / ((*a).mononuc_fraction[second][pwm_position + 1] + pseudocount)))) >
@@ -1622,7 +1627,9 @@ short int Svg_riverlake_logo_jarkko_diff(char *filename, long int offset, long i
 		      (float)pwm_position * nucleotide_width + offset + max_radius, starty,
 		      (float)(pwm_position + 1) * nucleotide_width + offset + max_radius, endy);
 	      /* SETS WIDER RIVER COLOR AND DASH */
-	      rivercolor = (*a).fraction[first * 4 + second][pwm_position] >= 0.0 ? "#A0B4CE" : "purple";                          // BLUEISH GRAY
+	      const char* blueish_gray = "#A0B4CE";  // dark gray
+	      const char* dark_purple = "#CFA2CF";
+	      rivercolor = (*a).fraction[first * 4 + second][pwm_position] >= 0.0 ? blueish_gray : dark_purple;                          // BLUEISH GRAY
 	      // filter=\"url(#fractalnoise)\" stroke-dasharray=\"0.25,0.75\"
 	      fprintf(outfile, "stroke = \"%s\" stroke-width = \"%f\"/></g>\n", rivercolor, width);
 
@@ -1631,7 +1638,7 @@ short int Svg_riverlake_logo_jarkko_diff(char *filename, long int offset, long i
 
 	  }
 	  endy += nucleotide_height;
-	} // end for second
+	  //} // end for second
       } // end if
 
       if (fabs((*a).mononuc_fraction[first][pwm_position]) > mononucleotide_frequency_cutoff || use_constant_radius) {
@@ -1639,13 +1646,14 @@ short int Svg_riverlake_logo_jarkko_diff(char *filename, long int offset, long i
 	if (order[1][first] != 0.0) {
 	  /* PRINTS LAKES */
 	  float radius = use_constant_radius ? constant_radius : (float)order[1][first] * max_radius; 
-	  float radius2 = use_constant_radius ? 0.1*constant_radius : (float)order[1][first] * max_radius; 
+	  float radius2 = use_constant_radius ? 0.1*constant_radius : (float)order[1][first] * max_radius;
+	  const char* light_purple = "#DFAEDF";
 	  fprintf(outfile, "<g><title>%.2f</title><circle cx=\"%.2f\" cy=\"%.2f\" r=\"%.2f\" fill=\"%s\" stroke-width=\"%.2f\"/></g>\n",
 		  order[1][first],
 		  (float)pwm_position * nucleotide_width + offset + max_radius,
 		  (float)first * nucleotide_height + yoffset + max_radius,
 		  fabsf(radius),
-		  radius >= 0.0 ? "lightsteelblue" : "purple", (float)0);
+		  radius >= 0.0 ? "lightsteelblue" : light_purple, (float)0);
 	  // font_position += (order[1][nucleotide_value] * 100);
 	  /* PRINTS OUT SCALED NUCLEOTIDE LABELS */
 	  fprintf(outfile, "<use xlink:href=\"#%c\" ", forward[(int)order[0][first]]);
