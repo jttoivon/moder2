@@ -188,19 +188,20 @@ short int adjacent_dinucleotide_model_init(struct adjacent_dinucleotide_model *d
   short int dinucleotide;
   short int first;
   short int second;
+  short int maximum_width = max_width_of_pwm;
   (*d).width = width + 1;
   (*d).name = malloc(1000);
   strcpy((*d).name, name);
   (*d).fraction = malloc(sizeof(double *) * 16 + 5);
   (*d).mononuc_fraction = malloc(sizeof(double *) * 4 + 5);
   for (first = 0; first < 16; first++) {
-    (*d).fraction[first] = malloc(sizeof(double) * (width + 1) + 5);
-    for (second = 0; second <= width; second++)
+    (*d).fraction[first] = malloc(sizeof(double) * (maximum_width + 1) + 5);
+    for (second = 0; second <= maximum_width; second++)
       (*d).fraction[first][second] = 0;
   }
   for (first = 0; first < 4; first++) {
-    (*d).mononuc_fraction[first] = malloc(sizeof(double) * (width + 1) + 5);
-    for (second = 0; second <= width; second++)
+    (*d).mononuc_fraction[first] = malloc(sizeof(double) * (maximum_width + 1) + 5);
+    for (second = 0; second <= maximum_width; second++)
       (*d).mononuc_fraction[first][second] = 0;
   }
   return (0);

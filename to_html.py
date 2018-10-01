@@ -252,7 +252,7 @@ def readarray(lines):
         result.append(tmp)
     return numpy.array(result)
 
-def readmatrix(x):
+def readmodel(x):
     if len(x)==20:
         return analyze_adm.read_adm_from_list_of_lines(x)
     result=[]
@@ -350,9 +350,16 @@ def compute_expected(pwm1, pwm2, o, d):
 def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_iteration_output, get_flanks):
     k1 = pwm1.shape[1]
     k2 = pwm2.shape[1]
+    if use_adm:
+        rows=20
+        start=1
+    else:
+        rows=4
+        start=1
+
     if get_flanks:
         try:
-            flank=readmatrix(find_lines(last_iteration_output, "Flank dimer case matrix %s %s %i:" % (cob, o, d), 2, 4))
+            flank=readmodel(find_lines(last_iteration_output, "Flank dimer case matrix %s %s %i:" % (cob, o, d), start, rows))
         except AttributeError:
             flank=numpy.zeros(expected.shape)
 
@@ -439,7 +446,7 @@ def get_cob_case(cob, o, d, pwm1, pwm2, last_iteration_output, get_flanks):
         rows=4
         start=1
     try:
-        deviation=readmatrix(find_lines(last_iteration_output, "Deviation matrix %s %s %i:" % (cob, o, d), start, rows))
+        deviation=readmodel(find_lines(last_iteration_output, "Deviation matrix %s %s %i:" % (cob, o, d), start, rows))
     except AttributeError:
         deviation=numpy.zeros(expected.shape)
     if use_adm:
@@ -792,7 +799,7 @@ def get_monomers(factors, results_output, last_iteration_output):
 #        with open("%s.pfm" % factor, "w") as f:
         with open("monomer.%i.%s" % (i,motif_ending), "w") as f:
             f.writelines(lines)
-        factor_pwms[i] = pwm = readmatrix(lines)
+        factor_pwms[i] = pwm = readmodel(lines)
         pwm_rc=reverse_complement_pwm(pwm)
 #        writematrixfile(pwm_rc, "%s-rc.pfm" % factor)
         writematrixfile(pwm_rc, "monomer.%i-rc.%s" % (i,motif_ending))
@@ -802,7 +809,7 @@ def get_monomers(factors, results_output, last_iteration_output):
             lines=find_lines(last_iteration_output, "Flank fixed matrix %i:" % i, start, model_rows)
             with open("flank-%i.%s" % (i,motif_ending), "w") as f:
                 f.writelines(lines)
-            flank_pwm=readmatrix(lines)
+            flank_pwm=readmodel(lines)
             flank_pwm_rc=reverse_complement_pwm(flank_pwm)
             writematrixfile(flank_pwm_rc, "flank-%i-rc.%s" % (i,motif_ending))
     return factor_lengths, factor_ics, factor_pwms

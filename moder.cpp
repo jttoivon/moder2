@@ -86,6 +86,7 @@ model_type model_type = ppm;
 typedef boost::tuple<int,int> cob_combination_t;
 
 typedef boost::multi_array<dmatrix, 2> cob_of_matrices;
+typedef boost::multi_array<boost::shared_ptr<binding_model<> >, 2> cob_of_shared_models;
 typedef boost::multi_array<count_object, 2> cob_of_count_objects;
 
 
@@ -1355,7 +1356,7 @@ get_new_gap_weights(int j1, int dir, double z, int d,
 template <typename BitString>
 void
 weight_with_flanks_helper(const std::string& line, const std::string& seed, int Lmax, int j1,
-			  bool force_multinomial, double z, dmatrix& weights)
+			  bool force_multinomial, double z, count_object& weights)
 {
   int w = seed.length();
   int L = line.length();
@@ -1374,18 +1375,58 @@ weight_with_flanks_helper(const std::string& line, const std::string& seed, int 
     positions = 0;   // update nothing
   //  printf("HD is %i %i %s %s\n", hd, mismatches, print_bitvector(mismatches).c_str(), print_bitvector(positions).c_str());
   BitString mask = static_cast<BitString>(1)<<(w-1);
-  for (int pos=0; pos < w; ++pos, mask>>=1) {
-    if (positions & mask)
-      weights(to_int(line[j1+pos]), motif_pos + pos) += z; // update columns of pwm marked by bit vector positions
+  if (weights.type == ppm) {
+    for (int pos=0; pos < w; ++pos, mask>>=1) {
+      if (positions & mask)
+	weights.counts[0](to_int(line[j1+pos]), motif_pos + pos) += z; // update columns of pwm marked by bit vector positions
+    }
   }
+  else if (weights.type == adm) {
+    if (j1 == 0) {   // motif occurrence in the beginning of sequence
+      for (int a=0; a < 4; ++a)
+	weights.counts[0](4*a + to_int(line[0]), 0) += 0.25*z;  // if the motif occurrence is in the beginning of the sequence,
+                                                                // then the first column must be handled specially
+      for (int pos=1; pos < w; ++pos, mask>>=1)
+	if (positions & mask)
+	  weights.counts[0](4*to_int(line[pos-1]) + to_int(line[pos]),  motif_pos + pos) += z;
+
+    }
+    else {
+      for (int pos=0; pos < w; ++pos, mask>>=1)
+	if (positions & mask)
+	  weights.counts[0](4*to_int(line[j1+pos-1]) + to_int(line[j1+pos]),  motif_pos + pos) += z;
+    }
+  }
+  else
+    printf("Flanks with adm-fixed not implemented!");
 
   if (not force_multinomial or hd <= hamming_radius) {
-    // Left flank
-    for (int i = 0; i < j1; ++i)
-      weights(to_int(line[i]), seq_pos + i) += z;
-    // Right flank
-    for (int i = j1+w; i < L; ++i)
-      weights(to_int(line[i]), seq_pos + i) += z;
+
+    if (weights.type == ppm) {
+      // Left flank
+      for (int i = 0; i < j1; ++i)
+	weights.counts[0](to_int(line[i]), seq_pos + i) += z;
+      // Right flank
+      for (int i = j1+w; i < L; ++i)
+	weights.counts[0](to_int(line[i]), seq_pos + i) += z;
+    }
+    else if (weights.type == adm) {
+      if (seq_pos == 0) {            // The sequence is in the beginning of the flanked matrix 'weights'
+	weights.counts[0](to_int(line[0]), 0) += z;
+      }
+      else {
+	for (int a=0; a < 4; ++a)
+	  weights.counts[0](4*a + to_int(line[0]), 0) += 0.25*z;
+      }
+      // Left flank
+      for (int i = 1; i < j1; ++i)
+	weights.counts[0](4*to_int(line[i-1]) + to_int(line[i]), seq_pos + i) += z;
+      // Right flank
+      for (int i = j1+w; i < L; ++i)
+	weights.counts[0](4*to_int(line[i-1]) + to_int(line[i]), seq_pos + i) += z;
+    }
+    else
+      printf("Flanks with adm-fixed not implemented!");
   }
 }
 
@@ -1393,7 +1434,7 @@ weight_with_flanks_helper(const std::string& line, const std::string& seed, int 
 void
 get_new_weights_with_flanks(int j1, int dir, double z, int w, int Lmax, const std::string& seed,
 		const std::string& line_orig, const std::string& line_rev_orig,
-		dmatrix& weights,
+		count_object& weights,
 		bool force_multinomial)
 {
   assert(seed.length() == w);
@@ -1443,7 +1484,7 @@ get_new_spaced_dimer_weights_with_flanks(int j1, int dir, double z, int d,
 					 int w1, int w2, int Lmax,
 		    const std::string& seed1, const std::string& seed2,
 		    const std::string& line_orig, const std::string& line_rev_orig,
-		    dmatrix& weights,
+		    count_object& weights,
 		    bool force_multinomial)
 {
   assert(seed1.length() == w1);
@@ -1462,8 +1503,12 @@ get_new_spaced_dimer_weights_with_flanks(int j1, int dir, double z, int d,
   seed[w1+d] = 'N';
   assert(seed.length() == dimer_len);
 
+  
   weight_with_flanks_helper<myuint128>(line, seed, Lmax, j1,
 				       force_multinomial, z, weights);
+
+  
+  
   /*
   int motif_pos = Lmax - dimer_len;        // Motif pos inside matrix 'weights' which has width 2*Lmax-w
   int seq_pos = motif_pos - j1; // Position of sequence inside matrix 'weights'
@@ -1495,7 +1540,7 @@ get_new_spaced_dimer_weights_with_flanks(int j1, int dir, double z, int d,
 }
 
 
-boost::tuple<std::vector<dmatrix>, std::vector<cob_of_matrices> >
+boost::tuple<std::vector<boost::shared_ptr<binding_model<> > >, std::vector<cob_of_shared_models> >
 get_models_with_flanks(const std::vector<std::string>& sequences,
 		       const std::vector<std::string>& sequences_rev,
 		       const std::vector<std::string>& fixed_seed,
@@ -1512,36 +1557,36 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
   int lines = sequences.size();
   
 
-  std::vector<dmatrix> flank_fixed_PWM;
+  std::vector<count_object> flank_fixed_PWM;
 
-  std::vector<cob_of_matrices> flank_dimer_PWM;
-      
+  typedef boost::multi_array<count_object, 2> cob_of_count_objects;
+  std::vector<cob_of_count_objects> flank_dimer_PWM;
+  
 
 
   // Initialize the models to zero
 
-  // spaced models
+  // Fixed models
+  for (int k=0; k < fixed_p; ++k) { 
+    flank_fixed_PWM.push_back(count_object(model_type, 2*Lmax-fixed_w[k]));
+  }
+
+
+  // dimer models
   for (int r = 0; r < number_of_cobs; ++r) {
     int no = my_cob_params[r].number_of_orientations;
     //    int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
     int dmax = my_cob_params[r].dmax;
-    flank_dimer_PWM.push_back(cob_of_matrices(boost::extents[no][range(my_cob_params[r].dmin,dmax+1)]));
+    flank_dimer_PWM.push_back(cob_of_count_objects(boost::extents[no][range(my_cob_params[r].dmin,dmax+1)]));
   }
 
-  // Fixed models
-  for (int k=0; k < fixed_p; ++k) { 
-    flank_fixed_PWM.push_back(dmatrix(4, 2*Lmax-fixed_w[k]));
-  }
-
-
-  // Overlapping dimer models
   for (int r = 0; r < number_of_cobs; ++r) {
     const int& dmin = my_cob_params[r].dmin;
     const int& dmax = my_cob_params[r].dmax;
     const int& no = my_cob_params[r].number_of_orientations;
     for (int o=0; o < no; ++o) {
       for (int d=dmin; d <= dmax; ++d) {
-	  flank_dimer_PWM[r][o][d] = dmatrix(4, 2*Lmax - my_cob_params[r].dimer_w[d]);
+	  flank_dimer_PWM[r][o][d] = count_object(model_type, 2*Lmax - my_cob_params[r].dimer_w[d]);
       }
     }
   }
@@ -1557,12 +1602,13 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
   
   // Signal from monomeric models
   for (int k=0; k < fixed_p; ++k) {
-    dmatrix pwm(4, 2*Lmax-fixed_w[k]);
+    count_object pwm(model_type, 2*Lmax-fixed_w[k]);
     // This requires at least gcc 4.9.
     // clang (at least not 3.8) does not support 'declare reduction' even
     // though it defines _OPENMP to 201307 (that is openmp 4.0).
 #if defined(_OPENMP) && (_OPENMP >= 201307) && !defined(__clang__)
 #pragma omp declare reduction( + : dmatrix : omp_out+=omp_in ) initializer(omp_priv(omp_orig.dim()))
+#pragma omp declare reduction( + : count_object : omp_out+=omp_in ) initializer(omp_priv(omp_orig))
 #pragma omp declare reduction( + : std::vector<double, std::allocator<double> > : omp_out+=omp_in ) initializer(omp_priv(std::vector<double>(omp_orig.size())))
 #pragma omp parallel for shared(lines,sequences,use_two_strands) reduction(+:pwm) schedule(static)
 #endif
@@ -1580,7 +1626,6 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
     flank_fixed_PWM[k] = pwm;
   } // for k, fixed PWMs
 
-
 	
   ////////////////////////////
   //
@@ -1595,12 +1640,13 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
 	if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
 	  continue;
 
-	dmatrix pwm(4, 2*Lmax - my_cob_params[r].dimer_w[d]);
+	count_object pwm(model_type, 2*Lmax - my_cob_params[r].dimer_w[d]);
 	// This requires gcc 4.9
 	// clang (at least not 3.8) does not support 'declare reduction' even
 	// though it defines _OPENMP to 201307 (that is openmp 4.0).
 #if defined(_OPENMP) && (_OPENMP >= 201307) && !defined(__clang__)
 #pragma omp declare reduction( + : dmatrix : omp_out+=omp_in ) initializer(omp_priv(omp_orig.dim()))
+#pragma omp declare reduction( + : count_object : omp_out+=omp_in ) initializer(omp_priv(omp_orig))
 #pragma omp declare reduction( + : std::vector<double, std::allocator<double> > : omp_out+=omp_in ) initializer(omp_priv(std::vector<double>(omp_orig.size())))	
 #pragma omp parallel for reduction(+:pwm) schedule(static)
 #endif
@@ -1626,6 +1672,7 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
       
 
 
+  
 
 
 
@@ -1646,15 +1693,16 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
       //      for (int d=0; d <= dmax; ++d) {
       for (int d=0; d <= max_dist_for_deviation; ++d) {
 	int dimer_len = fixed_w[tf1] + d + fixed_w[tf2];
-	dmatrix pwm(4, 2*Lmax - dimer_len);
+	count_object pwm(model_type, 2*Lmax - dimer_len);
 
-	pwm.fill_with(0.0);
+	//pwm.fill_with(0.0);
 
 	// This requires gcc 4.9
     // clang (at least not 3.8) does not support 'declare reduction' even
     // though it defines _OPENMP to 201307 (that is openmp 4.0).
 #if defined(_OPENMP) && (_OPENMP >= 201307) && !defined(__clang__)
 #pragma omp declare reduction( + : dmatrix : omp_out+=omp_in ) initializer(omp_priv(omp_orig.dim()))
+#pragma omp declare reduction( + : count_object : omp_out+=omp_in ) initializer(omp_priv(omp_orig))
 #pragma omp declare reduction( + : std::vector<double> : omp_out+=omp_in ) initializer(omp_priv(std::vector<double>(omp_orig.size())))
 #pragma omp parallel for reduction(+:pwm) schedule(static)
 #endif	    
@@ -1682,31 +1730,51 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
 
   } // for end r
 
-	    
+  
+
+
+  // Monomers
+  std::vector<boost::shared_ptr<binding_model<> > > new_flank_monomer_models;
   for (int k=0; k < fixed_p; ++k) {
     if (use_pseudo_counts)
-      pseudo_counts.add(flank_fixed_PWM[k]);
-    normalize_matrix_columns(flank_fixed_PWM[k]);
+      flank_fixed_PWM[k].add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts);
+    new_flank_monomer_models.push_back(flank_fixed_PWM[k].normalized(fixed_seed[k]));
     //    write_matrix(stdout, flank_fixed_PWM[k], to_string("Flank fixed matrix %i:\n", k), "%.6f");
   }
-  
+
+  // Dimers
+  std::vector<cob_of_shared_models> new_flank_dimer_models;
   for (int r = 0; r < number_of_cobs; ++r) {
     int dmin = my_cob_params[r].dmin;
     int dmax = my_cob_params[r].dmax;
     int no = my_cob_params[r].number_of_orientations;
+    new_flank_dimer_models.push_back(cob_of_shared_models(boost::extents[no][range(my_cob_params[r].dmin,dmax+1)]));
     for (int o=0; o < no; ++o) {
       for (int d=dmin; d <= dmax; ++d) {
+	//for (int d=dmin; d < std::min(0, my_cob_params[r].dmax+1); ++d) {
 	if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
 	  continue;
 	if (use_pseudo_counts)
-	  pseudo_counts.add(flank_dimer_PWM[r][o][d]);
-	normalize_matrix_columns(flank_dimer_PWM[r][o][d]);
+	  flank_dimer_PWM[r][o][d].add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts);
+	//pseudo_counts.add(flank_dimer_PWM[r][o][d]);
+	std::string seed;
+	if (d < 0)
+	  seed = my_cob_params[r].dimer_seeds[o][d];
+	else {
+	  std::string seed1 =  my_cob_params[r].oriented_dimer_seeds[o].get<0>();
+	  std::string seed2 =  my_cob_params[r].oriented_dimer_seeds[o].get<1>();
+	  std::string seed = seed1 + std::string(d, 'N') + seed2;
+	  int w1 = seed1.length();
+	  seed[w1-1] = 'N';  // flanks of the gap are also N
+	  seed[w1+d] = 'N';
+	}
+	new_flank_dimer_models[r][o][d] = flank_dimer_PWM[r][o][d].normalized(seed);
       }
     }
     
   }
 
-  return boost::make_tuple(flank_fixed_PWM, flank_dimer_PWM);
+  return boost::make_tuple(new_flank_monomer_models, new_flank_dimer_models);
 
 } // end of get_models_with_flanks
 
@@ -2036,8 +2104,9 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
   std::vector<double> succ_ic(fixed_p);
 
 
-  std::vector<dmatrix> flank_fixed_PWM;
-  std::vector<cob_of_matrices> flank_dimer_PWM;
+  //std::vector<dmatrix> flank_fixed_PWM;
+  std::vector<boost::shared_ptr<binding_model<> > > flank_fixed_PWM;
+  std::vector<cob_of_shared_models> flank_dimer_PWM;
 
 
   typedef boost::multi_array<double, 2>::extent_range range;
@@ -2335,6 +2404,9 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	printf("Log likelihood is %f\n", mll);
 
 
+
+
+      
 
       ////////////////////////
       //
@@ -3492,7 +3564,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
   if (get_full_flanks) {
     for (int k=0; k < fixed_p; ++k) {
-      write_matrix(stdout, flank_fixed_PWM[k], to_string("Flank fixed matrix %i:\n", k), "%.6f");
+      flank_fixed_PWM[k]->print(to_string("Flank fixed matrix %i:\n", k), "%.6f");
+      //write_matrix(stdout, flank_fixed_PWM[k], to_string("Flank fixed matrix %i:\n", k), "%.6f");
     }
   
     for (int r = 0; r < number_of_cobs; ++r) {
@@ -3503,9 +3576,11 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       int tf2 = my_cob_params[r].tf2;
       for (int o=0; o < no; ++o) {
 	for (int d=dmin; d <= dmax; ++d) {
+	  //for (int d=dmin; d < std::min(0, dmax+1); ++d) {
 	  if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
 	    continue;
-	  write_matrix(stdout, flank_dimer_PWM[r][o][d], to_string("Flank dimer case matrix %i-%i %s %i:\n", tf1,tf2, orients[o], d), "%.6f");
+	  flank_dimer_PWM[r][o][d]->print(to_string("Flank dimer case matrix %i-%i %s %i:\n", tf1,tf2, orients[o], d), "%.6f");
+	  //write_matrix(stdout, flank_dimer_PWM[r][o][d], to_string("Flank dimer case matrix %i-%i %s %i:\n", tf1,tf2, orients[o], d), "%.6f");
 	}
       }
     
