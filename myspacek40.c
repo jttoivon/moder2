@@ -7,6 +7,24 @@
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #define MIN(a,b) (((a)>(b))?(b):(a))
 
+/*
+const char* light_gray = "#B0C4DE";
+const char* dark_gray = "#A0B4CE";
+const char* light_red = "#DFAEDF";
+const char* dark_red = "#CFA2CF";
+const char* light_blue = "#B0C4DE";
+const char* dark_blue = "#A0B4CE";
+*/
+
+const char* light_gray = "#BFBFBF";
+const char* dark_gray  = "#7F7F7F";
+const char* light_red  = "#FDA9CF";
+const char* dark_red   = "#F26E97";
+const char* light_blue = "#B4C7E7";
+const char* dark_blue  = "#8FAADC";
+
+
+int show_deviation_from_pwm=0;  // In ADM plots, draws the very dark blue or gold edges
 char *VERSION = "spacek40 v0.173 FEB 22 2015";
 /* multinomial 2 bug fixed */
 /* from 0.144 lower memory use for kmer counting */
@@ -1192,17 +1210,22 @@ short int Svg_riverlake_logo(char *filename, long int offset, long int yoffset, 
 		     (*a).mononuc_fraction[second][pwm_position + 1]) * (*a).mononuc_fraction[first][pwm_position] * 2; // KERROIN 2 TÄYSIN TURHA
 
 		/* DRAWS WIDER RIVER */
-		width = (*a).mononuc_fraction[second][pwm_position + 1] * (*a).mononuc_fraction[first][pwm_position] * max_riverwidth;   // KULTA
-		if (tot_deviation >= 0)
+		if (tot_deviation >= 0 || ! show_deviation_from_pwm) {
 		  width = (*a).fraction[first * 4 + second][pwm_position] * (*a).mononuc_fraction[first][pwm_position] * max_riverwidth; // HARMAA
+		}
+		else {
+		  width = (*a).mononuc_fraction[second][pwm_position + 1] * (*a).mononuc_fraction[first][pwm_position] * max_riverwidth;   // KULTA
+		}
 		fprintf(outfile, "<g><title>observed %.2f expected %.2f</title><line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" ",
 			(*a).fraction[first * 4 + second][pwm_position] * (*a).mononuc_fraction[first][pwm_position],
 			(*a).mononuc_fraction[second][pwm_position + 1] * (*a).mononuc_fraction[first][pwm_position],
 			(float)pwm_position * nucleotide_width + offset + max_radius, starty,
 			(float)(pwm_position + 1) * nucleotide_width + offset + max_radius, endy);
 		/* SETS WIDER RIVER COLOR AND DASH */
-		rivercolor = "#A0B4CE";                                                                                                  // BLUEISH GRAY
-		if (tot_deviation < 0) {
+		if (tot_deviation >= 0 || ! show_deviation_from_pwm) {
+		  rivercolor = dark_gray;
+		}
+		else {
 		  rivercolor = "gold";
 		  fprintf(outfile, "stroke-dasharray=\"2,2\" stroke-opacity=\"0.25\" ");
 		}
@@ -1210,24 +1233,25 @@ short int Svg_riverlake_logo(char *filename, long int offset, long int yoffset, 
 		fprintf(outfile, "stroke = \"%s\" stroke-width = \"%f\"/></g>\n", rivercolor, width);
 
 		/* DRAWS DEEPER RIVER */
-		width = (tot_deviation / 2) * max_riverwidth;                                                                            // SININEN
-		if (tot_deviation < 0)
-		  width = (*a).fraction[first * 4 + second][pwm_position] * (*a).mononuc_fraction[first][pwm_position] * max_riverwidth; // HARMAA
-		fprintf(outfile, "<g><title>observed %.2f expected %.2f</title><polyline points =\"%.2f,%.2f %.2f,%.2f\" ",
-			(*a).fraction[first * 4 + second][pwm_position] * (*a).mononuc_fraction[first][pwm_position],
-			(*a).mononuc_fraction[second][pwm_position + 1] * (*a).mononuc_fraction[first][pwm_position],
-			(float)pwm_position * nucleotide_width + offset + max_radius, starty,
-			(float)(pwm_position + 1) * nucleotide_width + offset + max_radius, endy);
-		/* SETS DEEPER RIVER COLOR */
-		printf("\n**Total deviation at dinucleotide %c%c is %.2f", forward[first], forward[second], tot_deviation);
-		rivercolor = "blue";
-		if (tot_deviation < 0)
-		  rivercolor = "#A0B4CE";
-		// if (tot_deviation > 0.50) rivercolor = "#00A4BE";
-		// if (tot_deviation < -0.25) rivercolor = "lemonchiffon";
-		// if (tot_deviation < -0.50) rivercolor = "gold";
-		fprintf(outfile, "fill = \"none\" stroke = \"%s\" stroke-width = \"%f\"/></g>\n", rivercolor, width);
-
+		if (show_deviation_from_pwm) {
+		  if (tot_deviation < 0)
+		    width = (*a).fraction[first * 4 + second][pwm_position] * (*a).mononuc_fraction[first][pwm_position] * max_riverwidth; // HARMAA
+		  else
+		    width = (tot_deviation / 2) * max_riverwidth;                                                                          // SININEN
+		  fprintf(outfile, "<g><title>observed %.2f expected %.2f</title><polyline points =\"%.2f,%.2f %.2f,%.2f\" ",
+			  (*a).fraction[first * 4 + second][pwm_position] * (*a).mononuc_fraction[first][pwm_position],
+			  (*a).mononuc_fraction[second][pwm_position + 1] * (*a).mononuc_fraction[first][pwm_position],
+			  (float)pwm_position * nucleotide_width + offset + max_radius, starty,
+			  (float)(pwm_position + 1) * nucleotide_width + offset + max_radius, endy);
+		  /* SETS DEEPER RIVER COLOR */
+		  printf("\n**Total deviation at dinucleotide %c%c is %.2f", forward[first], forward[second], tot_deviation);
+		  if (tot_deviation < 0)
+		    rivercolor = dark_gray;
+		  else
+		    rivercolor = "blue";
+		  
+		  fprintf(outfile, "fill = \"none\" stroke = \"%s\" stroke-width = \"%f\"/></g>\n", rivercolor, width);
+		} // end show_deviation_from_pwm
 	      } // end if 
 	      /*else 
 	         if ((*a).fraction[first*4+second][pwm_position] * (*a).mononuc_fraction[first][pwm_position] > gray_dinucleotide_cutoff) 
@@ -1246,7 +1270,7 @@ short int Svg_riverlake_logo(char *filename, long int offset, long int yoffset, 
 	    /* PRINTS LAKES */
 	    fprintf(outfile, "<g><title>%.2f</title><circle cx=\"%.2f\" cy=\"%.2f\" r=\"%.2f\" fill=\"%s\" stroke-width=\"%.2f\"/></g>\n",
 		    order[1][first], (float)pwm_position * nucleotide_width + offset + max_radius,
-		    (float)first * nucleotide_height + yoffset + max_radius, (float)order[1][first] * max_radius, "lightsteelblue", (float)0);
+		    (float)first * nucleotide_height + yoffset + max_radius, (float)order[1][first] * max_radius, light_gray, (float)0);
 	    // font_position += (order[1][nucleotide_value] * 100);
 	    /* PRINTS OUT SCALED NUCLEOTIDE LABELS */
 	    fprintf(outfile, "<use xlink:href=\"#%c\" ", forward[(int)order[0][first]]);
@@ -1628,9 +1652,9 @@ short int Svg_riverlake_logo_jarkko_diff(char *filename, long int offset, long i
 		      (float)pwm_position * nucleotide_width + offset + max_radius, starty,
 		      (float)(pwm_position + 1) * nucleotide_width + offset + max_radius, endy);
 	      /* SETS WIDER RIVER COLOR AND DASH */
-	      const char* blueish_gray = "#A0B4CE";  // dark gray
-	      const char* dark_purple = "#CFA2CF";
-	      rivercolor = (*a).fraction[first * 4 + second][pwm_position] >= 0.0 ? blueish_gray : dark_purple;                          // BLUEISH GRAY
+	      /* const char* blueish_gray = "#A0B4CE";  // dark gray */
+	      /* const char* dark_purple = "#CFA2CF"; */
+	      rivercolor = (*a).fraction[first * 4 + second][pwm_position] >= 0.0 ? dark_blue : dark_red;                          // BLUEISH GRAY
 	      // filter=\"url(#fractalnoise)\" stroke-dasharray=\"0.25,0.75\"
 	      fprintf(outfile, "stroke = \"%s\" stroke-width = \"%f\"/></g>\n", rivercolor, width);
 
@@ -1648,13 +1672,13 @@ short int Svg_riverlake_logo_jarkko_diff(char *filename, long int offset, long i
 	  /* PRINTS LAKES */
 	  float radius = use_constant_radius ? constant_radius : (float)order[1][first] * max_radius; 
 	  float radius2 = use_constant_radius ? 0.1*constant_radius : (float)order[1][first] * max_radius;
-	  const char* light_purple = "#DFAEDF";
+	  //const char* light_purple = "#DFAEDF";
 	  fprintf(outfile, "<g><title>%.2f</title><circle cx=\"%.2f\" cy=\"%.2f\" r=\"%.2f\" fill=\"%s\" stroke-width=\"%.2f\"/></g>\n",
 		  order[1][first],
 		  (float)pwm_position * nucleotide_width + offset + max_radius,
 		  (float)first * nucleotide_height + yoffset + max_radius,
 		  fabsf(radius),
-		  radius >= 0.0 ? "lightsteelblue" : light_purple, (float)0);
+		  radius >= 0.0 ? light_blue : light_red, (float)0);
 	  // font_position += (order[1][nucleotide_value] * 100);
 	  /* PRINTS OUT SCALED NUCLEOTIDE LABELS */
 	  fprintf(outfile, "<use xlink:href=\"#%c\" ", forward[(int)order[0][first]]);
