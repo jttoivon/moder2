@@ -35,7 +35,7 @@ char *COMMAND;
 float pseudocount = 0.0001;
 short int Nlength = 20;
 short int max_Nlength = 40;
-short int max_width_of_pwm = 84;	/* Nlength * 2 + 2 */
+short int max_width_of_pwm = 400;	/* Nlength * 2 + 2 */
 long int max_number_of_sequences = 10000000;
 short int number_of_files = 2;
 double pvalue_cache[1001][1001];
@@ -597,37 +597,37 @@ long int Generate_sequence_value(char *searchstring)
 /* SUBROUTINE THAT CHECKS IF CpG DINUCLEOTIDE FREQUENCY IS DIFFERENT */
 
 void
-draw_box(FILE* outfile, int offset, int start, int end)
+draw_box(FILE* outfile, int offset, int start, int end, float nucleotide_width, double total_height)
 {
   char style[1000];
   double y1 = 0 - core_line_offset;
-  double y2 = 100 + core_line_offset;
+  double y2 = total_height + core_line_offset;
   snprintf(style, 999, "stroke:rgb(0,0,0); stroke-linecap:square; stroke-width:%i", core_line_thickness);
   /* Top line */
-  fprintf(outfile, "<line x1=\"%i\" y1=\"%.2f\" x2=\"%i\" y2=\"%.2f\" style=\"%s\" />\n",
-	  offset + 20*start, y1, offset + 20*end, y1, style);
+  fprintf(outfile, "<line x1=\"%f\" y1=\"%.2f\" x2=\"%f\" y2=\"%.2f\" style=\"%s\" />\n",
+	  offset + nucleotide_width*start, y1, offset + nucleotide_width*end, y1, style);
   /* Bottom line */
-  fprintf(outfile, "<line x1=\"%i\" y1=\"%.2f\" x2=\"%i\" y2=\"%.2f\" style=\"%s\" />\n",
-	  offset + 20*start, y2, offset + 20*end, y2, style);
+  fprintf(outfile, "<line x1=\"%f\" y1=\"%.2f\" x2=\"%f\" y2=\"%.2f\" style=\"%s\" />\n",
+	  offset + nucleotide_width*start, y2, offset + nucleotide_width*end, y2, style);
   /* Left line */
-  fprintf(outfile, "<line x1=\"%i\" y1=\"%.2f\" x2=\"%i\" y2=\"%.2f\" style=\"%s\" />\n",
-	  offset + 20*start, y1, offset + 20*start, y2, style);
+  fprintf(outfile, "<line x1=\"%f\" y1=\"%.2f\" x2=\"%f\" y2=\"%.2f\" style=\"%s\" />\n",
+	  offset + nucleotide_width*start, y1, offset + nucleotide_width*start, y2, style);
   /* Right line */
-  fprintf(outfile, "<line x1=\"%i\" y1=\"%.2f\" x2=\"%i\" y2=\"%.2f\" style=\"%s\" />\n",
-	  offset + 20*end, y1, offset + 20*end, y2, style);
+  fprintf(outfile, "<line x1=\"%f\" y1=\"%.2f\" x2=\"%f\" y2=\"%.2f\" style=\"%s\" />\n",
+	  offset + nucleotide_width*end, y1, offset + nucleotide_width*end, y2, style);
 }
 
 // draw vertical line in dashed stroke
 // draw vertical line in dashed stroke
 void
-draw_vertical_line(FILE* outfile, int offset, int pos)
+draw_vertical_line(FILE* outfile, int offset, int pos, float nucleotide_width, double total_height)
 {
   char style[1000];
   double y1 = 0 - core_line_offset;
-  double y2 = 100 + core_line_offset;
+  double y2 = total_height + core_line_offset;
   snprintf(style, 999, "stroke:rgb(0,0,0); stroke-linecap:square; stroke-width:%i; stroke-dasharray: 10;", core_line_thickness);
-  fprintf(outfile, "<line x1=\"%i\" y1=\"%.2f\" x2=\"%i\" y2=\"%.2f\" style=\"%s\" />\n",
-	  offset + 20*pos, y1, offset + 20*pos, y2, style);
+  fprintf(outfile, "<line x1=\"%f\" y1=\"%.2f\" x2=\"%f\" y2=\"%.2f\" style=\"%s\" />\n",
+	  offset + nucleotide_width*pos, y1, offset + nucleotide_width*pos, y2, style);
 }
 
 /* SUBROUTINE THAT GENERATES AN SVG LOGO FILE */
@@ -1014,17 +1014,17 @@ short int Svg_logo(char *filename, short int number_of_pwms, struct normalized_p
     int L = (w + total_core_length)/2;             // width of the SELEX sequence
     if (core_length1 > 0) {
       if (core_length2 == 0)
-	draw_box(outfile, offset, L-core_length1, L);
+	draw_box(outfile, offset, L-core_length1, L, 20, 100);
       else {
 	int start = L-total_core_length;
 	if (core_distance < 0) {
-	  draw_box(outfile, offset, start, L);
-	  draw_vertical_line(outfile, offset, start + core_length1 + core_distance);
-	  draw_vertical_line(outfile, offset, start + core_length1);
+	  draw_box(outfile, offset, start, L, 20, 100);
+	  draw_vertical_line(outfile, offset, start + core_length1 + core_distance, 20, 100);
+	  draw_vertical_line(outfile, offset, start + core_length1, 20, 100);
 	}
 	else {
-	  draw_box(outfile, offset, start, start + core_length1);            // first motif box
-	  draw_box(outfile, offset, start + core_length1 + core_distance, L);  // second motif box
+	  draw_box(outfile, offset, start, start + core_length1, 20, 100);            // first motif box
+	  draw_box(outfile, offset, start + core_length1 + core_distance, L, 20, 100);  // second motif box
 	}
       }
     }
@@ -1143,28 +1143,38 @@ short int Svg_riverlake_logo(char *filename, long int offset, long int yoffset, 
   strcpy(colors[5], "black");
 
   short int total_width = nucleotide_width * ((*a).width - 1) + 2*(offset + max_radius);
-  short int total_height = (nucleotide_height * 3 + 2*(yoffset + max_radius)) * 1.25;
+  //  short int total_height = (nucleotide_height * 3 + 2*(yoffset + max_radius)) * 1.25;
+  short int total_height = (nucleotide_height * 3 + 2*(yoffset +  max_radius)) * 1.25;
   char *font = "Courier";
   fprintf(outfile,
 	  "<?xml version=\"1.0\" standalone=\"no\"?> <!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">");
   fprintf(outfile, "<!--%s : command %s -->\n", svgsafe(VERSION), svgsafe(COMMAND));
 
   if (noname == 1) {
+    
     fprintf(outfile, "<svg ");
     //    fprintf(outfile, "%i", (*a).width);
-    fprintf(outfile, "width=\"%i\" height=\"%i\" ", total_width, total_height);   // JARKKO 26.4.2017
-    fprintf(outfile,
-	    "x=\"0\" y=\"%i\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">",
-	    300);
+    if (core_length1 > 0) {
+      double extra = core_line_thickness + core_line_offset;
+      fprintf(outfile, "width=\"%i\" height=\"%f\" ", total_width, total_height + 2*extra);   // JARKKO 26.4.2017
+      fprintf(outfile, "viewBox=\"0 %.2f %i %i\" ", -extra/2+4, total_width, total_height);
+      //      fprintf(outfile, "x=\"0\" y=\"%i\" ", 300);
+    }
+    else {
+      fprintf(outfile, "width=\"%i\" height=\"%i\" ", total_width, total_height);   // JARKKO 26.4.2017
+      fprintf(outfile, "x=\"0\" y=\"%i\" ", 300);
+    }
+    fprintf(outfile, " version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n");
   }
-
   else
     fprintf(outfile,
-	    "<svg width=\"2000\" height=\"200\" x=\"0\" y=\"%i\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">",
+	    "<svg width=\"2000\" height=\"200\" x=\"0\" y=\"%i\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">\n",
 	    300);
 
   /* SCALES SVG RIVERLAKE LOGO */
-  fprintf(outfile, "<title>%s</title><g transform=\"scale(%f,%f)\">", (*a).name, 1.0, 1.25);
+  fprintf(outfile, "<title>%s</title>\n", (*a).name);
+  fprintf(outfile, "<g transform=\"scale(%f,%f)\">\n", 1.0, 1.25);
+  total_height *= 0.8;   // scale back because above we multiplied by 1.25
 
   //fprintf(outfile, "<defs><filter id=\"fractalnoise\" in=\"SourceGraphic\"> <feTurbulence type=\"fractalNoise\" baseFrequency=\"0.4\" numOctaves=\"4\"/></filter></defs>");
   //filterUnits=\"objectBoundingBox\" x=\"0%%\" y=\"0%%\" width=\"100%%\" height=\"100%%\"
@@ -1269,14 +1279,19 @@ short int Svg_riverlake_logo(char *filename, long int offset, long int yoffset, 
 	  if (order[1][first] > 0) {
 	    /* PRINTS LAKES */
 	    fprintf(outfile, "<g><title>%.2f</title><circle cx=\"%.2f\" cy=\"%.2f\" r=\"%.2f\" fill=\"%s\" stroke-width=\"%.2f\"/></g>\n",
-		    order[1][first], (float)pwm_position * nucleotide_width + offset + max_radius,
-		    (float)first * nucleotide_height + yoffset + max_radius, (float)order[1][first] * max_radius, light_gray, (float)0);
+		    order[1][first],
+		    (float)pwm_position * nucleotide_width + offset + max_radius,  // x-center
+		    (float)first * nucleotide_height + yoffset + max_radius,       // y-center
+		    (float)order[1][first] * max_radius,                           // radius
+		    light_gray, 0.0);    
 	    // font_position += (order[1][nucleotide_value] * 100);
 	    /* PRINTS OUT SCALED NUCLEOTIDE LABELS */
 	    fprintf(outfile, "<use xlink:href=\"#%c\" ", forward[(int)order[0][first]]);
 	    fprintf(outfile, " transform=\"translate(%f,%f) scale(%f,%f)\" visibility=\"visible\" />\n",
-		    (float)pwm_position * nucleotide_width + offset + max_radius - 10 * order[1][first],
-		    (float)first * nucleotide_height + yoffset + max_radius + 10 * order[1][first], order[1][first] * 2, order[1][first] * 2);
+		    (float)pwm_position * nucleotide_width + offset + max_radius - 10 * order[1][first], // x position
+		    (float)first * nucleotide_height + yoffset + max_radius + 10 * order[1][first],      // y position
+		    order[1][first] * 2,                                                                 // x scale
+		    order[1][first] * 2);                                                                // y scale
 	  }
 
 	}
@@ -1287,6 +1302,29 @@ short int Svg_riverlake_logo(char *filename, long int offset, long int yoffset, 
 
   }  // for pwm_position
 
+  /* CORE LINE BY JARKKO TOIVONEN */
+  //  int w = (*(n[current_pwm])).width;       // width of the complete pwm (with possible flanks)
+  int w = a->width;       // width of the complete pwm (with possible flanks)
+  int total_core_length = core_length1 + core_length2 + core_distance;
+  int L = (w + total_core_length)/2;             // width of the SELEX sequence
+  if (core_length1 > 0) {
+    if (core_length2 == 0)
+      draw_box(outfile, offset, L-core_length1, L, nucleotide_width, total_height);
+    else {
+      int start = L-total_core_length;
+      if (core_distance < 0) {
+	draw_box(outfile, offset, start, L, nucleotide_width, total_height);
+	draw_vertical_line(outfile, offset, start + core_length1 + core_distance, nucleotide_width, total_height);
+	draw_vertical_line(outfile, offset, start + core_length1, nucleotide_width, total_height);
+      }
+      else {
+	draw_box(outfile, offset, start, start + core_length1, nucleotide_width, total_height);            // first motif box
+	draw_box(outfile, offset, start + core_length1 + core_distance, L, nucleotide_width, total_height);  // second motif box
+      }
+    }
+  }
+
+  
   /* PRINTS OUT NAME OF LOGO AND OTHER DATA */
   fprintf(outfile, "</g>");
   if (noname == 0) {
