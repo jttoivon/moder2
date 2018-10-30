@@ -6,12 +6,13 @@ import sys
 import re
 import subprocess
 import os
-import numpy
+import numpy as np
 import string
 import math
 import StringIO
 import matplotlib.pyplot as plt
 import matplotlib
+import heatmap
 from matplotlib import ticker
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -190,7 +191,7 @@ transform = [15, 11, 7, 3, 14, 10, 6, 2,
 def reverse_complement_adm(adm):
     k = adm.k
     i=reverse_complement_pwm(adm.initial_probabilities)
-    t = numpy.zeros((16, k-1))
+    t = np.zeros((16, k-1))
     for j in xrange(k-1):
         for ab in xrange(16):
             a = ab / 4
@@ -250,7 +251,7 @@ def readarray(lines):
         line = line.rstrip('\n')
         tmp=line.split("\t")
         result.append(tmp)
-    return numpy.array(result)
+    return np.array(result)
 
 def readmodel(x):
     if len(x)==20:
@@ -266,13 +267,13 @@ def readmodel(x):
 #        tmp=map(float,line.split('\t'))
         tmp=map(float,line.split())
         result.append(tmp)
-    return numpy.array(result)
+    return np.array(result)
 
 def right_extend_adm(adm, extension):
     assert extension >= 0
     orig_k = adm.shape[1]
     k = orig_k + extension
-    result = numpy.zeros((16,k))
+    result = np.zeros((16,k))
     result[:, 0:orig_k] = adm.representation()
     result[:, orig_k:] = 0.25
     return analyze_adm.adm(result)
@@ -281,7 +282,7 @@ def left_extend_adm(adm, extension):
     assert extension >= 0
     orig_k = adm.shape[1]
     k = orig_k + extension
-    result = numpy.zeros((16,k))
+    result = np.zeros((16,k))
     result[:, extension:] = adm.representation()
     result[4:8, extension] = result[8:12, extension] = result[12:16, extension] = result[0:4, extension]
     result[:, :extension] = 0.25
@@ -293,7 +294,7 @@ def force_adms_equal(adm1, adm2):
 
     product = adm1.representation() * adm2.representation()
 
-    r = numpy.zeros((4, k+1))
+    r = np.zeros((4, k+1))
     for a in xrange(4):
         r[a, k] = 1.0
     
@@ -303,7 +304,7 @@ def force_adms_equal(adm1, adm2):
             for b in xrange(4):
                 r[a, j] += product[a*4+b, j] * r[b, j+1]
 
-    result = numpy.zeros((16, k))
+    result = np.zeros((16, k))
     for j in xrange(k):
         amax = 1 if j==0 else 4
         for a in xrange(amax):
@@ -332,13 +333,13 @@ def compute_expected(pwm1, pwm2, o, d):
     fill=1.00
 
     # Left occurrence
-    result1 = numpy.empty((4, dimer_len))
+    result1 = np.empty((4, dimer_len))
     result1.fill(fill)
     for pos in xrange(0, k1):
         result1[:,pos] = m1[:,pos]
 
     # Right occurrence
-    result2 = numpy.empty((4, dimer_len))
+    result2 = np.empty((4, dimer_len))
     result2.fill(fill)
     for pos in xrange(k1+d, dimer_len):
         result2[:,pos] = m2[:,pos-(k1+d)]
@@ -361,7 +362,7 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
         try:
             flank=readmodel(find_lines(last_iteration_output, "Flank dimer case matrix %s %s %i:" % (cob, o, d), start, rows))
         except AttributeError:
-            flank=numpy.zeros(expected.shape)
+            flank=np.zeros(expected.shape)
 
     oname="observed.%s.%s.%i.%s" % (cob, o, d, motif_ending)
     ename="expected.%s.%s.%i.%s" % (cob, o, d, motif_ending)
@@ -448,12 +449,12 @@ def get_cob_case(cob, o, d, pwm1, pwm2, last_iteration_output, get_flanks):
     try:
         deviation=readmodel(find_lines(last_iteration_output, "Deviation matrix %s %s %i:" % (cob, o, d), start, rows))
     except AttributeError:
-        deviation=numpy.zeros(expected.shape)
+        deviation=np.zeros(expected.shape)
     if use_adm:
         observed = expected.representation() + deviation
     else:
         observed = expected + deviation
-    g = numpy.vectorize(lambda x : max(x,0)) # This cuts negative values to 0
+    g = np.vectorize(lambda x : max(x,0)) # This cuts negative values to 0
     observed = normalize(g(observed)) # Because precision of (about) 6 digits is used, some elements can be slightly negative
     if use_adm:
         observed = analyze_adm.adm(observed)
@@ -785,7 +786,7 @@ def myrun(command):
 
 
 def myargmax(a):
-    return numpy.unravel_index(numpy.argmax(a), a.shape)
+    return np.unravel_index(np.argmax(a), a.shape)
 
 
 def get_monomers(factors, results_output, last_iteration_output):
@@ -829,8 +830,8 @@ def get_dimer_cases(results_output, iterations, last_iteration_output):
         dmax[i] = int(temp[0,-1])
         cob_tables[i] = temp[1:,1:].astype(float)  # Remove column and row names
         #print cob_tables[i]
-        cob_ic_tables[i]=numpy.zeros(cob_tables[i].shape)
-        cob_length_tables[i]=numpy.zeros(cob_tables[i].shape)  # Lengths of corresponding dimeric WPM
+        cob_ic_tables[i]=np.zeros(cob_tables[i].shape)
+        cob_length_tables[i]=np.zeros(cob_tables[i].shape)  # Lengths of corresponding dimeric WPM
         #print len(cob_ic_tables)
         #print cob_ic_tables[i].shape
         #overlap_table = cob_tables[i][:,0:-dmin[i]] # Only the overlap area of the cob table
@@ -871,7 +872,7 @@ def get_dimer_cases(results_output, iterations, last_iteration_output):
             for row in xrange(temp.shape[0]):
                 f.write("\t".join(temp[row,:]))
                 f.write("\n")
-        g = numpy.vectorize(lambda x,y,z : "Lambda %f&#010;IC: %f&#010;Length: %i" % (x,y,z))
+        g = np.vectorize(lambda x,y,z : "Lambda %f&#010;IC: %f&#010;Length: %i" % (x,y,z))
         cob_titles[i] = g(cob_tables[i], cob_ic_tables[i], cob_length_tables[i])
         best_cases_titles[i]=cob_titles[i][oi, di]
 
@@ -888,99 +889,105 @@ def create_monomer_logos(factors, factor_lengths):
             myrun("myspacek40 %s -core=%i --logo %s.%s %s.svg" % (myspacek_flags, factor_lengths[i], g, motif_ending, g))
             myrun("myspacek40 %s -core=%i --logo %s-rc.%s %s-rc.svg" % (myspacek_flags, factor_lengths[i], g, motif_ending, g))
 
-def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
-    new_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-        'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=minval, b=maxval),
-        cmap(numpy.linspace(minval, maxval, n)))
-    return new_cmap
+# def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
+#     new_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
+#         'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=minval, b=maxval),
+#         cmap(np.linspace(minval, maxval, n)))
+#     return new_cmap
 
 
-def float_to_string(f):
-    if -0.0002 <= f <= 0.0:
-        return "-"
-    else:
-        return '%.0f' % (f*1000)
+# def float_to_string(f):
+#     if -0.0002 <= f <= 0.0:
+#         return "-"
+#     else:
+#         return '%.0f' % (f*1000)
     
-def make_heatmap(data, drange, title="", outputfile="", fontsize=32.0):
-#    plt.style.use('ggplot')
+# def make_heatmap(data, drange, orients, fmt, title="", outputfile="", fontsize=32.0):
+# #    plt.style.use('ggplot')
     
-    linewidth=1.0
-#    fontsize=32.0
-    labelfontsize=fontsize*0.6
-    tickfontsize=fontsize*0.6
-#    rcParams['axes.titlepad'] = 20     # Padding between the title and the plot, requires recent version of matplotlib
+#     linewidth=1.0
+# #    fontsize=32.0
+#     labelfontsize=fontsize*0.6
+#     tickfontsize=fontsize*0.6
+# #    rcParams['axes.titlepad'] = 20     # Padding between the title and the plot, requires recent version of matplotlib
     
-    width=data.shape[1]
-    height=data.shape[0]  # number of orientations
-    fig = plt.figure()
-    ax = plt.subplot(111)
-    for y in range(data.shape[0]):
-        for x in range(data.shape[1]):
-    #        plt.text(x + 0.5, y + 0.5, '%.4f' % data[y, x],
-            plt.text(x, y, float_to_string(data[y, x]),
-                     horizontalalignment='center',
-                     verticalalignment='center',
-                     )
+#     width=data.shape[1]
+#     height=data.shape[0]  # number of orientations
+#     fig = plt.figure()
+#     ax = plt.subplot(111)
+#     for y in range(data.shape[0]):
+#         for x in range(data.shape[1]):
+#     #        plt.text(x + 0.5, y + 0.5, '%.4f' % data[y, x],
+#             plt.text(x, y, float_to_string(data[y, x]),
+#                      horizontalalignment='center',
+#                      verticalalignment='center',
+#                      )
 
-    #plt.colorbar(heatmap)
-    #cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["red","violet","blue"])
-#    white_colors = [(1, 1, 1), (1, 1, 1)]
-#    white_cm = matplotlib.colors.LinearSegmentedColormap.from_list("valko", white_colors, N=256)
+#     #plt.colorbar(heatmap)
+#     #cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["red","violet","blue"])
+# #    white_colors = [(1, 1, 1), (1, 1, 1)]
+# #    white_cm = matplotlib.colors.LinearSegmentedColormap.from_list("valko", white_colors, N=256)
                     
-    cmap = plt.get_cmap('YlOrRd')
-    #m=np.max(data)
-#    subcmap = cmap
-    subcmap = truncate_colormap(cmap, 0.0, 0.8)
-    subcmap.set_under(color=u'white', alpha=None)
-#    constant_color = plt.cm.Blues(np.linspace(1, 1, 2))
-    # stacking the 2 arrays row-wise
-#    colors1 = white_cm(numpy.linspace(0, 1, 256))
-#    colors2 = plt.cm.Reds(np.linspace(0, 1, 256))
-#    colors2 = subcmap(numpy.linspace(0, 1, 256))
-#    combined_colors = numpy.vstack((colors1, colors2))
-#    combined_cmap = matplotlib.colors.LinearSegmentedColormap.from_list('colormap', combined_colors)
-#    combined_cmap = truncate_colormap(combined_cmap, -0.0002, 1.0)
-    plt.imshow(data, vmin=0.0, cmap=subcmap, interpolation='nearest', aspect='equal')
-    divider = make_axes_locatable(ax)
-    if title:
-        plt.title(title, fontsize=fontsize)
+#     cmap = plt.get_cmap('YlOrRd')
+#     #m=np.max(data)
+# #    subcmap = cmap
+#     subcmap = truncate_colormap(cmap, 0.0, 0.8)
+#     subcmap.set_under(color=u'white', alpha=None)
+# #    constant_color = plt.cm.Blues(np.linspace(1, 1, 2))
+#     # stacking the 2 arrays row-wise
+# #    colors1 = white_cm(np.linspace(0, 1, 256))
+# #    colors2 = plt.cm.Reds(np.linspace(0, 1, 256))
+# #    colors2 = subcmap(np.linspace(0, 1, 256))
+# #    combined_colors = np.vstack((colors1, colors2))
+# #    combined_cmap = matplotlib.colors.LinearSegmentedColormap.from_list('colormap', combined_colors)
+# #    combined_cmap = truncate_colormap(combined_cmap, -0.0002, 1.0)
+    
+# #    rcParams['lines.solid_joinstyle'] = "round"
+#     plt.imshow(data, vmin=0.0, cmap=subcmap, interpolation='nearest', aspect='equal')
+#     divider = make_axes_locatable(ax)
+#     if title:
+#         plt.title(title, fontsize=fontsize)
 
-    plt.yticks(fontsize=tickfontsize)
-    ax.yaxis.set_ticks(numpy.arange(0,height,1))
-    number_of_orientations=data.shape[0]
-    ax.set_yticklabels(orients[0:number_of_orientations])
-    plt.xticks(fontsize=tickfontsize)
-    ax.xaxis.set_ticks(numpy.arange(0,width,1))
-    ax.set_xticklabels(["%i" % i for i in drange])
-    plt.tick_params(axis='both', which='both', bottom='off', top='off', right='off', left='off')
+#     plt.yticks(fontsize=tickfontsize)
+#     ax.yaxis.set_ticks(np.arange(0,height,1))
+#     number_of_orientations=data.shape[0]
+#     ax.set_yticklabels(orients[0:number_of_orientations])
+#     plt.xticks(fontsize=tickfontsize)
+#     ax.xaxis.set_ticks(np.arange(0,width,1))
+#     ax.set_xticklabels(["%i" % i for i in drange])
+#     plt.tick_params(axis='both', which='both', bottom='off', top='off', right='off', left='off')
 
-    # These lines will create grid in minor tick, that is, between cells
-    ax.set_xticks(numpy.arange(-0.5, width, 1), minor=True);
-    ax.set_yticks(numpy.arange(-0.5, height, 1), minor=True);
-    # Gridlines based on minor ticks
-    ax.grid(which='minor', color='black', linestyle='-', linewidth=1)
+#     # These lines will create grid in minor tick, that is, between cells
+#     ax.set_xticks(np.arange(-0.5, width, 1), minor=True);
+#     ax.set_yticks(np.arange(-0.5, height, 1), minor=True);
+#     # Gridlines based on minor ticks
+#     ax.grid(which='minor', color='black', linestyle='-', linewidth=1, solid_joinstyle='round')
 
-    cax = divider.append_axes("right", size="5%", pad=0.05)
-    try:
-        cb=plt.colorbar(cax=cax)
-        tick_locator = ticker.MaxNLocator(nbins=5)
-        cb.locator = tick_locator
-        ##cb.ax.yaxis.set_major_locator(matplotlib.ticker.AutoLocator())                                             
-        cb.update_ticks()
-        temp=cax.get_yticklabels()
-        for i,t in enumerate(temp):
-            #print temp[i].get_text()
-#            temp[i].set_text("%.0f" % (float(temp[i].get_text())*1000))   # Multiply values in colorbar by 1000
-            temp[i] = "%.0f" % (float(temp[i].get_text())*1000)   # Multiply values in colorbar by 1000
-        cax.set_yticklabels(temp, fontsize=tickfontsize)
-    except UnicodeEncodeError:   # If labels contain unicode minus, then something went wrong and better not show colorbar
-        cb.remove()
-        pass
-#    cax.yaxis.set_tick_params(labelright=False)   # No tick labels in colorbar
-    if outputfile:
-        plt.savefig(outputfile, format="svg", bbox_inches="tight")
-    else:
-        pass#plt.show()
+#     cax = divider.append_axes("right", size="5%", pad=0.05)
+#     try:
+#         cb=plt.colorbar(cax=cax)
+#         tick_locator = ticker.MaxNLocator(nbins=5)
+#         cb.locator = tick_locator
+#         ##cb.ax.yaxis.set_major_locator(matplotlib.ticker.AutoLocator())
+#         cb.update_ticks()
+#         temp=cax.get_yticklabels()
+#         for i,t in enumerate(temp):
+#             #print temp[i].get_text()
+# #            temp[i].set_text("%.0f" % (float(temp[i].get_text())*1000))   # Multiply values in colorbar by 1000
+#             temp[i] = "%.0f" % (float(temp[i].get_text())*1000)   # Multiply values in colorbar by 1000
+#             #print temp[i].get_text()
+        
+#         #cb.update_ticks()
+#         cax.set_yticklabels(temp, fontsize=tickfontsize)
+#     except UnicodeEncodeError:   # If labels contain unicode minus, then something went wrong and better not show colorbar
+#         cb.remove()
+#         #print "Unicode error!"
+#         pass
+# #    cax.yaxis.set_tick_params(labelright=False)   # No tick labels in colorbar
+#     if outputfile:
+#         plt.savefig(outputfile, format=fmt, bbox_inches="tight")
+#     else:
+#         pass#plt.show()
 
             
 def visualize_cobs(cobs, cob_codes):            
@@ -988,11 +995,11 @@ def visualize_cobs(cobs, cob_codes):
         f = "cob.%s" % code
         #    myrun('heatmap.R -z 8 -c -s -f "%%.3f" -t %s %s.cob' % (f, f))
         data=cob_tables[i]
-        vfunc = numpy.vectorize(lambda x: x if x > 0.0 else -0.0002)
+        vfunc = np.vectorize(lambda x: x if x > 0.0 else -0.0002)
         data=vfunc(data)
         drange = range(dmin[i], dmax[i]+1)
         print "Creating heatmap for %s" % cob
-        make_heatmap(data, drange, cob, "%s.svg" % f, fontsize=20.0)
+        heatmap.make_heatmap(data, drange, orients, "svg", cob, "%s.svg" % f, fontsize=20.0)
 #        myrun('heatmap.R -z 12 -c -s -i -t %s %s.cob 2> /dev/null > /dev/null' % (cob, f))
 #        myrun("sed -i '/page/d' %s.svg" % f)  # R or its pheatmap package make svg files corrupt. This fixes it.
     #    myrun('heatmap.R -z 8 -c -s -f "%%.3f" -t %s %s.cob' % (f, f))
@@ -1075,7 +1082,7 @@ def create_graphs(full_output, factors, cobs, cob_codes):
         cols=len(factors+cobs)
         temp=extract_list(r"Fixed distances are \[(.+)\]", full_output)
         rows=len(temp)
-        a=numpy.empty((rows,cols))
+        a=np.empty((rows,cols))
         for r,t in enumerate(temp):
             for c,x in enumerate(t.split(", ")):
                 a[r,c]=float(x)
@@ -1097,22 +1104,22 @@ def create_graphs(full_output, factors, cobs, cob_codes):
         temp=extract_list(r"Intermediate fixed lambdas are \[(.+)\]", full_output)
         atemp=[t.split(", ") for t in temp]
         #print atemp
-        a=numpy.array(atemp)
+        a=np.array(atemp)
         btemp=[]
         for cob in cob_codes:
             #print "Cob is %s" % cob
             temp=extract_list(r"Intermediate sum of dimer lambdas %s is (.+)" % cob, full_output)
             btemp.append(temp)
     #    print btemp
-        b=numpy.transpose(numpy.array(btemp))
+        b=np.transpose(np.array(btemp))
         temp=extract_list(r"Intermediate background lambda is (.+)", full_output)
-        c=numpy.transpose(numpy.array([temp]))
+        c=np.transpose(np.array([temp]))
         f.write("%s\n" % ("\t".join(lambdas_header)))
 
         if len(cob_codes) > 0:
-            d=numpy.concatenate((a,b,c), 1)
+            d=np.concatenate((a,b,c), 1)
         else:
-            d=numpy.concatenate((a,c), 1)
+            d=np.concatenate((a,c), 1)
         #printmatrix(d, format="%s")
         printmatrix(d, f, headers=[], colheaders=[], format="%s", sep="\t")
         lambdas_data=d.tolist()
@@ -1129,9 +1136,21 @@ def create_graphs(full_output, factors, cobs, cob_codes):
     # myrun('plot.R -c -s -b 1.0 -h 0.01 -x iterations -y distance -t "%s distances" distances.txt' % name)
     # myrun('plot.R -c -s -b 1.0 -x iterations -y lambda -t "%s lambdas" lambdas.txt' % name)
 
-
-
-
+def get_start_positions(last_iteration_output, factors):
+    lines = last_iteration_output.split('\n')
+    for i, line in enumerate(lines):
+        if "Monomer 0 start position distribution (forward):" in line:
+            break
+    if i < len(lines)-1:
+        global start_positions
+        start_positions = True
+        temp = lines[i+1:i+len(factors)*4:2]
+        temp = map(lambda x : x.strip('[]'), temp)
+        temp = map(lambda x : x.replace(", ", "\t"), temp)
+        with open("start_positions.tsv", "w") as f:
+            for line in temp:
+                f.write("%s\n" % line)
+            
 
 # This is to locate helper scripts in the same directory as this file
 execdir=os.path.abspath(os.path.dirname(sys.argv[0]))
@@ -1161,6 +1180,7 @@ except getopt.GetoptError as e:
 optdict = dict(optlist)
 args = [sys.argv[0]]+ args
 debug=False
+start_positions = False
 
 #print optdict
 for o, a in optlist:
@@ -1292,11 +1312,12 @@ create_monomer_logos(factors, monomer_lengths)
 visualize_cobs(cobs, cob_codes)
 if debug:
     create_graphs(full_output, factors, cobs, cob_codes)
-
+    get_start_positions(last_iteration_output, factors)
+    
 # temp=extract_list(r"Background distribution \(intermed\): \[(.+)\]", full_output)
 # bg=[x.split(", ") for x in temp]
 # with open("background.txt", "w") as f:
-#     bg_t=numpy.array(bg).transpose()
+#     bg_t=np.array(bg).transpose()
 #     for t in bg_t: 
 #         f.write("%s\n" % ("\t".join(t)))
 # myrun('myspacek40 --logo -paths background.txt background.svg')
@@ -1521,7 +1542,7 @@ for i, cob_factor in enumerate(cob_factors):
     # dmin[i] = int(temp[0,1])
     # dmax[i] = int(temp[0,-1])
     # cob_tables[i] = temp[1:,1:].astype(float)  # Remove column and row names
-    # g = numpy.vectorize(lambda x : "Lambda %f" % x)
+    # g = np.vectorize(lambda x : "Lambda %f" % x)
     # cob_titles[i] = g(cob_tables[i])
     link_table = []
     link_expected_table = []
