@@ -34,6 +34,7 @@
 #define PACKAGE_VERSION "unknown"
 #endif
 
+#include "my_assert.hpp"
 #include "type.hpp"
 #include "iupac.hpp"
 #include "matrix.hpp"
@@ -128,7 +129,7 @@ double cob_cutoff = 0.001;  // if an element in a cob table is smaller than this
 bool adjust_seeds = true;
 bool use_multinomial=true;
 bool local_debug = true;
-bool extra_debug = true;   // Even more printing
+bool extra_debug = false;   // Even more printing
 bool allow_extension = false;
 bool use_dimers = true;
 bool seeds_given = false;
@@ -1212,7 +1213,7 @@ get_new_spaced_dimer_weights(int j1, int dir, double z, int o, int d,
   assert(seed1.length() == w1);
   assert(seed2.length() == w2);
   assert(z >= 0);
-  assert(z < 1.0);
+  my_assert2(z, 1.0, <=);
   assert(w1 == weights1.get_length());
   assert(w2 == weights2.get_length());
   const std::string& line = dir == 1 ? line_orig : line_rev_orig;
@@ -2097,6 +2098,15 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
   boost::multi_array<int, 2> fixed_m(boost::extents[lines][fixed_p]);
   std::vector<int> L(lines);
   
+  int Lmin = std::numeric_limits<int>::max();
+  int Lmax = std::numeric_limits<int>::min();
+  for (int i=0; i < lines; ++i) {
+    L[i] = sequences[i].length();
+    if (L[i] < Lmin)
+      Lmin = L[i];
+    if (L[i] > Lmax)
+      Lmax = L[i];
+  }
   
   std::vector<std::vector<double> > pred_flank(fixed_p);
   std::vector<std::vector<double> > succ_flank(fixed_p);
@@ -2130,15 +2140,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
     //
     //////////////
 
-    int Lmin = std::numeric_limits<int>::max();
-    int Lmax = std::numeric_limits<int>::min();
-    for (int i=0; i < lines; ++i) {
-      L[i] = sequences[i].length();
-      if (L[i] < Lmin)
-	Lmin = L[i];
-      if (L[i] > Lmax)
-	Lmax = L[i];
-    }
 
     myaccumulate<int> acc(0, static_cast<func_ptr>(std::max));   // The cast is needed because std::max is overloaded
 
@@ -2574,7 +2575,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
       //minimum_distance_for_learning 
 
-      std::vector<bool> is_fixed_pwm_part_of_cob(fixed_p, false);
+      std::vector<bool> is_fixed_pwm_part_of_cob(fixed_p, false); // essentially, is pwm part of strong cob
       for (int r=0; r < my_cob_params.size(); ++r) {
 	using boost::multi_array_types::index_range;
 	int dmax = my_cob_params[r].dmax;
@@ -3486,16 +3487,45 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       convergence_criterion_reached = 
 	max_element(fixed_dist) < epsilon and deviation_converged;
 
-      if ((convergence_criterion_reached or round+1 >= max_iter) and get_full_flanks)
-	boost::tie(flank_fixed_PWM, flank_dimer_PWM) =
-	  get_models_with_flanks(sequences,
-				 sequences_rev,
-				 fixed_seed,
-				 fixed_w,
-				 Lmax,
-				 fixed_m,
-				 my_cob_params,
-				 fixed_Z);
+      if (convergence_criterion_reached or round+1 >= max_iter) {
+
+	if (Lmin == Lmax) {
+	  std::vector<std::vector<double> > start_positions_forward;
+	  std::vector<std::vector<double> > start_positions_backward;
+	  for (int k=0; k < fixed_p; ++k) {
+	    start_positions_forward.push_back(std::vector<double>(fixed_m[0][k]));
+	    start_positions_backward.push_back(std::vector<double>(fixed_m[0][k]));
+	  }
+	  for (int i=0; i < lines; ++i) {
+	    for (int k=0; k < fixed_p; ++k) {
+	      for (int j=0; j < fixed_m[0][k]; ++j) {
+		start_positions_forward[k][j] += fixed_Z[i][k][0][j];
+		start_positions_backward[k][j] += fixed_Z[i][k][1][j];
+	      }
+	    }
+	  }
+	  for (int k=0; k < fixed_p; ++k) {
+	    printf("Monomer %i start position distribution (forward):\n", k);
+	    normalize_vector(start_positions_forward[k]);
+	    printf("%s\n", print_vector(start_positions_forward[k]).c_str());
+	    printf("Monomer %i start position distribution (backward):\n", k);
+	    normalize_vector(start_positions_backward[k]);
+	    printf("%s\n", print_vector(start_positions_backward[k]).c_str());
+	  }
+	}
+
+	if (get_full_flanks) {
+	  boost::tie(flank_fixed_PWM, flank_dimer_PWM) =
+	    get_models_with_flanks(sequences,
+				   sequences_rev,
+				   fixed_seed,
+				   fixed_w,
+				   Lmax,
+				   fixed_m,
+				   my_cob_params,
+				   fixed_Z);
+	}
+      }
 
       if (local_debug) {
  	printf("---------------------------------------------------\n");
