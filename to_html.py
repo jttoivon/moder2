@@ -999,7 +999,7 @@ def visualize_cobs(cobs, cob_codes):
         data=vfunc(data)
         drange = range(dmin[i], dmax[i]+1)
         print "Creating heatmap for %s" % cob
-        heatmap.make_heatmap(data, drange, orients, "svg", cob, "%s.svg" % f, fontsize=20.0)
+        heatmap.make_heatmap(data, drange, orients, "svg", cob, "%s.svg" % f, fontsize=20.0, cell_labels=True)
 #        myrun('heatmap.R -z 12 -c -s -i -t %s %s.cob 2> /dev/null > /dev/null' % (cob, f))
 #        myrun("sed -i '/page/d' %s.svg" % f)  # R or its pheatmap package make svg files corrupt. This fixes it.
     #    myrun('heatmap.R -z 8 -c -s -f "%%.3f" -t %s %s.cob' % (f, f))
@@ -1150,7 +1150,14 @@ def get_start_positions(last_iteration_output, factors):
         with open("start_positions.tsv", "w") as f:
             for line in temp:
                 f.write("%s\n" % line)
-            
+        temp = map(lambda x : x.split(), temp)
+        data = np.array(temp).astype(float)
+        ylabels=[]
+        for i, f in enumerate(factors):
+            ylabels.append("Monomer %i (forward)" % i)
+            ylabels.append("Monomer %i (backward)" % i)
+        xlabels = range(0, data.shape[1])
+        heatmap.make_heatmap(data, xlabels, ylabels, "svg", "Monomer start positions", "start_positions.svg", fontsize=20.0)
 
 # This is to locate helper scripts in the same directory as this file
 execdir=os.path.abspath(os.path.dirname(sys.argv[0]))
@@ -1485,10 +1492,15 @@ if get_flanks:
 # Print behaviour as function of iterations
 
 if debug:
-    f.write('<div id="iterations">')
+    f.write('<div id="iterations">\n')
     #(files, headers=[], links=[], f, titles=[])
     make_table_v(["distances.svg", "ics.svg", "lambdas.svg", "mll.svg", "parameters.svg"], f=f)
-    f.write("</div>")
+    f.write("</div>\n")
+
+    if start_positions:
+        f.write('<div id="startpositions">\n')
+        f.write('<img src="start_positions.svg" />\n')
+        f.write("</div>\n")
 
 #print '<div id="background">'
 #print '<p><em>Note.</em> Background model is a multinomial distribution for mononucleotides. In the below logo each position gives the background distribution of the corresponding EM-iteration.</p>'
