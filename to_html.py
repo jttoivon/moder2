@@ -651,7 +651,7 @@ def get_lambda_table(results_output):
     #     [ ["Background", 0.0], ["Sum", 0.0] ]
 
     bg_lambda = float(extract(r"Background lambda is (.*)", results_output))
-    temp = extract(r"Fixed lambdas are (.*)", results_output) 
+    temp = extract(r"Monomer lambdas are (.*)", results_output) 
     monomer_lambdas = eval(temp)
     # for i,dummy in enumerate(factors):
     #     lambda_table[i][1] = monomer_lambdas[i]
@@ -696,9 +696,9 @@ def get_info(results_output, full_output, cob_codes):
 
 
 def get_seeds(full_output, number_of_factors):
-    temp=extract_list(r"Fixed seeds are \[(.+)\]", full_output)
+    temp=extract_list(r"Monomer seeds are \[(.+)\]", full_output)
     temp2=[x.split(", ") for x in temp]
-    seeds_begin = extract(r"Initial fixed seeds are \[(.+)\]", full_output).split(", ")
+    seeds_begin = extract(r"Initial monomer seeds are \[(.+)\]", full_output).split(", ")
     #seeds_begin = ["GACCGGAAGCG", "CACCTG"]
 
     try:
@@ -796,7 +796,7 @@ def get_monomers(factors, results_output, last_iteration_output):
 #    start = 1 if use_adm else 2
     start = 1
     for i, factor in enumerate(factors):
-        lines=find_lines(results_output, "Fixed matrix %i:" % i, start, model_rows)
+        lines=find_lines(results_output, "Monomer matrix %i:" % i, start, model_rows)
 #        with open("%s.pfm" % factor, "w") as f:
         with open("monomer.%i.%s" % (i,motif_ending), "w") as f:
             f.writelines(lines)
@@ -807,7 +807,7 @@ def get_monomers(factors, results_output, last_iteration_output):
         factor_lengths[i] = pwm.shape[1]
         factor_ics[i] = matrix_information_content(pwm)
         if get_flanks:
-            lines=find_lines(last_iteration_output, "Flank fixed matrix %i:" % i, start, model_rows)
+            lines=find_lines(last_iteration_output, "Flank monomer matrix %i:" % i, start, model_rows)
             with open("flank-%i.%s" % (i,motif_ending), "w") as f:
                 f.writelines(lines)
             flank_pwm=readmodel(lines)
@@ -1066,7 +1066,7 @@ def create_graphs(full_output, factors, cobs, cob_codes):
             parameters_data.append(t)
             f.write("%s\n" % t)
 
-    temp=extract_list(r"Intermediate average information content of fixed models: \[(.+)\]", full_output)
+    temp=extract_list(r"Intermediate average information content of monomer models: \[(.+)\]", full_output)
     ics_header=factors
     ics_data=[]
     with open("ics.txt", "w") as f:
@@ -1080,7 +1080,7 @@ def create_graphs(full_output, factors, cobs, cob_codes):
     distances_data=[]
     with open("distances.txt", "w") as f:
         cols=len(factors+cobs)
-        temp=extract_list(r"Fixed distances are \[(.+)\]", full_output)
+        temp=extract_list(r"Monomer distances are \[(.+)\]", full_output)
         rows=len(temp)
         a=np.empty((rows,cols))
         for r,t in enumerate(temp):
@@ -1101,7 +1101,7 @@ def create_graphs(full_output, factors, cobs, cob_codes):
     lambdas_header=factors+cobs+["bg"]
     lambdas_data=[]
     with open("lambdas.txt", "w") as f:
-        temp=extract_list(r"Intermediate fixed lambdas are \[(.+)\]", full_output)
+        temp=extract_list(r"Intermediate monomer lambdas are \[(.+)\]", full_output)
         atemp=[t.split(", ") for t in temp]
         #print atemp
         a=np.array(atemp)
