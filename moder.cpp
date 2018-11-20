@@ -2576,17 +2576,22 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       //minimum_distance_for_learning 
 
       std::vector<bool> is_monomer_pwm_part_of_cob(monomer_p, false); // essentially, is pwm part of strong cob
+      std::vector<double> monomer_dimer_proportions(monomer_p, 0.0);  // Sum of dimer lambdas with d >= \delta
+                                                                      // that involves a certain monomer
       for (int r=0; r < my_cob_params.size(); ++r) {
 	using boost::multi_array_types::index_range;
 	int dmax = my_cob_params[r].dmax;
 	if (dmax >= minimum_distance_for_learning) {
 	  boost::multi_array<double, 2> subarray =
 	    my_cob_params[r].dimer_lambdas[ boost::indices[index_range()][(long int)minimum_distance_for_learning <= index_range()] ];
-	  if (sum(subarray) >= learning_fraction) {
-	    is_monomer_pwm_part_of_cob[my_cob_params[r].tf1] = true;
-	    is_monomer_pwm_part_of_cob[my_cob_params[r].tf2] = true;
-	  }
+	  double s = sum(subarray);
+	  monomer_dimer_proportions[my_cob_params[r].tf1] += s;
+	  monomer_dimer_proportions[my_cob_params[r].tf2] += s;
 	}
+      }
+      for (int k=0; k < monomer_p; ++k) {
+	if (monomer_dimer_proportions[k] >= learning_fraction)
+	  is_monomer_pwm_part_of_cob[k] = true;
       }
       printf("Is monomer pwm learnt purely modularly: %s\n", print_vector(is_monomer_pwm_part_of_cob).c_str());
 
