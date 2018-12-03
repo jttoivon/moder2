@@ -35,7 +35,7 @@ def myfloat(s):
     r = "".join(map(lambda x : "-" if x == u'\u2212' else x, s))
     return float(r)
 
-def make_heatmap(data, drange, fmt, title="", outputfile="", fontsize=32.0):
+def make_heatmap(data, xlabels, ylabels, fmt, title="", outputfile="", fontsize=32.0, cell_labels=False):
 #    plt.style.use('ggplot')
     
     linewidth=1.0
@@ -48,32 +48,19 @@ def make_heatmap(data, drange, fmt, title="", outputfile="", fontsize=32.0):
     height=data.shape[0]  # number of orientations
     fig = plt.figure()
     ax = plt.subplot(111)
-    for y in range(data.shape[0]):
-        for x in range(data.shape[1]):
-    #        plt.text(x + 0.5, y + 0.5, '%.4f' % data[y, x],
-            plt.text(x, y, float_to_string(data[y, x]),
-                     horizontalalignment='center',
-                     verticalalignment='center',
-                     )
+    if cell_labels:
+        for y in range(data.shape[0]):
+            for x in range(data.shape[1]):
+        #        plt.text(x + 0.5, y + 0.5, '%.4f' % data[y, x],
+                plt.text(x, y, float_to_string(data[y, x]),
+                         horizontalalignment='center',
+                         verticalalignment='center',
+                         )
 
-    #plt.colorbar(heatmap)
-    #cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["red","violet","blue"])
-#    white_colors = [(1, 1, 1), (1, 1, 1)]
-#    white_cm = matplotlib.colors.LinearSegmentedColormap.from_list("valko", white_colors, N=256)
                     
     cmap = plt.get_cmap('YlOrRd')
-    #m=np.max(data)
-#    subcmap = cmap
     subcmap = truncate_colormap(cmap, 0.0, 0.8)
     subcmap.set_under(color=u'white', alpha=None)
-#    constant_color = plt.cm.Blues(np.linspace(1, 1, 2))
-    # stacking the 2 arrays row-wise
-#    colors1 = white_cm(np.linspace(0, 1, 256))
-#    colors2 = plt.cm.Reds(np.linspace(0, 1, 256))
-#    colors2 = subcmap(np.linspace(0, 1, 256))
-#    combined_colors = np.vstack((colors1, colors2))
-#    combined_cmap = matplotlib.colors.LinearSegmentedColormap.from_list('colormap', combined_colors)
-#    combined_cmap = truncate_colormap(combined_cmap, -0.0002, 1.0)
     
 #    rcParams['lines.solid_joinstyle'] = "round"
     plt.imshow(data, vmin=0.0, cmap=subcmap, interpolation='nearest', aspect='equal')
@@ -83,17 +70,18 @@ def make_heatmap(data, drange, fmt, title="", outputfile="", fontsize=32.0):
 
     plt.yticks(fontsize=tickfontsize)
     ax.yaxis.set_ticks(np.arange(0,height,1))
-    number_of_orientations=data.shape[0]
-    if use_rna:
-        orients=["HT", "TH"]
+    if isinstance(ylabels[0], int):
+        ax.set_yticklabels(["%i" % i for i in ylabels])
     else:
-        orients=["HT", "HH", "TT", "TH"]
-    ax.set_yticklabels(orients[0:number_of_orientations])
-
-#    ax.set_yticklabels(["HT", "HH", "TT"])
+        ax.set_yticklabels(["%s" % s for s in ylabels])
+        
     plt.xticks(fontsize=tickfontsize)
     ax.xaxis.set_ticks(np.arange(0,width,1))
-    ax.set_xticklabels(["%i" % i for i in drange])
+    if isinstance(xlabels[0], int):
+        ax.set_xticklabels(["%i" % i for i in xlabels])
+    else:
+        ax.set_xticklabels(["%s" % s for s in xlabels])
+        
     plt.tick_params(axis='both', which='both', bottom='off', top='off', right='off', left='off')
 
     # These lines will create grid in minor tick, that is, between cells
@@ -123,92 +111,105 @@ def make_heatmap(data, drange, fmt, title="", outputfile="", fontsize=32.0):
         #print "Unicode error!"
         pass
 #    cax.yaxis.set_tick_params(labelright=False)   # No tick labels in colorbar
-#    print data
     if outputfile:
         plt.savefig(outputfile, format=fmt, bbox_inches="tight")
     else:
         plt.show()
 
-endings = ["png", "pdf", "ps", "eps", "svg"]
-prog=os.path.basename(sys.argv[0])
-title=""
 
-
-
-usage="""Usage:
-%s [ options ] cobfile [ imagefile ]
-
--t, --title arg\t\tUses the given title in the figure
-
-
-Visualizes a cob file (.cob). The extension of the imagefile
-(%s) chooses the format of the image.
-
-""" % (prog, ", ".join(endings))
-
-
-
-try:
-    optlist, args = getopt.getopt(sys.argv[1:], 'ht:', ["help", "title="])
-except getopt.GetoptError as e:
-    print e
-    sys.stderr.write(usage)
-    sys.exit(1)
-optdict = dict(optlist)
-args = [sys.argv[0]]+ args
-
-for o, arg in optlist:
-    if o in ["-h", "--help"]:
-        print usage
-        sys.exit(0)
-    elif o in ["-t", "--title"]:
-        title=arg
         
-
-if len(args) < 2:
-    sys.stderr.write("Give at least one parameter\n")
-    sys.stderr.write(usage)
-    sys.exit(1)
-
+def main():        
+    endings = ["png", "pdf", "ps", "eps", "svg"]
+    prog=os.path.basename(sys.argv[0])
+    title=""
 
 
 
-input=args[1]
-try:
-    outputfile=args[2]
-    parts = outputfile.split(".")
-    ending=parts[-1]
-    if len(parts) >= 2 and ending in endings:
-        fmt=ending
-    else:
-        sys.stderr.write("The extension of the outputfile should be one of the following: %s\n" % (", ".join(endings)))
-        sys.stderr.write("Exiting!\n")
+    usage="""Usage:
+    %s [ options ] cobfile [ imagefile ]
+
+    -t, --title arg\t\tUses the given title in the figure
+
+
+    Visualizes a cob file (.cob). The extension of the imagefile
+    (%s) chooses the format of the image.
+
+    """ % (prog, ", ".join(endings))
+
+
+
+    try:
+        optlist, args = getopt.getopt(sys.argv[1:], 'ht:', ["help", "title="])
+    except getopt.GetoptError as e:
+        print e
+        sys.stderr.write(usage)
         sys.exit(1)
-except IndexError:
-    fmt=""
-    outputfile=""
+    optdict = dict(optlist)
+    args = [sys.argv[0]]+ args
 
-try:
-    with open(input, "r") as f:
-        lines=f.readlines()
-except IOError:
-    sys.stderr.write("Could not read file %s\n" % input)
-    sys.exit(1)
-    
-cob = readarray(lines)
-drange = map(float, cob[0,1:])
-    
-#print drange
-#print cob
+    for o, arg in optlist:
+        if o in ["-h", "--help"]:
+            print usage
+            sys.exit(0)
+        elif o in ["-t", "--title"]:
+            title=arg
 
-#data = np.random.rand(3, 9)
-data=cob[1:,1:].astype(float)
-#print data.shape
-if data.shape[0] in [1,2]:
-    use_rna=True
-else:
-    use_rna=False
-    
-vfunc = np.vectorize(lambda x: x if x > 0.0 else -0.0002)   # Modify zero values to -0.0002 in order for the colormap to work better.
-data=vfunc(data)
-make_heatmap(data, drange, fmt, title=title, outputfile=outputfile)
+
+    if len(args) < 2:
+        sys.stderr.write("Give at least one parameter\n")
+        sys.stderr.write(usage)
+        sys.exit(1)
+
+
+
+
+    input=args[1]
+    try:
+        outputfile=args[2]
+        parts = outputfile.split(".")
+        ending=parts[-1]
+        if len(parts) >= 2 and ending in endings:
+            fmt=ending
+        else:
+            sys.stderr.write("The extension of the outputfile should be one of the following: %s\n" % (", ".join(endings)))
+            sys.stderr.write("Exiting!\n")
+            sys.exit(1)
+    except IndexError:
+        fmt=""
+        outputfile=""
+
+    try:
+        with open(input, "r") as f:
+            lines=f.readlines()
+    except IOError:
+        sys.stderr.write("Could not read file %s\n" % input)
+        sys.exit(1)
+
+    cob = readarray(lines)
+    drange = map(int, cob[0,1:])
+
+    #print drange
+    #print cob
+
+    #data = np.random.rand(3, 9)
+    data=cob[1:,1:].astype(float)
+    #print data.shape
+    if data.shape[0] in [1,2]:
+        use_rna=True
+    else:
+        use_rna=False
+
+    if use_rna:
+        orients=["HT", "TH"]
+    else:
+        orients=["HT", "HH", "TT", "TH"]
+
+    number_of_orientations=data.shape[0]
+    orients = orients[0:number_of_orientations]
+
+    vfunc = np.vectorize(lambda x: x if x > 0.0 else -0.0002)   # Modify zero values to -0.0002 in order for the colormap to work better.
+    data=vfunc(data)
+    make_heatmap(data, drange, orients, fmt, title=title, outputfile=outputfile, cell_labels=True)
+
+if __name__ == '__main__':
+    main()

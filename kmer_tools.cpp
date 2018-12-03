@@ -129,7 +129,7 @@ get_kmer_counts(const std::vector<std::string>& sequences, int k,
     const int positions = L-k+1;
     std::string s = line.substr(0, k);
 			    
-    big_int temp=dna_to_number(s);
+    big_int temp=dna_to_number<big_int>(s);
     bool palindrome = is_palindromic(s);
     assert(temp < limit);
     ++count[temp];
@@ -169,7 +169,7 @@ kmers::count(int k, big_int code) const
 unsigned int
 kmers::count(int k, const std::string& str) const
 {
-  return count(k, dna_to_number(str));
+  return count(k, dna_to_number<big_int>(str));
 }
 
 double 
@@ -182,7 +182,7 @@ kmers::probability(int k, big_int code) const
 double
 kmers::probability(int k, const std::string& str) const
 {
-  return probability(k, dna_to_number(str));
+  return probability(k, dna_to_number<big_int>(str));
 }
 
 namespace {
@@ -291,8 +291,8 @@ get_gapped_kmer_counts(const std::vector<std::string>& sequences, int k, int max
       const std::string& line2 = reverse_complement(line);
       
       for (int gap_pos=1; gap_pos < (gap_len == 0 ? 2 : k); ++gap_pos) {
-	big_int id1=dna_to_number(line.substr(0, l));
-	big_int id2=dna_to_number(line2.substr(0, l));
+	big_int id1=dna_to_number<big_int>(line.substr(0, l));
+	big_int id2=dna_to_number<big_int>(line2.substr(0, l));
 	++count[gap_len][gap_pos][remove_gap_from_bitstring(id1, k, gap_len, gap_pos)];
 	++count[gap_len][gap_pos][remove_gap_from_bitstring(id2, k, gap_len, gap_pos)];
 	for (int j=1; j < positions; ++j) {

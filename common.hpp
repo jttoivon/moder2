@@ -178,8 +178,24 @@ bool
 is_nucleotide_string(const std::string& str);
 
 
-matrix<double>
-reverse_complement(const matrix<double>& m);
+
+// Reflects over both diagonals, that is rotate 180 degrees. This is NOT the transpose of the matrix
+template<typename T>
+matrix<T>
+reverse_complement(const matrix<T>& m)
+{
+  assert( m.get_rows() == 4 );
+  
+  int c = m.get_columns();
+  matrix<T> result(4, c);
+  for (int i = 0; i < 4; ++i)
+    for (int j = 0; j < c; ++j) {
+      result(i, j) = m(4-i-1, c-j-1);
+    }
+
+  return result;
+}
+
 
 matrix<double>
 reverse(const matrix<double>& m);
@@ -218,8 +234,8 @@ get_ranges(const boost::multi_array<T, 2>& a)
 void
 normalize_vector(std::vector<double>& v);
 
-std::vector<double>
-normalize_vector_copy(const std::vector<double>& v);
+// std::vector<double>
+// normalize_vector_copy(const std::vector<double>& v);
 
 std::vector<double>
 normalize_vector_copy(const std::vector<int>& v);
@@ -333,8 +349,39 @@ private:
 int
 hamming_distance(const std::string& s, const std::string& t);
 
+std::vector<int>
+iupac_hamming_mismatches(const std::string& s, const std::string& pattern);
+
 int
 iupac_hamming_dist(const std::string& str, const std::string& pattern, int max_hd);
+
+template <typename T>
+std::string
+iupac_string_giving_max_probability(const matrix<T>& dm, bool use_rna)
+{
+
+  const char* nucs = use_rna ? "ACGU" : "ACGT";
+  int k = dm.get_columns();
+  std::string result(k, '-');
+
+  for (int i=0; i < k; ++i) {
+    const std::vector<T>& c = dm.column(i);
+    std::vector<int> v = {0,1,2,3};  // sort indexes for the column
+    std::sort(v.begin(), v.end(), [c,v](int a, int b) { return c[v[a]] >= c[v[b]]; });
+    if (c[v[0]] > 0.5 and c[v[0]] >= 2*c[v[1]])
+      result[i] = nucs[v[0]];   // single nucleotide
+    else if (c[v[0]]+c[v[1]] > 0.75)  // two nucleotides
+      result[i] = iupac_class.bits_to_char(iupac_class.char_to_bits(nucs[v[0]]) |
+					   iupac_class.char_to_bits(nucs[v[1]]));
+    else if (c[v[3]] < 0.01)    // three nucleotides
+      result[i] = iupac_class.bits_to_char(iupac_class.char_to_bits(nucs[v[0]]) |
+					   iupac_class.char_to_bits(nucs[v[1]]) |
+					   iupac_class.char_to_bits(nucs[v[2]]));
+    else
+      result[i] = 'N';
+  }
+  return result;
+}
 
 // finds the minimum Hamming distance between t and the substrings of s
 int
@@ -471,6 +518,22 @@ sum(const boost::unordered_map<K, T, H>& m)
 
   return sum;
 }
+
+
+template <typename T>
+std::vector<T>
+normalize_vector_copy(const std::vector<T>& v)
+{
+  T s = sum(v);
+
+  std::vector<T> result(v.size());
+
+  for (size_t i=0; i < v.size(); ++i)
+    result[i] = v[i]/s;
+
+  return result;
+}
+
 
 template <typename T>
 std::string
@@ -676,7 +739,7 @@ public:
   }
 
   void
-  add(matrix<T>& m)
+  add(matrix<T>& m) const
   {
     int rows = m.get_rows();
     int columns = m.get_columns();
@@ -688,7 +751,7 @@ public:
   }
 
   void
-  add(std::vector<T>& v)
+  add(std::vector<T>& v) const 
   {
     int size = v.size();
     
@@ -697,7 +760,7 @@ public:
   }
 
   std::vector<double>
-  get()
+  get() const
   {
     return pseudo_counts;
   }
@@ -705,6 +768,62 @@ public:
 private:
   std::vector<double> pseudo_counts;
 };
+
+template <typename T>
+class dinucleotide_prior
+{
+public:
+
+  dinucleotide_prior() : pseudo_counts(16,0) {}
+  
+  void
+  use_add_one(double p = 1.0) 
+  {
+    for (int i=0; i < 16; ++i)
+      pseudo_counts[i] = p;
+  }
+
+  void
+  use_dirichlet(double b, const std::vector<double>& q)
+  {
+    assert( q.size() == 4 );
+    for (int i=0; i < 4; ++i)
+      for (int j=0; j < 4; ++j)
+        pseudo_counts[(i<<2) + j] = q[i] * q[j] * b;
+  }
+
+  void
+  add(matrix<T>& m) const
+  {
+    int rows = m.get_rows();
+    int columns = m.get_columns();
+    assert(rows == 16);
+
+    for (int i=0; i < rows; ++i)
+      for (int j=0; j < columns; ++j)
+        m(i,j) += pseudo_counts[i];
+  }
+
+  void
+  add(std::vector<T>& v) const
+  {
+    int size = v.size();
+    assert(size == 16);
+    
+    for (int i=0; i < size; ++i)
+      v[i] += pseudo_counts[i];
+  }
+
+  std::vector<double>
+  get() const
+  {
+    return pseudo_counts;
+  }
+
+private:
+  std::vector<double> pseudo_counts;
+};
+
 
 // x == base^2 * result[0] + base * result[1] + result[2]
 std::vector<int>
@@ -808,6 +927,43 @@ fill_with(boost::multi_array<T, 2>& a, const T& value)
 
 std::vector<std::string>
 integer_range(int begin, int end);
+
+template <typename T>
+void
+print_matrix(FILE* fp, const matrix<T>& a, 
+             const std::vector<std::string>& row_headers = std::vector<std::string>(), 
+             const std::vector<std::string>& col_headers = std::vector<std::string>(),
+             const std::string& format = "%.2f")
+{
+  //  int row_begin;
+  int row_end;
+  //int col_begin;
+  int col_end;
+  //col_begin = 0;
+  boost::tie(row_end, col_end) = a.dim();
+
+  bool use_row_headers = row_headers.size() == row_end;
+  bool use_col_headers = col_headers.size() == col_end;
+  if (use_col_headers) {
+    if (use_row_headers)
+      fprintf(fp, "\t");
+    for (int col=0; col < col_end-1; ++col)
+      fprintf(fp, "%s\t", col_headers[col].c_str());
+    fprintf(fp, "%s\n", col_headers[col_end-1].c_str());
+  }
+
+  
+  for (int row=0; row < row_end; ++row) {
+    if (use_row_headers)
+      fprintf(fp, "%s\t", row_headers[row].c_str());
+    for (int col=0; col < col_end-1; ++col) {
+      print_cell(fp, format, a(row, col));
+      fprintf(fp, "\t");
+    }
+    print_cell(fp, format, a(row, col_end-1));
+    fprintf(fp, "\n");
+  }
+}
 
 
 
@@ -949,6 +1105,8 @@ write_cob_file(const std::string& filename, const boost::multi_array<T, 2>& a)
 std::string&
 SSS(const char* s);
 
+std::vector<std::string>
+get_n_neighbourhood(const std::string&seed, int n);
 
 #endif // COMMON_HPP
 

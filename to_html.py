@@ -1,16 +1,18 @@
 #!/usr/bin/python
 
+import analyze_adm
 import getopt
 import sys
 import re
 import subprocess
 import os
-import numpy
+import numpy as np
 import string
 import math
 import StringIO
 import matplotlib.pyplot as plt
 import matplotlib
+import heatmap
 from matplotlib import ticker
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -152,7 +154,21 @@ def entropy(l):
 def information_content(l):
     return 2-entropy(l)
 
+def adm_information_content(adm):
+    cols = adm.k
+    result=[]
+    result.append(information_content(adm.initial_probabilities[:,0]))
+    for c in xrange(cols-1):
+        temp = 0.0
+        for a in xrange(4):
+            temp += adm.initial_probabilities[a,c] * information_content(adm.transition_probabilities[4*a:4*(a+1),c])
+        result.append(temp)
+    return result
+
 def matrix_information_content(m):
+    if is_adm(m):
+        ics = adm_information_content(m)
+        return sum(ics)
     columns=m.transpose().tolist()  # l is list of columns
     total_ic = 0.0
     for column in columns:
@@ -167,7 +183,29 @@ def normalize(m):
             m[:,i] /= sum(m[:,i])
     return m
 
+def is_adm(m):
+    return type(m) == analyze_adm.adm
+
+transform = [15, 11, 7, 3, 14, 10, 6, 2,
+             13, 9, 5, 1, 12, 8, 4, 0]
+
+
+def reverse_complement_adm(adm):
+    k = adm.k
+    i=reverse_complement_pwm(adm.initial_probabilities)
+    t = np.zeros((16, k-1))
+    for j in xrange(k-1):
+        for ab in xrange(16):
+            a = ab / 4
+            b = ab % 4
+            divisor = adm.initial_probabilities[b, j+1]
+            if divisor > 0.0:
+                t[transform[ab], k-j-2] = adm.transition_probabilities[ab, j] * adm.initial_probabilities[a, j] / divisor
+    return analyze_adm.adm(t,i)
+
 def reverse_complement_pwm(m):
+    if is_adm(m):
+        return reverse_complement_adm(m)
     result=m.copy()
     for c in range(0,m.shape[1]):
         for r in range(0,m.shape[0]):
@@ -215,9 +253,11 @@ def readarray(lines):
         line = line.rstrip('\n')
         tmp=line.split("\t")
         result.append(tmp)
-    return numpy.array(result)
+    return np.array(result)
 
-def readmatrix(x):
+def readmodel(x):
+    if len(x)==20:
+        return analyze_adm.read_adm_from_list_of_lines(x)
     result=[]
     try:
         rows,cols=x[0].split("x")
@@ -229,24 +269,79 @@ def readmatrix(x):
 #        tmp=map(float,line.split('\t'))
         tmp=map(float,line.split())
         result.append(tmp)
-    return numpy.array(result)
+    return np.array(result)
 
+def right_extend_adm(adm, extension):
+    assert extension >= 0
+    orig_k = adm.shape[1]
+    k = orig_k + extension
+    result = np.zeros((16,k))
+    result[:, 0:orig_k] = adm.representation()
+    result[:, orig_k:] = 0.25
+    return analyze_adm.adm(result)
 
+def left_extend_adm(adm, extension):
+    assert extension >= 0
+    orig_k = adm.shape[1]
+    k = orig_k + extension
+    result = np.zeros((16,k))
+    result[:, extension:] = adm.representation()
+    result[4:8, extension] = result[8:12, extension] = result[12:16, extension] = result[0:4, extension]
+    result[:, :extension] = 0.25
+    return analyze_adm.adm(result)
+
+def force_adms_equal(adm1, adm2):
+    k = adm1.shape[1]
+    assert k == adm2.shape[1]
+
+    product = adm1.representation() * adm2.representation()
+
+    r = np.zeros((4, k+1))
+    for a in xrange(4):
+        r[a, k] = 1.0
+    
+    for j in xrange(k-1, -1, -1):
+        amax = 1 if j==0 else 4
+        for a in xrange(amax):
+            for b in xrange(4):
+                r[a, j] += product[a*4+b, j] * r[b, j+1]
+
+    result = np.zeros((16, k))
+    for j in xrange(k):
+        amax = 1 if j==0 else 4
+        for a in xrange(amax):
+            for b in xrange(4):
+                if r[a, j] > 0.0:
+                    result[4*a+b, j] = product[a*4+b, j] * r[b, j+1] / r[a, j]
+                else:
+                    assert product[a*4+b, j] * r[b, j+1] == 0.0
+    return analyze_adm.adm(result)
+        
+def compute_expected_adm(adm1, adm2, o, d):
+    k1 = adm1.shape[1]
+    k2 = adm2.shape[1]
+    dimer_len = k1 + k2 + d
+    a1 = right_extend_adm(adm1, dimer_len - k1)
+    a2 = left_extend_adm(adm2, dimer_len - k2)
+    return force_adms_equal(a1, a2)
+    
 def compute_expected(pwm1, pwm2, o, d):
     m1,m2 = matrices_in_orientation(o, pwm1, pwm2)
+    if use_adm:
+        return compute_expected_adm(m1, m2, o, d)
     k1 = m1.shape[1]
     k2 = m2.shape[1]
     dimer_len = k1+k2+d
     fill=1.00
 
     # Left occurrence
-    result1 = numpy.empty((4, dimer_len))
+    result1 = np.empty((4, dimer_len))
     result1.fill(fill)
     for pos in xrange(0, k1):
         result1[:,pos] = m1[:,pos]
 
     # Right occurrence
-    result2 = numpy.empty((4, dimer_len))
+    result2 = np.empty((4, dimer_len))
     result2.fill(fill)
     for pos in xrange(k1+d, dimer_len):
         result2[:,pos] = m2[:,pos-(k1+d)]
@@ -258,16 +353,23 @@ def compute_expected(pwm1, pwm2, o, d):
 def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_iteration_output, get_flanks):
     k1 = pwm1.shape[1]
     k2 = pwm2.shape[1]
+    if use_adm:
+        rows=20
+        start=1
+    else:
+        rows=4
+        start=1
+
     if get_flanks:
         try:
-            flank=readmatrix(find_lines(last_iteration_output, "Flank dimer case matrix %s %s %i:" % (cob, o, d), 2, 4))
+            flank=readmodel(find_lines(last_iteration_output, "Flank dimer case matrix %s %s %i:" % (cob, o, d), start, rows))
         except AttributeError:
-            flank=numpy.zeros(expected.shape)
+            flank=np.zeros(expected.shape)
 
-    oname="observed.%s.%s.%i.pfm" % (cob, o, d)
-    ename="expected.%s.%s.%i.pfm" % (cob, o, d)
+    oname="observed.%s.%s.%i.%s" % (cob, o, d, motif_ending)
+    ename="expected.%s.%s.%i.%s" % (cob, o, d, motif_ending)
     dname="deviation.%s.%s.%i.dev" % (cob, o, d)
-    fname="flank.%s.%s.%i.pfm" % (cob, o, d)
+    fname="flank.%s.%s.%i.%s" % (cob, o, d, motif_ending)
 
     writematrixfile(observed, oname)
     writematrixfile(expected, ename)
@@ -277,10 +379,10 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
 
 
 
-    oname_rc="observed.%s.%s.%i-rc.pfm" % (cob, o, d)
-    ename_rc="expected.%s.%s.%i-rc.pfm" % (cob, o, d)
+    oname_rc="observed.%s.%s.%i-rc.%s" % (cob, o, d, motif_ending)
+    ename_rc="expected.%s.%s.%i-rc.%s" % (cob, o, d, motif_ending)
     dname_rc="deviation.%s.%s.%i-rc.dev" % (cob, o, d)
-    fname_rc="flank.%s.%s.%i-rc.pfm" % (cob, o, d)
+    fname_rc="flank.%s.%s.%i-rc.%s" % (cob, o, d, motif_ending)
 
     observed_rc=reverse_complement_pwm(observed)
     expected_rc=reverse_complement_pwm(expected)
@@ -298,34 +400,33 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
 
 
     # Forward direction
-    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname, oname.replace(".pfm", ".svg")))
-    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename, ename.replace(".pfm", ".svg")))
+    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname, oname.replace(".%s"%motif_ending, ".svg")))
+    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename, ename.replace(".%s"%motif_ending, ".svg")))
+    #if not use_adm:         # This does not work for adm models
     myrun("myspacek40 %s --difflogo %s %s" % (myspacek_flags, oname, ename))          # Deviation logo
     if get_flanks:
-        if flank.shape[1] <= max_logo_width:
-            myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k1, k2, d, fname, fname.replace(".pfm", ".svg")))
-        else:
-            print "Could not create logo for flanked dimer %s %s %i: too wide logo" % (cob, o, d)
-            
+        myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k1, k2, d, fname, fname.replace(".%s"%motif_ending, ".svg")))
+
     # Reverse complement
-    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname_rc, oname_rc.replace(".pfm", ".svg")))
-    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename_rc, ename_rc.replace(".pfm", ".svg")))
+    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname_rc, oname_rc.replace(".%s"%motif_ending, ".svg")))
+    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename_rc, ename_rc.replace(".%s"%motif_ending, ".svg")))
+#    if not use_adm:         # This does not work for adm models
     myrun("myspacek40 %s --difflogo %s %s" % (myspacek_flags, oname_rc, ename_rc))          # Deviation logo
     if get_flanks:
-        if flank_rc.shape[1] <= max_logo_width:
-            myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k2, k1, d, fname_rc, fname_rc.replace(".pfm", ".svg")))
-        else:
-            print "Could not create logo for flanked dimer %s %s %i: too wide logo" % (cob, o, d)
+        myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k2, k1, d, fname_rc, fname_rc.replace(".%s"%motif_ending, ".svg")))
 
     for rc in ["", "-rc"]:
         with open("three.%s.%s.%i%s.html" % (cob, o, d, rc), "w") as f:
             oname = "observed.%s.%s.%i%s" % (cob, o, d, rc)
             ename = "expected.%s.%s.%i%s" % (cob, o, d, rc)
             dname = "deviation.%s.%s.%i%s" % (cob, o, d, rc)
-            myrun("mv %s.pfm_minus_%s.pfm.svg %s.svg" % (oname, ename, dname))
+            if use_adm:
+                myrun("mv %s.adm_minus_%s.adm.svg %s.svg" % (oname, ename, dname))
+            else:
+                myrun("mv %s.pfm_minus_%s.pfm.svg %s.svg" % (oname, ename, dname))
             f.write('<h1>%s %s %i</h1>' % (cob, o, d))
-            f.write('<figure><figcaption>Observed:</figcaption><a href="%s.pfm"><img src="%s.svg"\></a></figure>' % (oname,oname)) 
-            f.write('<figure><figcaption>Expected:</figcaption><a href="%s.pfm"><img src="%s.svg"\></a></figure>' % (ename,ename)) 
+            f.write('<figure><figcaption>Observed:</figcaption><a href="%s.%s"><img src="%s.svg"\></a></figure>' % (oname, motif_ending, oname)) 
+            f.write('<figure><figcaption>Expected:</figcaption><a href="%s.%s"><img src="%s.svg"\></a></figure>' % (ename,motif_ending,ename)) 
             f.write('<figure><figcaption>Deviation:</figcaption><a href="%s.dev"><img src="%s.svg"\></a></figure>' % (dname,dname)) 
 
 
@@ -341,13 +442,25 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
 
 def get_cob_case(cob, o, d, pwm1, pwm2, last_iteration_output, get_flanks):        
     expected = compute_expected(pwm1, pwm2, o, d)
+    if use_adm:
+        rows=16
+        start=1
+    else:
+        rows=4
+        start=1
     try:
-        deviation=readmatrix(find_lines(last_iteration_output, "Deviation matrix %s %s %i:" % (cob, o, d), 2, 4))
+        deviation=readmodel(find_lines(last_iteration_output, "Deviation matrix %s %s %i:" % (cob, o, d), start, rows))
     except AttributeError:
-        deviation=numpy.zeros(expected.shape)
-    observed = expected + deviation
-    g = numpy.vectorize(lambda x : max(x,0)) # This cuts negative values to 0
+        deviation=np.zeros(expected.shape)
+    if use_adm:
+        observed = expected.representation() + deviation
+    else:
+        observed = expected + deviation
+    g = np.vectorize(lambda x : max(x,0)) # This cuts negative values to 0
     observed = normalize(g(observed)) # Because precision of (about) 6 digits is used, some elements can be slightly negative
+    if use_adm:
+        observed = analyze_adm.adm(observed)
+        
     write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_iteration_output, get_flanks)
     return observed
 
@@ -422,9 +535,9 @@ def make_table_h(f, files, headers, titles=[]):
     if len(titles) != len(files):
         titles = [""]*len(files)
     for logo, title in zip(files, titles):
-        link=logo.replace(".svg", ".pfm")
+        link=logo.replace(".svg", ".%s"%motif_ending)
         f.write("<td>")
-        f.write(logo_container(link, logo, ".pfm", title))
+        f.write(logo_container(link, logo, ".%s"%motif_ending, title))
         f.write("</td>")
     f.write("</tr>")
     f.write("</table>")
@@ -540,7 +653,7 @@ def get_lambda_table(results_output):
     #     [ ["Background", 0.0], ["Sum", 0.0] ]
 
     bg_lambda = float(extract(r"Background lambda is (.*)", results_output))
-    temp = extract(r"Fixed lambdas are (.*)", results_output) 
+    temp = extract(r"Monomer lambdas are (.*)", results_output) 
     monomer_lambdas = eval(temp)
     # for i,dummy in enumerate(factors):
     #     lambda_table[i][1] = monomer_lambdas[i]
@@ -564,7 +677,7 @@ def get_lambda_table(results_output):
 
 def get_info(results_output, full_output, cob_codes):
     maxiter = int(extract(r"Maximum number of iterations is (.*)", full_output))
-    iterations =  int(extract(r"EM-algorithm took (.*) = .* iterations", results_output))
+    iterations =  int(extract(r"EM-algorithm took (.*) iterations", results_output))
     Lmin =  int(extract(r"Minimum sequence length is (.*)", full_output))
     Lmax =  int(extract(r"Maximum sequence length is (.*)", full_output))
     try:
@@ -585,9 +698,9 @@ def get_info(results_output, full_output, cob_codes):
 
 
 def get_seeds(full_output, number_of_factors):
-    temp=extract_list(r"Fixed seeds are \[(.+)\]", full_output)
+    temp=extract_list(r"Monomer seeds are \[(.+)\]", full_output)
     temp2=[x.split(", ") for x in temp]
-    seeds_begin = extract(r"Initial fixed seeds are \[(.+)\]", full_output).split(", ")
+    seeds_begin = extract(r"Initial monomer seeds are \[(.+)\]", full_output).split(", ")
     #seeds_begin = ["GACCGGAAGCG", "CACCTG"]
 
     try:
@@ -656,7 +769,10 @@ def printmatrix(x, file=sys.stdout, headers=[], colheaders=[], format="%f", sep=
 
 def writematrixfile(x, filename):
     with open(filename, "w") as f:
-        printmatrix(x, f)
+        if is_adm(x):
+            f.write(x.str2())
+        else:
+            printmatrix(x, f)
 
 # def mycommand(s):
 #     p = subprocess.Popen(s, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -672,35 +788,34 @@ def myrun(command):
 
 
 def myargmax(a):
-    return numpy.unravel_index(numpy.argmax(a), a.shape)
+    return np.unravel_index(np.argmax(a), a.shape)
 
 
 def get_monomers(factors, results_output, last_iteration_output):
     factor_lengths = [0]*len(factors)
     factor_ics = [0]*len(factors)
     factor_pwms = [0]*len(factors)
-    factor_flanked_pwms = [0]*len(factors)
-    
+#    start = 1 if use_adm else 2
+    start = 1
     for i, factor in enumerate(factors):
-        lines=find_lines(results_output, "Fixed matrix %i:" % i, 2, 4)
+        lines=find_lines(results_output, "Monomer matrix %i:" % i, start, model_rows)
 #        with open("%s.pfm" % factor, "w") as f:
-        with open("monomer.%i.pfm" % i, "w") as f:
+        with open("monomer.%i.%s" % (i,motif_ending), "w") as f:
             f.writelines(lines)
-        factor_pwms[i] = pwm = readmatrix(lines)
+        factor_pwms[i] = pwm = readmodel(lines)
         pwm_rc=reverse_complement_pwm(pwm)
 #        writematrixfile(pwm_rc, "%s-rc.pfm" % factor)
-        writematrixfile(pwm_rc, "monomer.%i-rc.pfm" % i)
+        writematrixfile(pwm_rc, "monomer.%i-rc.%s" % (i,motif_ending))
         factor_lengths[i] = pwm.shape[1]
         factor_ics[i] = matrix_information_content(pwm)
         if get_flanks:
-            lines=find_lines(last_iteration_output, "Flank fixed matrix %i:" % i, 2, 4)
-            with open("flank-%i.pfm" % i, "w") as f:
+            lines=find_lines(last_iteration_output, "Flank monomer matrix %i:" % i, start, model_rows)
+            with open("flank-%i.%s" % (i,motif_ending), "w") as f:
                 f.writelines(lines)
-            flank_pwm=readmatrix(lines)
-            factor_flanked_pwms[i] = flank_pwm
+            flank_pwm=readmodel(lines)
             flank_pwm_rc=reverse_complement_pwm(flank_pwm)
-            writematrixfile(flank_pwm_rc, "flank-%i-rc.pfm" % i)
-    return factor_lengths, factor_ics, factor_pwms, factor_flanked_pwms
+            writematrixfile(flank_pwm_rc, "flank-%i-rc.%s" % (i,motif_ending))
+    return factor_lengths, factor_ics, factor_pwms
 
 def get_dimer_cases(results_output, iterations, last_iteration_output):
     for i, cob_factor in enumerate(cob_factors):
@@ -717,8 +832,8 @@ def get_dimer_cases(results_output, iterations, last_iteration_output):
         dmax[i] = int(temp[0,-1])
         cob_tables[i] = temp[1:,1:].astype(float)  # Remove column and row names
         #print cob_tables[i]
-        cob_ic_tables[i]=numpy.zeros(cob_tables[i].shape)
-        cob_length_tables[i]=numpy.zeros(cob_tables[i].shape)  # Lengths of corresponding dimeric WPM
+        cob_ic_tables[i]=np.zeros(cob_tables[i].shape)
+        cob_length_tables[i]=np.zeros(cob_tables[i].shape)  # Lengths of corresponding dimeric WPM
         #print len(cob_ic_tables)
         #print cob_ic_tables[i].shape
         #overlap_table = cob_tables[i][:,0:-dmin[i]] # Only the overlap area of the cob table
@@ -759,7 +874,7 @@ def get_dimer_cases(results_output, iterations, last_iteration_output):
             for row in xrange(temp.shape[0]):
                 f.write("\t".join(temp[row,:]))
                 f.write("\n")
-        g = numpy.vectorize(lambda x,y,z : "Lambda %f&#010;IC: %f&#010;Length: %i" % (x,y,z))
+        g = np.vectorize(lambda x,y,z : "Lambda %f&#010;IC: %f&#010;Length: %i" % (x,y,z))
         cob_titles[i] = g(cob_tables[i], cob_ic_tables[i], cob_length_tables[i])
         best_cases_titles[i]=cob_titles[i][oi, di]
 
@@ -769,109 +884,112 @@ def create_monomer_logos(factors, factor_lengths):
         #os.system("to_logo.sh -n -t %s %s.pfm" % (f, f))
 #        myrun("myspacek40 -noname -paths --logo %s.pfm %s.svg" % (f, f))
 #        myrun("myspacek40 -noname -paths --logo %s-rc.pfm %s-rc.svg" % (f, f))
-        myrun("myspacek40 %s --logo monomer.%i.pfm monomer.%i.svg" % (myspacek_flags, i, i))
-        myrun("myspacek40 %s --logo monomer.%i-rc.pfm monomer.%i-rc.svg" % (myspacek_flags, i, i))
+        myrun("myspacek40 %s --logo monomer.%i.%s monomer.%i.svg" % (myspacek_flags, i, motif_ending, i))
+        myrun("myspacek40 %s --logo monomer.%i-rc.%s monomer.%i-rc.svg" % (myspacek_flags, i, motif_ending, i))
         if get_flanks:
             g="flank-%i" % i
-            if monomer_flanked_pwms[i].shape[1] <= max_logo_width:
-                myrun("myspacek40 %s -core=%i --logo %s.pfm %s.svg" % (myspacek_flags, factor_lengths[i], g, g))
-                myrun("myspacek40 %s -core=%i --logo %s-rc.pfm %s-rc.svg" % (myspacek_flags, factor_lengths[i], g, g))
-            else:
-                print "Could not create logo for flanked monomer %i: too wide logo" % i
+            myrun("myspacek40 %s -core=%i --logo %s.%s %s.svg" % (myspacek_flags, factor_lengths[i], g, motif_ending, g))
+            myrun("myspacek40 %s -core=%i --logo %s-rc.%s %s-rc.svg" % (myspacek_flags, factor_lengths[i], g, motif_ending, g))
 
-def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
-    new_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-        'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=minval, b=maxval),
-        cmap(numpy.linspace(minval, maxval, n)))
-    return new_cmap
+# def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
+#     new_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
+#         'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=minval, b=maxval),
+#         cmap(np.linspace(minval, maxval, n)))
+#     return new_cmap
 
 
-def float_to_string(f):
-    if -0.0002 <= f <= 0.0:
-        return "-"
-    else:
-        return '%.0f' % (f*1000)
+# def float_to_string(f):
+#     if -0.0002 <= f <= 0.0:
+#         return "-"
+#     else:
+#         return '%.0f' % (f*1000)
     
-def make_heatmap(data, drange, title="", outputfile="", fontsize=32.0):
-#    plt.style.use('ggplot')
+# def make_heatmap(data, drange, orients, fmt, title="", outputfile="", fontsize=32.0):
+# #    plt.style.use('ggplot')
     
-    linewidth=1.0
-#    fontsize=32.0
-    labelfontsize=fontsize*0.6
-    tickfontsize=fontsize*0.6
-#    rcParams['axes.titlepad'] = 20     # Padding between the title and the plot, requires recent version of matplotlib
+#     linewidth=1.0
+# #    fontsize=32.0
+#     labelfontsize=fontsize*0.6
+#     tickfontsize=fontsize*0.6
+# #    rcParams['axes.titlepad'] = 20     # Padding between the title and the plot, requires recent version of matplotlib
     
-    width=data.shape[1]
-    height=data.shape[0]  # number of orientations
-    fig = plt.figure()
-    ax = plt.subplot(111)
-    for y in range(data.shape[0]):
-        for x in range(data.shape[1]):
-    #        plt.text(x + 0.5, y + 0.5, '%.4f' % data[y, x],
-            plt.text(x, y, float_to_string(data[y, x]),
-                     horizontalalignment='center',
-                     verticalalignment='center',
-                     )
+#     width=data.shape[1]
+#     height=data.shape[0]  # number of orientations
+#     fig = plt.figure()
+#     ax = plt.subplot(111)
+#     for y in range(data.shape[0]):
+#         for x in range(data.shape[1]):
+#     #        plt.text(x + 0.5, y + 0.5, '%.4f' % data[y, x],
+#             plt.text(x, y, float_to_string(data[y, x]),
+#                      horizontalalignment='center',
+#                      verticalalignment='center',
+#                      )
 
-    #plt.colorbar(heatmap)
-    #cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["red","violet","blue"])
-#    white_colors = [(1, 1, 1), (1, 1, 1)]
-#    white_cm = matplotlib.colors.LinearSegmentedColormap.from_list("valko", white_colors, N=256)
+#     #plt.colorbar(heatmap)
+#     #cmap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["red","violet","blue"])
+# #    white_colors = [(1, 1, 1), (1, 1, 1)]
+# #    white_cm = matplotlib.colors.LinearSegmentedColormap.from_list("valko", white_colors, N=256)
                     
-    cmap = plt.get_cmap('YlOrRd')
-    #m=np.max(data)
-#    subcmap = cmap
-    subcmap = truncate_colormap(cmap, 0.0, 0.8)
-    subcmap.set_under(color=u'white', alpha=None)
-#    constant_color = plt.cm.Blues(np.linspace(1, 1, 2))
-    # stacking the 2 arrays row-wise
-#    colors1 = white_cm(numpy.linspace(0, 1, 256))
-#    colors2 = plt.cm.Reds(np.linspace(0, 1, 256))
-#    colors2 = subcmap(numpy.linspace(0, 1, 256))
-#    combined_colors = numpy.vstack((colors1, colors2))
-#    combined_cmap = matplotlib.colors.LinearSegmentedColormap.from_list('colormap', combined_colors)
-#    combined_cmap = truncate_colormap(combined_cmap, -0.0002, 1.0)
-    plt.imshow(data, vmin=0.0, cmap=subcmap, interpolation='nearest', aspect='equal')
-    divider = make_axes_locatable(ax)
-    if title:
-        plt.title(title, fontsize=fontsize)
+#     cmap = plt.get_cmap('YlOrRd')
+#     #m=np.max(data)
+# #    subcmap = cmap
+#     subcmap = truncate_colormap(cmap, 0.0, 0.8)
+#     subcmap.set_under(color=u'white', alpha=None)
+# #    constant_color = plt.cm.Blues(np.linspace(1, 1, 2))
+#     # stacking the 2 arrays row-wise
+# #    colors1 = white_cm(np.linspace(0, 1, 256))
+# #    colors2 = plt.cm.Reds(np.linspace(0, 1, 256))
+# #    colors2 = subcmap(np.linspace(0, 1, 256))
+# #    combined_colors = np.vstack((colors1, colors2))
+# #    combined_cmap = matplotlib.colors.LinearSegmentedColormap.from_list('colormap', combined_colors)
+# #    combined_cmap = truncate_colormap(combined_cmap, -0.0002, 1.0)
+    
+# #    rcParams['lines.solid_joinstyle'] = "round"
+#     plt.imshow(data, vmin=0.0, cmap=subcmap, interpolation='nearest', aspect='equal')
+#     divider = make_axes_locatable(ax)
+#     if title:
+#         plt.title(title, fontsize=fontsize)
 
-    plt.yticks(fontsize=tickfontsize)
-    ax.yaxis.set_ticks(numpy.arange(0,height,1))
-    number_of_orientations=data.shape[0]
-    ax.set_yticklabels(orients[0:number_of_orientations])
-    plt.xticks(fontsize=tickfontsize)
-    ax.xaxis.set_ticks(numpy.arange(0,width,1))
-    ax.set_xticklabels(["%i" % i for i in drange])
-    plt.tick_params(axis='both', which='both', bottom='off', top='off', right='off', left='off')
+#     plt.yticks(fontsize=tickfontsize)
+#     ax.yaxis.set_ticks(np.arange(0,height,1))
+#     number_of_orientations=data.shape[0]
+#     ax.set_yticklabels(orients[0:number_of_orientations])
+#     plt.xticks(fontsize=tickfontsize)
+#     ax.xaxis.set_ticks(np.arange(0,width,1))
+#     ax.set_xticklabels(["%i" % i for i in drange])
+#     plt.tick_params(axis='both', which='both', bottom='off', top='off', right='off', left='off')
 
-    # These lines will create grid in minor tick, that is, between cells
-    ax.set_xticks(numpy.arange(-0.5, width, 1), minor=True);
-    ax.set_yticks(numpy.arange(-0.5, height, 1), minor=True);
-    # Gridlines based on minor ticks
-    ax.grid(which='minor', color='black', linestyle='-', linewidth=1)
+#     # These lines will create grid in minor tick, that is, between cells
+#     ax.set_xticks(np.arange(-0.5, width, 1), minor=True);
+#     ax.set_yticks(np.arange(-0.5, height, 1), minor=True);
+#     # Gridlines based on minor ticks
+#     ax.grid(which='minor', color='black', linestyle='-', linewidth=1, solid_joinstyle='round')
 
-    cax = divider.append_axes("right", size="5%", pad=0.05)
-    try:
-        cb=plt.colorbar(cax=cax)
-        tick_locator = ticker.MaxNLocator(nbins=5)
-        cb.locator = tick_locator
-        ##cb.ax.yaxis.set_major_locator(matplotlib.ticker.AutoLocator())                                             
-        cb.update_ticks()
-        temp=cax.get_yticklabels()
-        for i,t in enumerate(temp):
-            #print temp[i].get_text()
-#            temp[i].set_text("%.0f" % (float(temp[i].get_text())*1000))   # Multiply values in colorbar by 1000
-            temp[i] = "%.0f" % (float(temp[i].get_text())*1000)   # Multiply values in colorbar by 1000
-        cax.set_yticklabels(temp, fontsize=tickfontsize)
-    except UnicodeEncodeError:   # If labels contain unicode minus, then something went wrong and better not show colorbar
-        cb.remove()
-        pass
-#    cax.yaxis.set_tick_params(labelright=False)   # No tick labels in colorbar
-    if outputfile:
-        plt.savefig(outputfile, format="svg", bbox_inches="tight")
-    else:
-        pass#plt.show()
+#     cax = divider.append_axes("right", size="5%", pad=0.05)
+#     try:
+#         cb=plt.colorbar(cax=cax)
+#         tick_locator = ticker.MaxNLocator(nbins=5)
+#         cb.locator = tick_locator
+#         ##cb.ax.yaxis.set_major_locator(matplotlib.ticker.AutoLocator())
+#         cb.update_ticks()
+#         temp=cax.get_yticklabels()
+#         for i,t in enumerate(temp):
+#             #print temp[i].get_text()
+# #            temp[i].set_text("%.0f" % (float(temp[i].get_text())*1000))   # Multiply values in colorbar by 1000
+#             temp[i] = "%.0f" % (float(temp[i].get_text())*1000)   # Multiply values in colorbar by 1000
+#             #print temp[i].get_text()
+        
+#         #cb.update_ticks()
+#         cax.set_yticklabels(temp, fontsize=tickfontsize)
+#     except UnicodeEncodeError:   # If labels contain unicode minus, then something went wrong and better not show colorbar
+#         cb.remove()
+#         #print "Unicode error!"
+#         pass
+# #    cax.yaxis.set_tick_params(labelright=False)   # No tick labels in colorbar
+#     if outputfile:
+#         plt.savefig(outputfile, format=fmt, bbox_inches="tight")
+#     else:
+#         pass#plt.show()
 
             
 def visualize_cobs(cobs, cob_codes):            
@@ -879,11 +997,11 @@ def visualize_cobs(cobs, cob_codes):
         f = "cob.%s" % code
         #    myrun('heatmap.R -z 8 -c -s -f "%%.3f" -t %s %s.cob' % (f, f))
         data=cob_tables[i]
-        vfunc = numpy.vectorize(lambda x: x if x > 0.0 else -0.0002)
+        vfunc = np.vectorize(lambda x: x if x > 0.0 else -0.0002)
         data=vfunc(data)
         drange = range(dmin[i], dmax[i]+1)
         print "Creating heatmap for %s" % cob
-        make_heatmap(data, drange, cob, "%s.svg" % f, fontsize=20.0)
+        heatmap.make_heatmap(data, drange, orients, "svg", cob, "%s.svg" % f, fontsize=20.0, cell_labels=True)
 #        myrun('heatmap.R -z 12 -c -s -i -t %s %s.cob 2> /dev/null > /dev/null' % (cob, f))
 #        myrun("sed -i '/page/d' %s.svg" % f)  # R or its pheatmap package make svg files corrupt. This fixes it.
     #    myrun('heatmap.R -z 8 -c -s -f "%%.3f" -t %s %s.cob' % (f, f))
@@ -950,7 +1068,7 @@ def create_graphs(full_output, factors, cobs, cob_codes):
             parameters_data.append(t)
             f.write("%s\n" % t)
 
-    temp=extract_list(r"Intermediate average information content of fixed models: \[(.+)\]", full_output)
+    temp=extract_list(r"Intermediate average information content of monomer models: \[(.+)\]", full_output)
     ics_header=factors
     ics_data=[]
     with open("ics.txt", "w") as f:
@@ -964,9 +1082,9 @@ def create_graphs(full_output, factors, cobs, cob_codes):
     distances_data=[]
     with open("distances.txt", "w") as f:
         cols=len(factors+cobs)
-        temp=extract_list(r"Fixed distances are \[(.+)\]", full_output)
+        temp=extract_list(r"Monomer distances are \[(.+)\]", full_output)
         rows=len(temp)
-        a=numpy.empty((rows,cols))
+        a=np.empty((rows,cols))
         for r,t in enumerate(temp):
             for c,x in enumerate(t.split(", ")):
                 a[r,c]=float(x)
@@ -985,25 +1103,25 @@ def create_graphs(full_output, factors, cobs, cob_codes):
     lambdas_header=factors+cobs+["bg"]
     lambdas_data=[]
     with open("lambdas.txt", "w") as f:
-        temp=extract_list(r"Intermediate fixed lambdas are \[(.+)\]", full_output)
+        temp=extract_list(r"Intermediate monomer lambdas are \[(.+)\]", full_output)
         atemp=[t.split(", ") for t in temp]
         #print atemp
-        a=numpy.array(atemp)
+        a=np.array(atemp)
         btemp=[]
         for cob in cob_codes:
             #print "Cob is %s" % cob
             temp=extract_list(r"Intermediate sum of dimer lambdas %s is (.+)" % cob, full_output)
             btemp.append(temp)
     #    print btemp
-        b=numpy.transpose(numpy.array(btemp))
+        b=np.transpose(np.array(btemp))
         temp=extract_list(r"Intermediate background lambda is (.+)", full_output)
-        c=numpy.transpose(numpy.array([temp]))
+        c=np.transpose(np.array([temp]))
         f.write("%s\n" % ("\t".join(lambdas_header)))
 
         if len(cob_codes) > 0:
-            d=numpy.concatenate((a,b,c), 1)
+            d=np.concatenate((a,b,c), 1)
         else:
-            d=numpy.concatenate((a,c), 1)
+            d=np.concatenate((a,c), 1)
         #printmatrix(d, format="%s")
         printmatrix(d, f, headers=[], colheaders=[], format="%s", sep="\t")
         lambdas_data=d.tolist()
@@ -1020,9 +1138,28 @@ def create_graphs(full_output, factors, cobs, cob_codes):
     # myrun('plot.R -c -s -b 1.0 -h 0.01 -x iterations -y distance -t "%s distances" distances.txt' % name)
     # myrun('plot.R -c -s -b 1.0 -x iterations -y lambda -t "%s lambdas" lambdas.txt' % name)
 
-
-
-
+def get_start_positions(last_iteration_output, factors):
+    lines = last_iteration_output.split('\n')
+    for i, line in enumerate(lines):
+        if "Monomer 0 start position distribution (forward):" in line:
+            break
+    if i < len(lines)-1:
+        global start_positions
+        start_positions = True
+        temp = lines[i+1:i+len(factors)*4:2]
+        temp = map(lambda x : x.strip('[]'), temp)
+        temp = map(lambda x : x.replace(", ", "\t"), temp)
+        with open("start_positions.tsv", "w") as f:
+            for line in temp:
+                f.write("%s\n" % line)
+        temp = map(lambda x : x.split(), temp)
+        data = np.array(temp).astype(float)
+        ylabels=[]
+        for i, f in enumerate(factors):
+            ylabels.append("Monomer %i (forward)" % i)
+            ylabels.append("Monomer %i (backward)" % i)
+        xlabels = range(0, data.shape[1])
+        heatmap.make_heatmap(data, xlabels, ylabels, "svg", "Monomer start positions", "start_positions.svg", fontsize=20.0)
 
 # This is to locate helper scripts in the same directory as this file
 execdir=os.path.abspath(os.path.dirname(sys.argv[0]))
@@ -1052,6 +1189,7 @@ except getopt.GetoptError as e:
 optdict = dict(optlist)
 args = [sys.argv[0]]+ args
 debug=False
+start_positions = False
 
 #print optdict
 for o, a in optlist:
@@ -1103,7 +1241,16 @@ except IOError:
     sys.stderr.write("Could not read file %s. Exiting!\n" % orig)
     sys.exit(1)
                      
-
+binding_model = extract(r"Using binding model: (.*)", full_output)
+if binding_model == "ppm":
+    use_adm=False
+    motif_ending="pfm"
+    model_rows=4
+else:
+    use_adm=True
+    motif_ending="adm"
+    model_rows=20
+    
 use_rna = extract(r"Use RNA alphabet: (.*)", full_output)
 if use_rna == "yes":
     use_rna = True
@@ -1161,7 +1308,7 @@ dmax=[0]*number_of_cobs
 
 get_flanks = extract(r"Get full flanks: (.*)", full_output) == "yes"
 
-iterations =  int(extract(r"EM-algorithm took (.*) = .* iterations", results_output))
+iterations =  int(extract(r"EM-algorithm took (.*) iterations", results_output))
 
 command="sed -n '/Round %i/,/^-+$/p' %s" % (iterations-1,inputfile)   # Output from last iteration onwards
 (ret_val, last_iteration_output, error) = mycommand(command)
@@ -1174,11 +1321,12 @@ create_monomer_logos(factors, monomer_lengths)
 visualize_cobs(cobs, cob_codes)
 if debug:
     create_graphs(full_output, factors, cobs, cob_codes)
-
+    get_start_positions(last_iteration_output, factors)
+    
 # temp=extract_list(r"Background distribution \(intermed\): \[(.+)\]", full_output)
 # bg=[x.split(", ") for x in temp]
 # with open("background.txt", "w") as f:
-#     bg_t=numpy.array(bg).transpose()
+#     bg_t=np.array(bg).transpose()
 #     for t in bg_t: 
 #         f.write("%s\n" % ("\t".join(t)))
 # myrun('myspacek40 --logo -paths background.txt background.svg')
@@ -1338,7 +1486,7 @@ if get_flanks:
     f.write('<div id="flankfactors">')
     f.write('<h2>Monomer motifs with flanks</h2>')
     flank_logo_files=["flank-%i.svg" % i for i in xrange(number_of_factors)]
-    make_table_v3(f, flank_logo_files, factors, [x.replace(".svg", ".pfm") for x in flank_logo_files], ".pfm", monomer_titles)
+    make_table_v3(f, flank_logo_files, factors, [x.replace(".svg", ".%s"%motif_ending) for x in flank_logo_files], ".%s"%motif_ending, monomer_titles)
     f.write("</div>")
 
 ###################
@@ -1346,10 +1494,15 @@ if get_flanks:
 # Print behaviour as function of iterations
 
 if debug:
-    f.write('<div id="iterations">')
+    f.write('<div id="iterations">\n')
     #(files, headers=[], links=[], f, titles=[])
     make_table_v(["distances.svg", "ics.svg", "lambdas.svg", "mll.svg", "parameters.svg"], f=f)
-    f.write("</div>")
+    f.write("</div>\n")
+
+    if start_positions:
+        f.write('<div id="startpositions">\n')
+        f.write('<img src="start_positions.svg" />\n')
+        f.write("</div>\n")
 
 #print '<div id="background">'
 #print '<p><em>Note.</em> Background model is a multinomial distribution for mononucleotides. In the below logo each position gives the background distribution of the corresponding EM-iteration.</p>'
@@ -1403,7 +1556,7 @@ for i, cob_factor in enumerate(cob_factors):
     # dmin[i] = int(temp[0,1])
     # dmax[i] = int(temp[0,-1])
     # cob_tables[i] = temp[1:,1:].astype(float)  # Remove column and row names
-    # g = numpy.vectorize(lambda x : "Lambda %f" % x)
+    # g = np.vectorize(lambda x : "Lambda %f" % x)
     # cob_titles[i] = g(cob_tables[i])
     link_table = []
     link_expected_table = []
@@ -1442,7 +1595,7 @@ for i, cob_factor in enumerate(cob_factors):
         # Display the logos involved in the cob table
         f.write('<div id="factors">')
         index_set=set(cob_factor)  # If both indices are the same, then return just one
-        make_table_h(f, [logo_files[i] for i in index_set], [factors[i] for i in index_set], [monomer_titles[i] for i in index_set])
+        make_table_h(f, [logo_files[i1] for i1 in index_set], [factors[i2] for i2 in index_set], [monomer_titles[i3] for i3 in index_set])
         f.write("</div>")
 
         f.write('<h3 class="tableheading">Observed Matrices</h3>\n')
@@ -1455,7 +1608,7 @@ for i, cob_factor in enumerate(cob_factors):
             for j in xrange(len(factors)):
                 f.write('<h3 class="tableheading">Flanked Monomer Matrix %i</h3>\n' % j)
 
-                f.write(logo_container("flank-%i.pfm" % j, "flank-%i.svg" % j, ".pfm", monomer_titles[j]))
+                f.write(logo_container("flank-%i.%s" % (j,motif_ending), "flank-%i.svg" % j, ".%s"%motif_ending, monomer_titles[j]))
                 #f.write('<img src="flank-%i.svg"\>\n' % j)
             f.write('<h3 class="tableheading">Flanked Dimer Matrices</h3>\n')
             make_better_table(f, link_flank_table, [""]+range(dmin[i], dmax[i]+1), orients, htmlclass="ppmtable")

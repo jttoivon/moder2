@@ -37,20 +37,22 @@
 #include <boost/foreach.hpp>
 
 
-
 // interpret string of nucleid acids as a number in base 4
 // The first nucleotide of the string is in the most significant end
-big_int
+/*
+template <typename T>
+T
 dna_to_number(const std::string& s)  
 {
-  assert(s.length() <= (sizeof(big_int)*4));
+  assert(s.length() <= (sizeof(T)*4));
 
-  big_int sum=0;
+  T sum=0;
   for (int i=0; i < s.length(); ++i)
     sum = sum*4 + to_int(s[i]);
   
   return sum;
 }
+*/
 
 // converts integer back to a nucled acid sequence
 // Sequence has l nucleotides

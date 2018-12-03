@@ -38,3 +38,10 @@ typedef __int128_t myint128;   // for old gcc compilers
 typedef unsigned long long int big_int;
 //typedef myuint128 big_int;
 
+// clang does not seem to be able to handle 128 bit type (long double)
+// in openmp constructs
+#if defined(__clang__)
+typedef double FloatType;
+#else
+typedef long double FloatType;
+#endif

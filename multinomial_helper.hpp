@@ -77,7 +77,7 @@ find_snips_multimer_helper(const std::string& seed, const std::vector<std::strin
 
 
 string_to_tuple_type
-get_n_neighbourhood(const std::string&seed, int n);
+get_n_neighbourhood_mononucleotide_contributions(const std::string&seed, int n);
 
 std::vector<std::pair<std::string, std::vector<boost::tuple<int, int> > > >
 get_n_neighbourhood_in_vector(const std::string&seed, int n);

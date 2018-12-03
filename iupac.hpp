@@ -19,8 +19,12 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 */
+#ifndef IUPAC_HPP
+#define IUPAC_HPP
+
 #include <string>
 #include <cassert>
+#include <cstring>
 #include <vector>
 
 typedef std::vector<double> dvector;
@@ -83,6 +87,7 @@ private:
   static char_bits_t  char_bits[16];
 };
 
+
 static iupac_class_type iupac_class;
 
 dvector
@@ -104,3 +109,86 @@ iupac_string_match(const std::string& str, const std::string& pattern);
 char complement(char c);
 
 char complement_rna(char c);
+
+// The most significant bit in the bit vector corresponds to position 0 in strings.
+// If length of strings is n, then
+// result & 1 == 1 iff str[n-1] does not match pattern[n-1]. 
+template <typename T>
+T
+iupac_mismatch_positions(const std::string& str, const std::string& pattern)
+{
+  assert(str.length() == pattern.length());
+  assert(str.length() * 2 <= sizeof(T)*8);
+  T result = 0;
+  for (int i=0; i < str.length(); ++i) {
+    result <<= 1;
+    result |= (iupac_match(str[i], pattern[i]) ? static_cast<T>(0) : static_cast<T>(1));
+  }
+  
+  return result;
+}
+
+class sequences_of_iupac_string
+{
+public:
+  sequences_of_iupac_string(const std::string& s)
+    : k(s.length()), iupac_classes(k), base(k, 0), pattern(k, '-'), v(k, 0)
+  {
+
+    number_of_combinations = 1;
+    for (int i=0; i < k; ++i) {
+      iupac_classes[i] = iupac_class(s[i]);
+      int size = strlen(iupac_classes[i]);
+      base[i] = size - 1;
+      number_of_combinations *= size;
+    }
+    reset();
+  }
+
+  int number_of_strings() const
+  {
+    return number_of_combinations;
+  }
+  
+  void
+  reset()
+  {
+    for (int i=0; i < k; ++i) {
+      v[i] = 0;
+      pattern[i] = iupac_classes[i][0];          // Initialize pattern to the first sequence of iupac string
+    }
+    v[k-1]=-1;  // Initialize
+    current_string = 0;
+  }
+
+  // The loop goes through nucleotide sequences that belong to
+  //given iupac sequence in alphabetical order
+  std::string
+  next()
+  {
+    if (current_string == number_of_combinations)
+      return "";
+    
+    int i;
+    for (i=k-1; v[i] == base[i]; --i) {
+      v[i]=0;
+      pattern[i] = iupac_classes[i][v[i]];
+    }
+    v[i]++;
+    pattern[i] = iupac_classes[i][v[i]];
+
+    ++current_string;
+    return pattern;
+  }
+  
+private:
+  int k;
+  int number_of_combinations;
+  int current_string;
+  std::vector<const char*> iupac_classes;
+  std::vector<int> base;
+  std::string pattern;
+  std::vector<int> v;  // helper array
+};
+
+#endif // IUPAC_HPP

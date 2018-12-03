@@ -129,16 +129,6 @@ entropy(const std::vector<double>& v)
   return -sum;
 }
 
-double
-KL_distance(const std::vector<double>& p, const std::vector<double>& q)
-{
-  assert(p.size() == q.size());
-  double sum=0;
-  for (int i=0; i < p.size(); ++i)
-    if (p[i] !=0)
-      sum += p[i]*log2(p[i]/q[i]);
-  return sum;
-}
 
 double
 symmetric_KL_distance(const std::vector<double>& p, const std::vector<double>& q)
@@ -146,15 +136,6 @@ symmetric_KL_distance(const std::vector<double>& p, const std::vector<double>& q
   return std::min(KL_distance(p,q), KL_distance(q,p));
 }
 
-double
-information_content(const std::vector<double>& p, 
-		    std::vector<double> q)
-{
-  if (q.size() == 0)
-    q = std::vector<double>(p.size(), 0.25);
-  assert(p.size() == q.size());
-  return KL_distance(p, q);
-}
 
 double
 average_information_content(const matrix<double>& m, std::vector<double> q)
