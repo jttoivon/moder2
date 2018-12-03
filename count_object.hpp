@@ -365,7 +365,7 @@ correct_seed_bias(const std::vector<dmatrix>& grouped_dinucleotide_counts, const
 	  alpha = j == k-1 ? 1.0 : esko_count_helper(low_counts[a&3][tr]);
 	else
 	  alpha = j == k-1 ? 1.0 : count_helper(low_counts[a&3][tr]);
-	printf("Beta=%.4f, j=%i, row=%i, r=%i\n", alpha, j, a, r);
+	//printf("Beta=%.4f, j=%i, row=%i, r=%i\n", alpha, j, a, r);
 	N[a] += quotient(a, r) = grouped_dinucleotide_counts[r](a, j) / (divisor*alpha + (1-alpha));
 	/*
 	if (divisor != 0.0)

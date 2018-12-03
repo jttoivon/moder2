@@ -2578,6 +2578,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       std::vector<bool> is_monomer_pwm_part_of_cob(monomer_p, false); // essentially, is pwm part of strong cob
       std::vector<double> monomer_dimer_proportions(monomer_p, 0.0);  // Sum of dimer lambdas with d >= \delta
                                                                       // that involves a certain monomer
+      
       for (int r=0; r < my_cob_params.size(); ++r) {
 	using boost::multi_array_types::index_range;
 	int dmax = my_cob_params[r].dmax;
@@ -2593,6 +2594,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	if (monomer_dimer_proportions[k] >= learning_fraction)
 	  is_monomer_pwm_part_of_cob[k] = true;
       }
+      
       printf("Is monomer pwm learnt purely modularly: %s\n", print_vector(is_monomer_pwm_part_of_cob).c_str());
 
 
@@ -3173,7 +3175,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       // Prune dimeric cases
       //
       //////////////////////
-      
+            
       for (int r = 0; r < number_of_cobs; ++r) {
 	const int& w1 = my_cob_params[r].k1;
 	//	const int& w2 = my_cob_params[r].k2;
@@ -3216,7 +3218,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	 
 	}  // end for o
       }  // end for r
-
+      
       
       /////////////////////////////////
       //
@@ -3505,7 +3507,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    for (int k=0; k < monomer_p; ++k) {
 	      for (int j=0; j < monomer_m[0][k]; ++j) {
 		start_positions_forward[k][j] += monomer_Z[i][k][0][j];
-		start_positions_backward[k][j] += monomer_Z[i][k][1][j];
+		if (use_two_strands)
+		  start_positions_backward[k][j] += monomer_Z[i][k][1][j];
 	      }
 	    }
 	  }
@@ -3514,7 +3517,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    normalize_vector(start_positions_forward[k]);
 	    printf("%s\n", print_vector(start_positions_forward[k]).c_str());
 	    printf("Monomer %i start position distribution (backward):\n", k);
-	    normalize_vector(start_positions_backward[k]);
+	    if (use_two_strands)
+	      normalize_vector(start_positions_backward[k]);
 	    printf("%s\n", print_vector(start_positions_backward[k]).c_str());
 	  }
 	}
