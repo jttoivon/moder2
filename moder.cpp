@@ -480,6 +480,11 @@ template <typename T>
 T
 log_sum(std::priority_queue<T, std::vector<T>, std::greater<T> >& queue)
 {
+  while (queue.size() > 1 and std::isinf(queue.top()))
+    queue.pop();
+  if (queue.size() == 1)
+    return queue.top();
+      
   do {
     T q = queue.top(); queue.pop();
     T p = queue.top(); queue.pop();
@@ -783,15 +788,20 @@ complete_data_log_likelihood(const std::vector<boost::shared_ptr<binding_model<>
     for (int k=0; k < p; ++k) {
       for (int j=0; j < monomer_m[i][k]; ++j) {
 	feclearexcept(FE_ALL_EXCEPT);
-	temp +=
-	  (compute_log_probability<FloatType>(line, line_rev, j, 1, *log_PWM[k], log_q, q2)
-	   + log_lambda[k] - log(monomer_m[i][k]) - l2)
-	  * monomer_Z[i][k][0][j];
-	if (use_two_strands)
+	FloatType temp2 = monomer_Z[i][k][0][j];
+	if (temp2 > 0.0) 
 	  temp +=
-	    (compute_log_probability<FloatType>(line, line_rev, j, -1, *log_PWM[k], log_q_rev, q2_rev)
-	     + log_lambda[k] - log(monomer_m[i][k]) - l2)
-	    * monomer_Z[i][k][1][j];
+	    (compute_log_probability<FloatType>(line, line_rev, j, 1, *log_PWM[k], log_q, q2)
+	     + log_lambda[k] - log2l(monomer_m[i][k]) - l2)
+	    * temp2;
+	if (use_two_strands) {
+	  FloatType temp2 = monomer_Z[i][k][1][j];
+	  if (temp2 > 0.0)
+	    temp +=
+	      (compute_log_probability<FloatType>(line, line_rev, j, -1, *log_PWM[k], log_q_rev, q2_rev)
+	       + log_lambda[k] - log2l(monomer_m[i][k]) - l2)
+	      * temp2;
+	}
 	int retval = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
 	if (retval) {
 	  print_math_error(retval);
@@ -821,23 +831,28 @@ complete_data_log_likelihood(const std::vector<boost::shared_ptr<binding_model<>
 	  for (int j=0; j < m; ++j) {
 	    if (my_cob_params[r].dimer_lambdas[o][d] > 0.0) {
 	      feclearexcept(FE_ALL_EXCEPT);
-	      temp +=
-		(compute_log_dimer_probability<FloatType>(line, line_rev,
-							  j, +1,
-							  *log_oriented_dimer_matrices[r][o][0], 
-							  *log_oriented_dimer_matrices[r][o][0], 
-							  d, log_q, q2)
-		 + log2l(my_cob_params[r].dimer_lambdas[o][d]) - log_m - l2)
-		* my_cob_params[r].spaced_dimer_Z[i][o][d][0][j];
-	      if (use_two_strands)
+	      FloatType temp2 = my_cob_params[r].spaced_dimer_Z[i][o][d][0][j];
+	      if (temp2 > 0.0)
 		temp +=
 		  (compute_log_dimer_probability<FloatType>(line, line_rev,
-							    j, -1,
+							    j, +1,
 							    *log_oriented_dimer_matrices[r][o][0], 
 							    *log_oriented_dimer_matrices[r][o][1], 
-							    d, log_q_rev, q2_rev)
+							    d, log_q, q2)
 		   + log2l(my_cob_params[r].dimer_lambdas[o][d]) - log_m - l2)
-		  * my_cob_params[r].spaced_dimer_Z[i][o][d][1][j];
+		  * temp2;
+	      if (use_two_strands) {
+		FloatType temp2 = my_cob_params[r].spaced_dimer_Z[i][o][d][1][j];
+		if (temp2 > 0.0) 
+		  temp +=
+		    (compute_log_dimer_probability<FloatType>(line, line_rev,
+							      j, -1,
+							    *log_oriented_dimer_matrices[r][o][0], 
+							      *log_oriented_dimer_matrices[r][o][1], 
+							      d, log_q_rev, q2_rev)
+		     + log2l(my_cob_params[r].dimer_lambdas[o][d]) - log_m - l2)
+		    * temp2;
+	      }
 	      int retval = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
 	      if (retval) {
 		print_math_error(retval);
@@ -859,15 +874,20 @@ complete_data_log_likelihood(const std::vector<boost::shared_ptr<binding_model<>
 	  for (int j=0; j < m; ++j) {
 	    if (my_cob_params[r].dimer_lambdas[o][d] > 0.0) {
 	      feclearexcept(FE_ALL_EXCEPT);
-	      temp +=
-		(compute_log_probability<FloatType>(line, line_rev, j, +1, model, log_q, q2)
-		 + log2l(my_cob_params[r].dimer_lambdas[o][d]) - log_m - l2)
-		* my_cob_params[r].overlapping_dimer_Z[i][o][d][0][j];
-	      if (use_two_strands)
+	      FloatType temp2 = my_cob_params[r].overlapping_dimer_Z[i][o][d][0][j];
+	      if (temp2 > 0.0) 
 		temp +=
-		  (compute_log_probability<FloatType>(line, line_rev, j, -1, model, log_q_rev, q2_rev)
+		  (compute_log_probability<FloatType>(line, line_rev, j, +1, model, log_q, q2)
 		   + log2l(my_cob_params[r].dimer_lambdas[o][d]) - log_m - l2)
-		  * my_cob_params[r].overlapping_dimer_Z[i][o][d][1][j];
+		  * temp2;
+	      if (use_two_strands) {
+		FloatType temp2 = my_cob_params[r].overlapping_dimer_Z[i][o][d][1][j];
+		if (temp2 > 0.0)
+		  temp +=
+		    (compute_log_probability<FloatType>(line, line_rev, j, -1, model, log_q_rev, q2_rev)
+		     + log2l(my_cob_params[r].dimer_lambdas[o][d]) - log_m - l2)
+		    * temp2;
+	      }
 	      int retval = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
 	      if (retval) {
 		print_math_error(retval);
@@ -3081,13 +3101,15 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       for (int r = 0; r < number_of_cobs; ++r) {
 	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
 	  for (int d=my_cob_params[r].dmin; d < std::min(0, my_cob_params[r].dmax+1); ++d) {
+	    if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
+	      continue;
 	    if (use_pseudo_counts) {
 	      overlapping_dimer_weights[r][o][d].add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts);
 	      //	      pseudo_counts.add(overlapping_dimer_weights[r][o][d]);
 	    }
 	    //	    overlapping_dimer_models[r][o][d] = normalize_matrix_columns_copy(overlapping_dimer_weights[r][o][d]);
 	    overlapping_dimer_models[r][o][d] = overlapping_dimer_weights[r][o][d].normalized(my_cob_params[r].dimer_seeds[o][d]);
-	    assert(overlapping_dimer_models[r][o][d]->is_probability_model());
+	    //assert(overlapping_dimer_models[r][o][d]->is_probability_model());
 	  }
 	}
       } // end for r
@@ -3097,6 +3119,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
 	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
 	  for (int d=0; d <= max_dist_for_deviation; ++d) {
+	    if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
+	      continue;
 	    double mysum = gap_weights[r][o][d].sum();
 	    if (extra_debug and false) {
 	      gap_weights[r][o][d].write_counts(stdout, 
@@ -3104,12 +3128,14 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 							  my_cob_params[r].name().c_str(), orients[o], d).c_str(), "%.6f");
 	      printf("Sum is %e\n", mysum);
 	    }
-	    if (mysum == 0.0)
+	    if (mysum == 0.0) {
 	      empty_gap[r][o][d]=true;
+	      continue;
+	    }
 	    if (use_pseudo_counts)
 	      gap_weights[r][o][d].add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts);
 	    gap_models[r][o][d] = gap_weights[r][o][d].normalized("");  // Note! No seed used for gap
-	    assert(gap_models[r][o][d]->is_probability_model());
+	    //assert(gap_models[r][o][d]->is_probability_model());  // flanks are zero, so it won't be a proper model
 	  }
 	}
       } // end for r
@@ -4056,7 +4082,8 @@ int main(int argc, char* argv[])
   TIME_START(t);
   WALL_TIME_START(t2);
 #ifdef FE_NOMASK_ENV
-  feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);   // These exceptions cause trap to occur
+  //  feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);   // These exceptions cause trap to occur
+  feenableexcept(FE_INVALID | FE_OVERFLOW | FE_UNDERFLOW);   // TEMPORARILY REMOVED DIVIDE BY ZERO These exceptions cause trap to occur
 #endif
 
   if (argc > 1) {
