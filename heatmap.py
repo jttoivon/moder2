@@ -31,8 +31,8 @@ def float_to_string(f):
         return '%.0f' % (f*1000)
 
 def myfloat(s):
-    "Converts string to float. Allows use of unicode minus sign (u'\u2212')."
-    r = "".join(map(lambda x : "-" if x == u'\u2212' else x, s))
+    "Converts string to float. Allows use of unicode minus sign (u'\\u2212')."
+    r = "".join(["-" if x == '\u2212' else x for x in s])
     return float(r)
 
 def make_heatmap(data, xlabels, ylabels, fmt, title="", outputfile="", fontsize=32.0, cell_labels=False):
@@ -60,7 +60,7 @@ def make_heatmap(data, xlabels, ylabels, fmt, title="", outputfile="", fontsize=
                     
     cmap = plt.get_cmap('YlOrRd')
     subcmap = truncate_colormap(cmap, 0.0, 0.8)
-    subcmap.set_under(color=u'white', alpha=None)
+    subcmap.set_under(color='white', alpha=None)
     
 #    rcParams['lines.solid_joinstyle'] = "round"
     plt.imshow(data, vmin=0.0, cmap=subcmap, interpolation='nearest', aspect='equal')
@@ -82,7 +82,8 @@ def make_heatmap(data, xlabels, ylabels, fmt, title="", outputfile="", fontsize=
     else:
         ax.set_xticklabels(["%s" % s for s in xlabels])
         
-    plt.tick_params(axis='both', which='both', bottom='off', top='off', right='off', left='off')
+#    plt.tick_params(axis='both', which='both', bottom='off', top='off', right='off', left='off')
+    plt.tick_params(axis='both', which='both', bottom=False, top=False, right=False, left=False)
 
     # These lines will create grid in minor tick, that is, between cells
     ax.set_xticks(np.arange(-0.5, width, 1), minor=True);
@@ -141,7 +142,7 @@ def main():
     try:
         optlist, args = getopt.getopt(sys.argv[1:], 'ht:', ["help", "title="])
     except getopt.GetoptError as e:
-        print e
+        print(e)
         sys.stderr.write(usage)
         sys.exit(1)
     optdict = dict(optlist)
@@ -149,7 +150,7 @@ def main():
 
     for o, arg in optlist:
         if o in ["-h", "--help"]:
-            print usage
+            print(usage)
             sys.exit(0)
         elif o in ["-t", "--title"]:
             title=arg
@@ -186,7 +187,7 @@ def main():
         sys.exit(1)
 
     cob = readarray(lines)
-    drange = map(int, cob[0,1:])
+    drange = list(map(int, cob[0,1:]))
 
     #print drange
     #print cob

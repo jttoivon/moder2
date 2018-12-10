@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 import analyze_adm
 import getopt
@@ -9,7 +9,7 @@ import os
 import numpy as np
 import string
 import math
-import StringIO
+import io
 import matplotlib.pyplot as plt
 import matplotlib
 import heatmap
@@ -147,7 +147,7 @@ def entropy(l):
             try:
                 sum+=f*math.log(f,2)
             except ValueError:
-                print l
+                print(l)
                 raise
     return -sum;
 
@@ -158,9 +158,9 @@ def adm_information_content(adm):
     cols = adm.k
     result=[]
     result.append(information_content(adm.initial_probabilities[:,0]))
-    for c in xrange(cols-1):
+    for c in range(cols-1):
         temp = 0.0
-        for a in xrange(4):
+        for a in range(4):
             temp += adm.initial_probabilities[a,c] * information_content(adm.transition_probabilities[4*a:4*(a+1),c])
         result.append(temp)
     return result
@@ -194,9 +194,9 @@ def reverse_complement_adm(adm):
     k = adm.k
     i=reverse_complement_pwm(adm.initial_probabilities)
     t = np.zeros((16, k-1))
-    for j in xrange(k-1):
-        for ab in xrange(16):
-            a = ab / 4
+    for j in range(k-1):
+        for ab in range(16):
+            a = ab // 4
             b = ab % 4
             divisor = adm.initial_probabilities[b, j+1]
             if divisor > 0.0:
@@ -223,7 +223,7 @@ def matrices_in_orientation(o, p1, p2):
         return (reverse_complement_pwm(p1), reverse_complement_pwm(p2))
 
 def find_lines(x, str, pos, count):
-    resultfile= StringIO.StringIO(string.join(x,""))
+    resultfile= io.StringIO("".join(x))
     resultlist=[]
     # read matrix header
     while True:
@@ -237,7 +237,7 @@ def find_lines(x, str, pos, count):
                 pos -= 1
             break
         elif line=="":
-            raise AttributeError, "Tag '%s' not found" % str
+            raise AttributeError("Tag '%s' not found" % str)
     while pos > 0 and line != "":
         line = resultfile.readline()
         pos -= 1
@@ -267,7 +267,7 @@ def readmodel(x):
     for line in x[first:]:
         line=line.strip()
 #        tmp=map(float,line.split('\t'))
-        tmp=map(float,line.split())
+        tmp=list(map(float,line.split()))
         result.append(tmp)
     return np.array(result)
 
@@ -297,20 +297,20 @@ def force_adms_equal(adm1, adm2):
     product = adm1.representation() * adm2.representation()
 
     r = np.zeros((4, k+1))
-    for a in xrange(4):
+    for a in range(4):
         r[a, k] = 1.0
     
-    for j in xrange(k-1, -1, -1):
+    for j in range(k-1, -1, -1):
         amax = 1 if j==0 else 4
-        for a in xrange(amax):
-            for b in xrange(4):
+        for a in range(amax):
+            for b in range(4):
                 r[a, j] += product[a*4+b, j] * r[b, j+1]
 
     result = np.zeros((16, k))
-    for j in xrange(k):
+    for j in range(k):
         amax = 1 if j==0 else 4
-        for a in xrange(amax):
-            for b in xrange(4):
+        for a in range(amax):
+            for b in range(4):
                 if r[a, j] > 0.0:
                     result[4*a+b, j] = product[a*4+b, j] * r[b, j+1] / r[a, j]
                 else:
@@ -337,13 +337,13 @@ def compute_expected(pwm1, pwm2, o, d):
     # Left occurrence
     result1 = np.empty((4, dimer_len))
     result1.fill(fill)
-    for pos in xrange(0, k1):
+    for pos in range(0, k1):
         result1[:,pos] = m1[:,pos]
 
     # Right occurrence
     result2 = np.empty((4, dimer_len))
     result2.fill(fill)
-    for pos in xrange(k1+d, dimer_len):
+    for pos in range(k1+d, dimer_len):
         result2[:,pos] = m2[:,pos-(k1+d)]
 
     expected = normalize(result1 * result2)
@@ -518,7 +518,7 @@ def logo_container(anchor, image, ending, title=""):
 #    f.write(logo_container(logo.replace(".svg", ending), logo, ending, title))
 
 def mycommand(s):
-    p = subprocess.Popen(s, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(s, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8")
     (output, error) = p.communicate()
     return (p.returncode, output, error)
 
@@ -665,7 +665,7 @@ def get_lambda_table(results_output):
     lambdas = monomer_lambdas + cob_lambdas + [bg_lambda]
     lambda_sum = sum(lambdas)
     lambdas.append(lambda_sum)
-    lambda_table2 = zip(lambda_headers, lambdas)
+    lambda_table2 = list(zip(lambda_headers, lambdas))
     
     # lambda_table[number_of_factors+number_of_cobs+1][1] = sum([float(lambda_table[i][1]) for i in xrange(0, number_of_factors + number_of_cobs + 1) ])
 
@@ -716,7 +716,7 @@ def get_seeds(full_output, number_of_factors):
             pass
         for i, t in enumerate(temp2): 
             ch=[" "] * number_of_factors
-            for j in xrange(number_of_factors): 
+            for j in range(number_of_factors): 
                 ch[j] = str(j+1) if prev[j] != t[j] else " "
             f.write("Round %02i %s\t%s\n" % (i, " ".join(t), " ".join(ch))) # Third field contains a number for each factor that had its seed changes
                                                                             # compared to the one from the previous iteration
@@ -752,7 +752,7 @@ def printmatrix(x, file=sys.stdout, headers=[], colheaders=[], format="%f", sep=
     if printcolheaders:
         if printheaders:
             file.write(sep)
-        for j in xrange(cols-1):
+        for j in range(cols-1):
             file.write("%s" % colheaders[j])
             file.write(sep)
         file.write("%s" % colheaders[cols-1])
@@ -762,7 +762,7 @@ def printmatrix(x, file=sys.stdout, headers=[], colheaders=[], format="%f", sep=
         if printheaders:
             file.write("%s%s" % (headers[i], sep))
         file.write(format % x[i,0])
-        for j in xrange(1,cols):
+        for j in range(1,cols):
             file.write(sep)
             file.write(format % x[i,j])
         file.write("\n")
@@ -782,9 +782,9 @@ def writematrixfile(x, filename):
 def myrun(command):
     result=os.system("%s 2>&1 > /dev/null" % command)
     if result == 0:
-        print "SUCCESS %s" % command
+        print("SUCCESS %s" % command)
     else:
-        print "FAILURE %s" % command
+        print("FAILURE %s" % command)
 
 
 def myargmax(a):
@@ -861,8 +861,8 @@ def get_dimer_cases(results_output, iterations, last_iteration_output):
             os.system("ln -f -s three.%s.%s.%s.html best.%s.html" % (cob_codes[i], best_o, best_d, cob_codes[i]))
             os.system("ln -f -s three.%s.%s.%s-rc.html best.%s-rc.html" % (cob_codes[i], best_o, best_d, cob_codes[i]))
 
-        for row in xrange(0, number_of_orientations):
-            for d in xrange(dmin[i], dmax[i]+1):
+        for row in range(0, number_of_orientations):
+            for d in range(dmin[i], dmax[i]+1):
                 if float(temp[1+row,1+d-dmin[i]]) > 0.00000:
                     #command="get_cob_case.py %s %i %s %s %i %s" % ("-f" if get_flanks else "", iterations-1, cob_codes[i], orients[row], d, inputfile)
                     #myrun(command)
@@ -871,7 +871,7 @@ def get_dimer_cases(results_output, iterations, last_iteration_output):
                     cob_ic_tables[i][row, d-dmin[i]] = ic
                     cob_length_tables[i][row, d-dmin[i]] = dimer_pwm.shape[1]
         with open("cob.%s.cob" % cob_codes[i], "w") as f:
-            for row in xrange(temp.shape[0]):
+            for row in range(temp.shape[0]):
                 f.write("\t".join(temp[row,:]))
                 f.write("\n")
         g = np.vectorize(lambda x,y,z : "Lambda %f&#010;IC: %f&#010;Length: %i" % (x,y,z))
@@ -999,8 +999,8 @@ def visualize_cobs(cobs, cob_codes):
         data=cob_tables[i]
         vfunc = np.vectorize(lambda x: x if x > 0.0 else -0.0002)
         data=vfunc(data)
-        drange = range(dmin[i], dmax[i]+1)
-        print "Creating heatmap for %s" % cob
+        drange = list(range(dmin[i], dmax[i]+1))
+        print("Creating heatmap for %s" % cob)
         heatmap.make_heatmap(data, drange, orients, "svg", cob, "%s.svg" % f, fontsize=20.0, cell_labels=True)
 #        myrun('heatmap.R -z 12 -c -s -i -t %s %s.cob 2> /dev/null > /dev/null' % (cob, f))
 #        myrun("sed -i '/page/d' %s.svg" % f)  # R or its pheatmap package make svg files corrupt. This fixes it.
@@ -1056,7 +1056,7 @@ def create_graphs(full_output, factors, cobs, cob_codes):
     with open("mll.txt", "w") as f:
         f.write("%s\n" % ("\t".join(mll_header)))
         for t in temp:
-            mll_data.append(t)
+            mll_data.append(float(t))
             f.write("%s\n" % t)
 
     temp=extract_list(r"Total number of parameters is (.+)", full_output)
@@ -1065,7 +1065,7 @@ def create_graphs(full_output, factors, cobs, cob_codes):
     with open("parameters.txt", "w") as f:
         f.write("%s\n" % ("\t".join(parameters_header)))
         for t in temp:
-            parameters_data.append(t)
+            parameters_data.append(float(t))
             f.write("%s\n" % t)
 
     temp=extract_list(r"Intermediate average information content of monomer models: \[(.+)\]", full_output)
@@ -1075,7 +1075,7 @@ def create_graphs(full_output, factors, cobs, cob_codes):
         f.write("%s\n" % ("\t".join(ics_header)))
         for t2 in temp:
             t = t2.split(", ")
-            ics_data.append(t)
+            ics_data.append(list(map(float, t)))
             f.write("%s\n" % "\t".join(t))
 
     distances_header=factors+cobs
@@ -1106,18 +1106,20 @@ def create_graphs(full_output, factors, cobs, cob_codes):
         temp=extract_list(r"Intermediate monomer lambdas are \[(.+)\]", full_output)
         atemp=[t.split(", ") for t in temp]
         #print atemp
-        a=np.array(atemp)
+        a=np.array(atemp).astype(float)
         btemp=[]
         for cob in cob_codes:
             #print "Cob is %s" % cob
             temp=extract_list(r"Intermediate sum of dimer lambdas %s is (.+)" % cob, full_output)
             btemp.append(temp)
     #    print btemp
-        b=np.transpose(np.array(btemp))
+        b=np.transpose(np.array(btemp)).astype(float)
+        
         temp=extract_list(r"Intermediate background lambda is (.+)", full_output)
-        c=np.transpose(np.array([temp]))
+        c=np.transpose(np.array([temp])).astype(float)
         f.write("%s\n" % ("\t".join(lambdas_header)))
 
+        print(a.shape, b.shape, c.shape)
         if len(cob_codes) > 0:
             d=np.concatenate((a,b,c), 1)
         else:
@@ -1147,18 +1149,18 @@ def get_start_positions(last_iteration_output, factors):
         global start_positions
         start_positions = True
         temp = lines[i+1:i+len(factors)*4:2]
-        temp = map(lambda x : x.strip('[]'), temp)
-        temp = map(lambda x : x.replace(", ", "\t"), temp)
+        temp = [x.strip('[]') for x in temp]
+        temp = [x.replace(", ", "\t") for x in temp]
         with open("start_positions.tsv", "w") as f:
             for line in temp:
                 f.write("%s\n" % line)
-        temp = map(lambda x : x.split(), temp)
+        temp = [x.split() for x in temp]
         data = np.array(temp).astype(float)
         ylabels=[]
         for i, f in enumerate(factors):
             ylabels.append("Monomer %i (forward)" % i)
             ylabels.append("Monomer %i (backward)" % i)
-        xlabels = range(0, data.shape[1])
+        xlabels = list(range(0, data.shape[1]))
         heatmap.make_heatmap(data, xlabels, ylabels, "svg", "Monomer start positions", "start_positions.svg", fontsize=20.0)
 
 # This is to locate helper scripts in the same directory as this file
@@ -1182,7 +1184,7 @@ the report will be in file 'moderoutputfile.report/index.html'
 try:
     optlist, args = getopt.getopt(sys.argv[1:], 'hd', ["help", "debug"])
 except getopt.GetoptError as e:
-    print e
+    print(e)
     sys.stderr.write(usage)
     sys.exit(1)
     
@@ -1194,11 +1196,11 @@ start_positions = False
 #print optdict
 for o, a in optlist:
         if o in ("-h", "--help"):
-            print usage
+            print(usage)
             sys.exit(0)
         elif o in ("-d", "--debug"):
             debug=True
-            print "Debugging on"
+            print("Debugging on")
         else:
             sys.stderr.write("Unknown option: %s\n" % o)
             sys.stderr.write(usage)
@@ -1207,7 +1209,7 @@ for o, a in optlist:
 
 
 if len(args) == 1:
-    print usage
+    print(usage)
     sys.exit(0)
 elif len(args) != 3:
     sys.stderr.write("Error, give two parameters.\n")
@@ -1268,7 +1270,7 @@ if cob_factors:
     cob_factors=cob_factors.split(",")
 else:
     cob_factors=[]
-cob_factors=[map(int, x.split("-")) for x in cob_factors]              # cob_factors=[[0,0], [1,1], [0,1]]
+cob_factors=[list(map(int, x.split("-"))) for x in cob_factors]              # cob_factors=[[0,0], [1,1], [0,1]]
 number_of_cobs=len(cob_factors)
 factor_codes=set()
 for x,y in cob_factors:
@@ -1277,7 +1279,7 @@ for x,y in cob_factors:
 # In the if clause below, if only one name e.g. HNF4A is given and four codes 0,1,2,3 are used in cob types, then form names
 # HNF4Aa,HNF4Ab,HNF4Ac,HNF4Ad
 if len(factors) == 1 and len(factor_codes) > 1:
-    new_factors=[factors[0]+chr(ord('a')+x) for x in xrange(max(factor_codes)+1) ]
+    new_factors=[factors[0]+chr(ord('a')+x) for x in range(max(factor_codes)+1) ]
     factors = new_factors
 
 number_of_factors=len(factors)
@@ -1341,7 +1343,7 @@ if debug:
 
 
 #logo_files = [ s+".svg" for s in factors ]                             # logo_files=["TEAD4.svg", "ERG.svg"]
-logo_files = [ "monomer.%i.svg" % i for i in xrange(number_of_factors) ]   # logo_files=["monomer.0.svg", "monomer.1.svg"]
+logo_files = [ "monomer.%i.svg" % i for i in range(number_of_factors) ]   # logo_files=["monomer.0.svg", "monomer.1.svg"]
 #cob_files = [ s+".svg" for s in cobs ]                                 # cob_files=["TEAD4-TEAD4.svg", "ERG-ERG.svg",  "TEAD4-ERG.svg"]
 cob_files = [ "cob.%s.svg" % s for s in cob_codes ]                       # cob_files=["cob.0-0.svg", "cob.1-1.svg",  "cob.0-1.svg"]
 cob_links = [ "cob.%s.array.html" % s for s in cob_codes ]             # ["cob.0-0.array.html", "cob.1-1.array.html", ... ]
@@ -1356,7 +1358,7 @@ lambda_table = get_lambda_table(results_output)
 iterations, maxiter, Lmin, Lmax, lines, epsilon, excluded, command, start_time, version, hostname, threads = get_info(results_output, full_output, cob_codes)
 
 #Background distribution: [0.30201, 0.294127, 0.202849, 0.201013]
-bg_dist = map(float, extract(r"Background distribution: \[(.*)\]", results_output).split(', '))
+bg_dist = list(map(float, extract(r"Background distribution: \[(.*)\]", results_output).split(', ')))
 
 seeds_begin, seeds_end = get_seeds(full_output, number_of_factors)
 
@@ -1439,7 +1441,7 @@ else:
 f.write("<li>Convergence criterion cutoff is %g</li>" % epsilon)
 f.write("<li>Excluded cob cases: %i</li>" % excluded)
 f.write("<li>Are monomers learnt modularly: %s</li>" % " ".join(monomer_modularity))
-f.write('<li>Initial and final <a href="seeds.txt">consensus sequences</a> of lengths %s:</li>' % (" ".join(map(lambda x : str(len(x)), seeds_begin))))
+f.write('<li>Initial and final <a href="seeds.txt">consensus sequences</a> of lengths %s:</li>' % (" ".join([str(len(x)) for x in seeds_begin])))
 f.write("<ul>")
 f.write('<li style="font-family: monospace;">%s</s>' % (" ".join(seeds_begin)))
 f.write('<li style="font-family: monospace;">%s</s>' % (" ".join(seeds_end)))
@@ -1485,7 +1487,7 @@ if number_of_cobs > 0:
 if get_flanks:
     f.write('<div id="flankfactors">')
     f.write('<h2>Monomer motifs with flanks</h2>')
-    flank_logo_files=["flank-%i.svg" % i for i in xrange(number_of_factors)]
+    flank_logo_files=["flank-%i.svg" % i for i in range(number_of_factors)]
     make_table_v3(f, flank_logo_files, factors, [x.replace(".svg", ".%s"%motif_ending) for x in flank_logo_files], ".%s"%motif_ending, monomer_titles)
     f.write("</div>")
 
@@ -1562,12 +1564,12 @@ for i, cob_factor in enumerate(cob_factors):
     link_expected_table = []
     link_deviation_table = []
     link_flank_table = []
-    for row in xrange(0, number_of_orientations):
+    for row in range(0, number_of_orientations):
         temp_list=[]
         temp_list2=[]
         temp_list3=[]
         temp_list4=[]
-        for d in xrange(dmin[i], dmax[i]+1):
+        for d in range(dmin[i], dmax[i]+1):
             if cob_tables[i][row,d-dmin[i]] > 0.00000:
                 title=cob_titles[i][row, d-dmin[i]]
                 ending="%s.%s.%i" % (cob_codes[i], orients[row], d)
@@ -1599,19 +1601,19 @@ for i, cob_factor in enumerate(cob_factors):
         f.write("</div>")
 
         f.write('<h3 class="tableheading">Observed Matrices</h3>\n')
-        make_better_table(f, link_table, [""]+range(dmin[i], dmax[i]+1), orients, htmlclass="ppmtable")
+        make_better_table(f, link_table, [""]+list(range(dmin[i], dmax[i]+1)), orients, htmlclass="ppmtable")
         f.write('<h3 class="tableheading">Expected Matrices</h3>\n')
-        make_better_table(f, link_expected_table, [""]+range(dmin[i], dmax[i]+1), orients, htmlclass="ppmtable")
+        make_better_table(f, link_expected_table, [""]+list(range(dmin[i], dmax[i]+1)), orients, htmlclass="ppmtable")
         f.write('<h3 class="tableheading">Deviation Matrices</h3>\n')
-        make_better_table(f, link_deviation_table, [""]+range(dmin[i], dmax[i]+1), orients, htmlclass="ppmtable")
+        make_better_table(f, link_deviation_table, [""]+list(range(dmin[i], dmax[i]+1)), orients, htmlclass="ppmtable")
         if get_flanks:
-            for j in xrange(len(factors)):
+            for j in range(len(factors)):
                 f.write('<h3 class="tableheading">Flanked Monomer Matrix %i</h3>\n' % j)
 
                 f.write(logo_container("flank-%i.%s" % (j,motif_ending), "flank-%i.svg" % j, ".%s"%motif_ending, monomer_titles[j]))
                 #f.write('<img src="flank-%i.svg"\>\n' % j)
             f.write('<h3 class="tableheading">Flanked Dimer Matrices</h3>\n')
-            make_better_table(f, link_flank_table, [""]+range(dmin[i], dmax[i]+1), orients, htmlclass="ppmtable")
+            make_better_table(f, link_flank_table, [""]+list(range(dmin[i], dmax[i]+1)), orients, htmlclass="ppmtable")
 
 #myrun("cp %s/style.css ." % execdir)
 
@@ -1622,4 +1624,4 @@ with open("monomer_weights.txt", "w") as f:
 with open("style.css", "w") as f:
     f.write(css)
     
-print "The report is in file %s" % reportfile
+print("The report is in file %s" % reportfile)
