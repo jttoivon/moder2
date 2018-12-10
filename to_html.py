@@ -350,7 +350,7 @@ def compute_expected(pwm1, pwm2, o, d):
     return expected
 
 # Write results for a cob case
-def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_iteration_output, get_flanks):
+def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_iteration_output, get_flanks, motif_ending):
     k1 = pwm1.shape[1]
     k2 = pwm2.shape[1]
     if use_adm:
@@ -432,7 +432,7 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
 
 
 
-def get_cob_case(cob, o, d, pwm1, pwm2, last_iteration_output, get_flanks):        
+def get_cob_case(cob, o, d, pwm1, pwm2, last_iteration_output, get_flanks, motif_ending):        
     expected = compute_expected(pwm1, pwm2, o, d)
     if use_adm:
         rows=16
@@ -453,7 +453,7 @@ def get_cob_case(cob, o, d, pwm1, pwm2, last_iteration_output, get_flanks):
     if use_adm:
         observed = analyze_adm.adm(observed)
         
-    write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_iteration_output, get_flanks)
+    write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_iteration_output, get_flanks, motif_ending)
     return observed
 
 
@@ -514,7 +514,7 @@ def mycommand(s):
     (output, error) = p.communicate()
     return (p.returncode, output, error)
 
-def make_table_h(f, files, headers, titles=[]):
+def make_table_h(f, files, headers, motif_ending, titles=[]):
     f.write("<table>")
     if len(headers) > 0:
         f.write("<tr>")
@@ -638,7 +638,7 @@ def get_best_cob_cases(cob_codes):
     return best_cases, best_cases_links, best_cases_headers
 
 
-def get_lambda_table(results_output):
+def get_lambda_table(results_output, factors, cobs, cob_codes):
     lambda_headers = factors + cobs + ["Background", "Sum"]
     # lambda_table = [ [factors[i], 0.0] for i in xrange(number_of_factors) ]  + \
     #     [ [cobs[i],   0.0]  for i in xrange(number_of_cobs) ] +\
@@ -650,6 +650,7 @@ def get_lambda_table(results_output):
     # for i,dummy in enumerate(factors):
     #     lambda_table[i][1] = monomer_lambdas[i]
 
+    number_of_cobs = len(cobs)
     cob_lambdas = [0] * number_of_cobs
     for i, c in enumerate(cob_codes):
         cob_lambdas[i] = float(extract(r"Sum of dimer lambdas of cob table %s is (.*)" % c, results_output))
@@ -658,7 +659,6 @@ def get_lambda_table(results_output):
     lambda_sum = sum(lambdas)
     lambdas.append(lambda_sum)
     lambda_table2 = list(zip(lambda_headers, lambdas))
-    
     
     return lambda_table2
 
@@ -765,7 +765,7 @@ def myargmax(a):
     return np.unravel_index(np.argmax(a), a.shape)
 
 
-def get_monomers(factors, results_output, last_iteration_output):
+def get_monomers(factors, results_output, last_iteration_output, model_rows, motif_ending, get_flanks):
     factor_lengths = [0]*len(factors)
     factor_ics = [0]*len(factors)
     factor_pwms = [0]*len(factors)
@@ -791,7 +791,8 @@ def get_monomers(factors, results_output, last_iteration_output):
             writematrixfile(flank_pwm_rc, "flank-%i-rc.%s" % (i,motif_ending))
     return factor_lengths, factor_ics, factor_pwms
 
-def get_dimer_cases(results_output, iterations, last_iteration_output):
+def get_dimer_cases(results_output, iterations, last_iteration_output, cob_factors, use_rna, cob_codes, dmin, dmax, cob_tables, cob_ic_tables,
+                    cob_length_tables, orients, orient_dict, monomer_pwms, get_flanks, motif_ending, cob_titles, best_cases_titles):
     for i, cob_factor in enumerate(cob_factors):
         number_of_orientations = 1 if use_rna else 3
         
@@ -840,7 +841,7 @@ def get_dimer_cases(results_output, iterations, last_iteration_output):
                 if float(temp[1+row,1+d-dmin[i]]) > 0.00000:
                     #command="get_cob_case.py %s %i %s %s %i %s" % ("-f" if get_flanks else "", iterations-1, cob_codes[i], orients[row], d, inputfile)
                     #myrun(command)
-                    dimer_pwm=get_cob_case(cob_codes[i], orients[row], d, monomer_pwms[tf1], monomer_pwms[tf2], results_output, get_flanks)
+                    dimer_pwm=get_cob_case(cob_codes[i], orients[row], d, monomer_pwms[tf1], monomer_pwms[tf2], results_output, get_flanks, motif_ending)
                     ic = matrix_information_content(dimer_pwm)
                     cob_ic_tables[i][row, d-dmin[i]] = ic
                     cob_length_tables[i][row, d-dmin[i]] = dimer_pwm.shape[1]
@@ -852,7 +853,7 @@ def get_dimer_cases(results_output, iterations, last_iteration_output):
         cob_titles[i] = g(cob_tables[i], cob_ic_tables[i], cob_length_tables[i])
         best_cases_titles[i]=cob_titles[i][oi, di]
 
-def create_monomer_logos(factors, factor_lengths):
+def create_monomer_logos(factors, factor_lengths, motif_ending, get_flanks):
     # Monomers
     for i, f in enumerate(factors):
         #os.system("to_logo.sh -n -t %s %s.pfm" % (f, f))
@@ -869,7 +870,7 @@ def create_monomer_logos(factors, factor_lengths):
 
 
             
-def visualize_cobs(cobs, cob_codes):            
+def visualize_cobs(cobs, cob_codes, cob_tables, dmin, dmax, orients):            
     for i, (cob, code) in enumerate(zip(cobs, cob_codes)):
         f = "cob.%s" % code
         #    myrun('heatmap.R -z 8 -c -s -f "%%.3f" -t %s %s.cob' % (f, f))
@@ -926,7 +927,7 @@ def myplot(data, title="", xlab="", ylab="", ymax=None, headers=[], outputfile="
     else:
         plt.show()
 
-def create_graphs(full_output, factors, cobs, cob_codes):
+def create_graphs(full_output, factors, cobs, cob_codes, name):
     temp=extract_list(r"Log likelihood is (.+)", full_output)
     mll_header=["Log likelihood"]
     mll_data=[]
@@ -1040,458 +1041,466 @@ def get_start_positions(last_iteration_output, factors):
         xlabels = list(range(0, data.shape[1]))
         heatmap.make_heatmap(data, xlabels, ylabels, "svg", "Monomer start positions", "start_positions.svg", fontsize=20.0)
 
-# This is to locate helper scripts in the same directory as this file
-execdir=os.path.abspath(os.path.dirname(sys.argv[0]))
-#print "execdir is %s" % execdir
-path=os.getenv("PATH")
-os.putenv("PATH", path+":"+execdir)
-
-usage="""Usage:
-\tto_html.py tf1name,tf2name,... moderoutputfile
-
-Parses the output created by MODER and converts it to a graphical
-html page. The first parameter is a comma separated list
-of factor names. The second parameter is the name of the
-MODER output file.
-
-A directory 'moderoutputfile.report' is created, and
-the report will be in file 'moderoutputfile.report/index.html'
-"""
-
-try:
-    optlist, args = getopt.getopt(sys.argv[1:], 'hd', ["help", "debug"])
-except getopt.GetoptError as e:
-    print(e)
-    sys.stderr.write(usage)
-    sys.exit(1)
-    
-optdict = dict(optlist)
-args = [sys.argv[0]]+ args
-debug=False
-start_positions = False
-
-#print optdict
-for o, a in optlist:
-        if o in ("-h", "--help"):
-            print(usage)
-            sys.exit(0)
-        elif o in ("-d", "--debug"):
-            debug=True
-            print("Debugging on")
-        else:
-            sys.stderr.write("Unknown option: %s\n" % o)
-            sys.stderr.write(usage)
-            sys.exit(1)
-            
-
-
-if len(args) == 1:
-    print(usage)
-    sys.exit(0)
-elif len(args) != 3:
-    sys.stderr.write("Error, give two parameters.\n")
-    sys.stderr.write(usage)
-    sys.exit(1)
-
-name=args[1]
-orig=inputfile=args[2]
-
-if inputfile[1:].count(".") > 0:                         # Contains a file extension
-    mydir=re.sub("\.[^.]*?$", ".report", inputfile)
-else:
-    mydir="%s.report" % inputfile
-reportfile="%s/index.html" % mydir
-
-inputfile = "../%s" % os.path.basename(inputfile)
-
-try:
-    os.mkdir(mydir)
-except OSError:
-    pass
-
-os.chdir(mydir)
-
-factors=name.split(',')  # For example ['FLI1a', 'FLI1b']
-
-try:
-    with open(inputfile) as f:
-        full_output = "".join(f.readlines())
-except IOError:
-    sys.stderr.write("Could not read file %s. Exiting!\n" % orig)
-    sys.exit(1)
-                     
-binding_model = extract(r"Using binding model: (.*)", full_output)
-if binding_model == "ppm":
-    use_adm=False
-    motif_ending="pfm"
-    model_rows=4
-else:
-    use_adm=True
-    motif_ending="adm"
-    model_rows=20
-    
-use_rna = extract(r"Use RNA alphabet: (.*)", full_output)
-if use_rna == "yes":
-    use_rna = True
-    orients = rna_orients
-    orient_dict = rna_orient_dict
-    myspacek_flags="-paths -noname -rna"
-else:
-    use_rna = False
-    orients = dna_orients
-    orient_dict = dna_orient_dict
-    myspacek_flags="-paths -noname"
-    
-cob_factors=extract(r"Cob combinations are ([0-9,-]*)", full_output)
-if cob_factors:
-    cob_factors=cob_factors.split(",")
-else:
-    cob_factors=[]
-cob_factors=[list(map(int, x.split("-"))) for x in cob_factors]              # cob_factors=[[0,0], [1,1], [0,1]]
-number_of_cobs=len(cob_factors)
-factor_codes=set()
-for x,y in cob_factors:
-    factor_codes.add(x)
-    factor_codes.add(y)
-# In the if clause below, if only one name e.g. HNF4A is given and four codes 0,1,2,3 are used in cob types, then form names
-# HNF4Aa,HNF4Ab,HNF4Ac,HNF4Ad
-if len(factors) == 1 and len(factor_codes) > 1:
-    new_factors=[factors[0]+chr(ord('a')+x) for x in range(max(factor_codes)+1) ]
-    factors = new_factors
-
-number_of_factors=len(factors)
-
-
-
-cobs=['-'.join([factors[x[0]], factors[x[1]]]) for x in cob_factors ]  # cobs=["TEAD4-TEAD4", "ERG-ERG",  "TEAD4-ERG"]
-cob_codes=[ "-".join(map(str,x)) for x in cob_factors ]                # cob_codes=["0-0", "1-1", "0-1"]
-
-
-command="sed -n '/Results/,$p' %s" % inputfile
-(ret_val, results_output, error) = mycommand(command)
-assert ret_val == 0
-
-
-######################################################################################################
-#
-# to_logos
-#
-
-
-cob_tables=[0]*number_of_cobs
-cob_ic_tables=[0]*number_of_cobs
-cob_length_tables=[0]*number_of_cobs
-cob_titles=[0]*number_of_cobs
-dmin=[0]*number_of_cobs
-dmax=[0]*number_of_cobs
-
-get_flanks = extract(r"Get full flanks: (.*)", full_output) == "yes"
-
-iterations =  int(extract(r"EM-algorithm took (.*) iterations", results_output))
-
-command="sed -n '/Round %i/,/^-+$/p' %s" % (iterations-1,inputfile)   # Output from last iteration onwards
-(ret_val, last_iteration_output, error) = mycommand(command)
-
-monomer_lengths, monomer_ics, monomer_pwms, monomer_flanked_pwms = get_monomers(factors, results_output, last_iteration_output)
-
-best_cases_titles=[0]*number_of_cobs
-get_dimer_cases(results_output, iterations, last_iteration_output)
-create_monomer_logos(factors, monomer_lengths)
-visualize_cobs(cobs, cob_codes)
-if debug:
-    create_graphs(full_output, factors, cobs, cob_codes)
-    get_start_positions(last_iteration_output, factors)
-    
-# temp=extract_list(r"Background distribution \(intermed\): \[(.+)\]", full_output)
-# bg=[x.split(", ") for x in temp]
-# with open("background.txt", "w") as f:
-#     bg_t=np.array(bg).transpose()
-#     for t in bg_t: 
-#         f.write("%s\n" % ("\t".join(t)))
-# myrun('myspacek40 --logo -paths background.txt background.svg')
-
-
-
-######################################################################################################
-#
-# Print html
-#
-
-
-
-#logo_files = [ s+".svg" for s in factors ]                             # logo_files=["TEAD4.svg", "ERG.svg"]
-logo_files = [ "monomer.%i.svg" % i for i in range(number_of_factors) ]   # logo_files=["monomer.0.svg", "monomer.1.svg"]
-#cob_files = [ s+".svg" for s in cobs ]                                 # cob_files=["TEAD4-TEAD4.svg", "ERG-ERG.svg",  "TEAD4-ERG.svg"]
-cob_files = [ "cob.%s.svg" % s for s in cob_codes ]                       # cob_files=["cob.0-0.svg", "cob.1-1.svg",  "cob.0-1.svg"]
-cob_links = [ "cob.%s.array.html" % s for s in cob_codes ]             # ["cob.0-0.array.html", "cob.1-1.array.html", ... ]
-
-
-best_cases, best_cases_links, best_cases_headers = get_best_cob_cases(cob_codes)
-
-lambda_table = get_lambda_table(results_output)
-
-
-
-iterations, maxiter, Lmin, Lmax, lines, epsilon, excluded, command, start_time, version, hostname, threads = get_info(results_output, full_output, cob_codes)
-
-#Background distribution: [0.30201, 0.294127, 0.202849, 0.201013]
-bg_dist = list(map(float, extract(r"Background distribution: \[(.*)\]", results_output).split(', ')))
-
-seeds_begin, seeds_end = get_seeds(full_output, number_of_factors)
-
 def get_monomer_modularity(full_output):
     temp=extract_list(r"Is monomer pwm learnt purely modularly: \[(.+)\]", full_output)
     temp2=[x.split(", ") for x in temp]
     return temp2[-1]
 
-monomer_modularity = get_monomer_modularity(full_output)
+def main():        
+    # This is to locate helper scripts in the same directory as this file
+    execdir=os.path.abspath(os.path.dirname(sys.argv[0]))
+    #print "execdir is %s" % execdir
+    path=os.getenv("PATH")
+    os.putenv("PATH", path+":"+execdir)
+
+    usage="""Usage:
+    \tto_html.py tf1name,tf2name,... moderoutputfile
+
+    Parses the output created by MODER and converts it to a graphical
+    html page. The first parameter is a comma separated list
+    of factor names. The second parameter is the name of the
+    MODER output file.
+
+    A directory 'moderoutputfile.report' is created, and
+    the report will be in file 'moderoutputfile.report/index.html'
+    """
+
+    try:
+        optlist, args = getopt.getopt(sys.argv[1:], 'hd', ["help", "debug"])
+    except getopt.GetoptError as e:
+        print(e)
+        sys.stderr.write(usage)
+        sys.exit(1)
+
+    optdict = dict(optlist)
+    args = [sys.argv[0]]+ args
+    debug=False
+    start_positions = False
+
+    #print optdict
+    for o, a in optlist:
+            if o in ("-h", "--help"):
+                print(usage)
+                sys.exit(0)
+            elif o in ("-d", "--debug"):
+                debug=True
+                print("Debugging on")
+            else:
+                sys.stderr.write("Unknown option: %s\n" % o)
+                sys.stderr.write(usage)
+                sys.exit(1)
 
 
-runtime = get_run_time(results_output)
 
-    
+    if len(args) == 1:
+        print(usage)
+        sys.exit(0)
+    elif len(args) != 3:
+        sys.stderr.write("Error, give two parameters.\n")
+        sys.stderr.write(usage)
+        sys.exit(1)
 
+    name=args[1]
+    orig=inputfile=args[2]
 
-f = open('index.html', 'w')
-    
-f.write("<html>\n")
+    if inputfile[1:].count(".") > 0:                         # Contains a file extension
+        mydir=re.sub("\.[^.]*?$", ".report", inputfile)
+    else:
+        mydir="%s.report" % inputfile
+    reportfile="%s/index.html" % mydir
 
-f.write("<head>\n")
-javascript='''
-  <script type="text/javascript">
-    function myclick(e, ending)
-    {
-    t=e.target;
-    t.style.borderColor="red";
-    logo_container = t.parentNode.parentNode;
-    image_node = logo_container.getElementsByClassName("image")[0];
-    anchor_node = logo_container.getElementsByTagName("a")[0];
-    if (t.className=="normal") {
-      var other=logo_container.getElementsByClassName("rc")[0];
-      image_node.src = image_node.src.replace("-rc.svg", ".svg");
-      anchor_node.href= anchor_node.href.replace("-rc".concat(ending), ending);
-    } else {
-      var other=logo_container.getElementsByClassName("normal")[0];
-      if (! image_node.src.endsWith("-rc.svg")) {
-        image_node.src= image_node.src.replace(".svg", "-rc.svg");
-        anchor_node.href= anchor_node.href.replace(ending, "-rc".concat(ending));
-      }
-    }
-    other.style.borderColor="white";
-    }
-  </script>
-'''
-f.write(javascript)
+    inputfile = "../%s" % os.path.basename(inputfile)
 
-f.write('<link rel="stylesheet" href="style.css" type="text/css" />\n')
-f.write("<title>%s - %s</title>\n" % (name, re.sub("^../", "", inputfile)))
+    try:
+        os.mkdir(mydir)
+    except OSError:
+        pass
 
-f.write("</head>\n")
+    os.chdir(mydir)
 
-f.write("<body>\n")
+    factors=name.split(',')  # For example ['FLI1a', 'FLI1b']
 
-f.write("<h1>MODER - MOtif DEtectoR</h1>\n")
-f.write("<h2>%s - %s</h2>\n" % (name, re.sub("^../", "", inputfile)))
+    try:
+        with open(inputfile) as f:
+            full_output = "".join(f.readlines())
+    except IOError:
+        sys.stderr.write("Could not read file %s. Exiting!\n" % orig)
+        sys.exit(1)
 
+    binding_model = extract(r"Using binding model: (.*)", full_output)
+    global use_adm
+    if binding_model == "ppm":
+        use_adm=False
+        motif_ending="pfm"
+        model_rows=4
+    else:
+        use_adm=True
+        motif_ending="adm"
+        model_rows=20
 
-###################
-#
-# Print the infobox
+    use_rna = extract(r"Use RNA alphabet: (.*)", full_output)
+    global myspacek_flags
+    if use_rna == "yes":
+        use_rna = True
+        orients = rna_orients
+        orient_dict = rna_orient_dict
+        myspacek_flags="-paths -noname -rna"
+    else:
+        use_rna = False
+        orients = dna_orients
+        orient_dict = dna_orient_dict
+        myspacek_flags="-paths -noname"
 
-f.write('<div id="info">\n')
+    cob_factors=extract(r"Cob combinations are ([0-9,-]*)", full_output)
+    if cob_factors:
+        cob_factors=cob_factors.split(",")
+    else:
+        cob_factors=[]
+    cob_factors=[list(map(int, x.split("-"))) for x in cob_factors]              # cob_factors=[[0,0], [1,1], [0,1]]
+    number_of_cobs=len(cob_factors)
+    factor_codes=set()
+    for x,y in cob_factors:
+        factor_codes.add(x)
+        factor_codes.add(y)
+    # In the if clause below, if only one name e.g. HNF4A is given and four codes 0,1,2,3 are used in cob types, then form names
+    # HNF4Aa,HNF4Ab,HNF4Ac,HNF4Ad
+    if len(factors) == 1 and len(factor_codes) > 1:
+        new_factors=[factors[0]+chr(ord('a')+x) for x in range(max(factor_codes)+1) ]
+        factors = new_factors
 
-f.write('<div style="float: left; padding: 20px;">\n')
-f.write("<ul>\n")
-#print """<li>Result file: <a href="%s" onclick="window.open('%s', 'newwindow', 'width=300, height=250'); return false;">%s</a></li>""" % (inputfile, inputfile, inputfile)
-f.write("""<li>Result file: <a href="%s">%s</a></li>""" % (inputfile, re.sub("^../", "", inputfile)))
-
-if Lmin == Lmax:
-    L="%s" % Lmin
-else:
-    L="%s-%s" % (Lmin, Lmax)
-f.write("<li>Data contains %i sequences of length %s </li>" % (lines, L))
-f.write("<li>Running time was (wall-clock) %s</li>" % runtime)
-if iterations == maxiter:
-    f.write("<li>EM-algorithm took <span style='color: red;'>%i iterations</span> (max-iter=%i)</li>" % (iterations, maxiter))
-else:
-    f.write("<li>EM-algorithm took %i iterations (max-iter=%i)</li>" % (iterations, maxiter))
-f.write("<li>Convergence criterion cutoff is %g</li>" % epsilon)
-f.write("<li>Excluded cob cases: %i</li>" % excluded)
-f.write("<li>Are monomers learnt modularly: %s</li>" % " ".join(monomer_modularity))
-f.write('<li>Initial and final <a href="seeds.txt">consensus sequences</a> of lengths %s:</li>' % (" ".join([str(len(x)) for x in seeds_begin])))
-f.write("<ul>")
-f.write('<li style="font-family: monospace;">%s</s>' % (" ".join(seeds_begin)))
-f.write('<li style="font-family: monospace;">%s</s>' % (" ".join(seeds_end)))
-f.write("</ul>")
-f.write("<li>Bg: %s</li>" % (" ".join(["%.2f" % x for x in bg_dist])))
-f.write("</ul>")
-f.write("</div>\n")
-f.write('<div id="lambdaTable" style="float: left; padding: 20px;">\n')
-make_table(lambda_table, ["Model", "Lambda"], f)
-f.write("</div>\n")
-f.write("</div>\n")
+    number_of_factors=len(factors)
 
 
-###################
-#
-# Print the factors
 
-monomer_lambdas=[ y for x,y in lambda_table][0:number_of_factors]
-# These are for the title attribute of the images
-monomer_titles=[ "Lambda: %f&#010;IC: %.2f&#010;Length: %i" % (l,i, length) for l, i, length in zip(monomer_lambdas, monomer_ics, monomer_lengths)]
-f.write('<div id="factors">')
-f.write('<h2>Monomer motifs</h2>')
-make_table_h(f, logo_files, factors, monomer_titles)
-f.write("</div>")
+    cobs=['-'.join([factors[x[0]], factors[x[1]]]) for x in cob_factors ]  # cobs=["TEAD4-TEAD4", "ERG-ERG",  "TEAD4-ERG"]
+    cob_codes=[ "-".join(map(str,x)) for x in cob_factors ]                # cob_codes=["0-0", "1-1", "0-1"]
 
 
-###################
-#
-# Print the cob tables and the best case from each cob table
+    command="sed -n '/Results/,$p' %s" % inputfile
+    (ret_val, results_output, error) = mycommand(command)
+    assert ret_val == 0
 
-if number_of_cobs > 0:
-    f.write('<div id="cobs">')
-    f.write('<h2>COB tables</h2>')
-    make_table_v2(f, cob_files, [""]*number_of_cobs, cob_links)
-    f.write('<h2>Strongest dimeric case from each cob table</h2>')
-    make_table_v3(f, best_cases, best_cases_headers, best_cases_links, ".html", best_cases_titles)
-    f.write("</div>")
 
-###############################
-#
-# Print the factors with flanks
+    ######################################################################################################
+    #
+    # to_logos
+    #
 
-if get_flanks:
-    f.write('<div id="flankfactors">')
-    f.write('<h2>Monomer motifs with flanks</h2>')
-    flank_logo_files=["flank-%i.svg" % i for i in range(number_of_factors)]
-    make_table_v3(f, flank_logo_files, factors, [x.replace(".svg", ".%s"%motif_ending) for x in flank_logo_files], ".%s"%motif_ending, monomer_titles)
-    f.write("</div>")
 
-###################
-#
-# Print behaviour as function of iterations
+    cob_tables=[0]*number_of_cobs
+    cob_ic_tables=[0]*number_of_cobs
+    cob_length_tables=[0]*number_of_cobs
+    cob_titles=[0]*number_of_cobs
+    dmin=[0]*number_of_cobs
+    dmax=[0]*number_of_cobs
 
-if debug:
-    f.write('<div id="iterations">\n')
-    #(files, headers=[], links=[], f, titles=[])
-    make_table_v(["distances.svg", "ics.svg", "lambdas.svg", "mll.svg", "parameters.svg"], f=f)
+    get_flanks = extract(r"Get full flanks: (.*)", full_output) == "yes"
+
+    iterations =  int(extract(r"EM-algorithm took (.*) iterations", results_output))
+
+    command="sed -n '/Round %i/,/^-+$/p' %s" % (iterations-1,inputfile)   # Output from last iteration onwards
+    (ret_val, last_iteration_output, error) = mycommand(command)
+
+#    monomer_lengths, monomer_ics, monomer_pwms, monomer_flanked_pwms = get_monomers(factors, results_output, last_iteration_output, model_rows, motif_ending, get_flanks)
+    monomer_lengths, monomer_ics, monomer_pwms = get_monomers(factors, results_output, last_iteration_output, model_rows, motif_ending, get_flanks)
+
+    best_cases_titles=[0]*number_of_cobs
+    get_dimer_cases(results_output, iterations, last_iteration_output, cob_factors, use_rna, cob_codes, dmin, dmax, cob_tables, cob_ic_tables,
+                    cob_length_tables, orients, orient_dict, monomer_pwms, get_flanks, motif_ending, cob_titles, best_cases_titles)
+    create_monomer_logos(factors, monomer_lengths, motif_ending, get_flanks)
+    visualize_cobs(cobs, cob_codes, cob_tables, dmin, dmax, orients)
+    if debug:
+        create_graphs(full_output, factors, cobs, cob_codes, name)
+        get_start_positions(last_iteration_output, factors)
+
+    # temp=extract_list(r"Background distribution \(intermed\): \[(.+)\]", full_output)
+    # bg=[x.split(", ") for x in temp]
+    # with open("background.txt", "w") as f:
+    #     bg_t=np.array(bg).transpose()
+    #     for t in bg_t: 
+    #         f.write("%s\n" % ("\t".join(t)))
+    # myrun('myspacek40 --logo -paths background.txt background.svg')
+
+
+
+    ######################################################################################################
+    #
+    # Print html
+    #
+
+
+
+    #logo_files = [ s+".svg" for s in factors ]                             # logo_files=["TEAD4.svg", "ERG.svg"]
+    logo_files = [ "monomer.%i.svg" % i for i in range(number_of_factors) ]   # logo_files=["monomer.0.svg", "monomer.1.svg"]
+    #cob_files = [ s+".svg" for s in cobs ]                                 # cob_files=["TEAD4-TEAD4.svg", "ERG-ERG.svg",  "TEAD4-ERG.svg"]
+    cob_files = [ "cob.%s.svg" % s for s in cob_codes ]                       # cob_files=["cob.0-0.svg", "cob.1-1.svg",  "cob.0-1.svg"]
+    cob_links = [ "cob.%s.array.html" % s for s in cob_codes ]             # ["cob.0-0.array.html", "cob.1-1.array.html", ... ]
+
+
+    best_cases, best_cases_links, best_cases_headers = get_best_cob_cases(cob_codes)
+
+    lambda_table = get_lambda_table(results_output, factors, cobs, cob_codes)
+
+
+
+    iterations, maxiter, Lmin, Lmax, lines, epsilon, excluded, command, start_time, version, hostname, threads = get_info(results_output, full_output, cob_codes)
+
+    #Background distribution: [0.30201, 0.294127, 0.202849, 0.201013]
+    bg_dist = list(map(float, extract(r"Background distribution: \[(.*)\]", results_output).split(', ')))
+
+    seeds_begin, seeds_end = get_seeds(full_output, number_of_factors)
+
+    monomer_modularity = get_monomer_modularity(full_output)
+
+
+    runtime = get_run_time(results_output)
+
+
+
+
+    f = open('index.html', 'w')
+
+    f.write("<html>\n")
+
+    f.write("<head>\n")
+    javascript='''
+      <script type="text/javascript">
+        function myclick(e, ending)
+        {
+        t=e.target;
+        t.style.borderColor="red";
+        logo_container = t.parentNode.parentNode;
+        image_node = logo_container.getElementsByClassName("image")[0];
+        anchor_node = logo_container.getElementsByTagName("a")[0];
+        if (t.className=="normal") {
+          var other=logo_container.getElementsByClassName("rc")[0];
+          image_node.src = image_node.src.replace("-rc.svg", ".svg");
+          anchor_node.href= anchor_node.href.replace("-rc".concat(ending), ending);
+        } else {
+          var other=logo_container.getElementsByClassName("normal")[0];
+          if (! image_node.src.endsWith("-rc.svg")) {
+            image_node.src= image_node.src.replace(".svg", "-rc.svg");
+            anchor_node.href= anchor_node.href.replace(ending, "-rc".concat(ending));
+          }
+        }
+        other.style.borderColor="white";
+        }
+      </script>
+    '''
+    f.write(javascript)
+
+    f.write('<link rel="stylesheet" href="style.css" type="text/css" />\n')
+    f.write("<title>%s - %s</title>\n" % (name, re.sub("^../", "", inputfile)))
+
+    f.write("</head>\n")
+
+    f.write("<body>\n")
+
+    f.write("<h1>MODER - MOtif DEtectoR</h1>\n")
+    f.write("<h2>%s - %s</h2>\n" % (name, re.sub("^../", "", inputfile)))
+
+
+    ###################
+    #
+    # Print the infobox
+
+    f.write('<div id="info">\n')
+
+    f.write('<div style="float: left; padding: 20px;">\n')
+    f.write("<ul>\n")
+    #print """<li>Result file: <a href="%s" onclick="window.open('%s', 'newwindow', 'width=300, height=250'); return false;">%s</a></li>""" % (inputfile, inputfile, inputfile)
+    f.write("""<li>Result file: <a href="%s">%s</a></li>""" % (inputfile, re.sub("^../", "", inputfile)))
+
+    if Lmin == Lmax:
+        L="%s" % Lmin
+    else:
+        L="%s-%s" % (Lmin, Lmax)
+    f.write("<li>Data contains %i sequences of length %s </li>" % (lines, L))
+    f.write("<li>Running time was (wall-clock) %s</li>" % runtime)
+    if iterations == maxiter:
+        f.write("<li>EM-algorithm took <span style='color: red;'>%i iterations</span> (max-iter=%i)</li>" % (iterations, maxiter))
+    else:
+        f.write("<li>EM-algorithm took %i iterations (max-iter=%i)</li>" % (iterations, maxiter))
+    f.write("<li>Convergence criterion cutoff is %g</li>" % epsilon)
+    f.write("<li>Excluded cob cases: %i</li>" % excluded)
+    f.write("<li>Are monomers learnt modularly: %s</li>" % " ".join(monomer_modularity))
+    f.write('<li>Initial and final <a href="seeds.txt">consensus sequences</a> of lengths %s:</li>' % (" ".join([str(len(x)) for x in seeds_begin])))
+    f.write("<ul>")
+    f.write('<li style="font-family: monospace;">%s</s>' % (" ".join(seeds_begin)))
+    f.write('<li style="font-family: monospace;">%s</s>' % (" ".join(seeds_end)))
+    f.write("</ul>")
+    f.write("<li>Bg: %s</li>" % (" ".join(["%.2f" % x for x in bg_dist])))
+    f.write("</ul>")
+    f.write("</div>\n")
+    f.write('<div id="lambdaTable" style="float: left; padding: 20px;">\n')
+    make_table(lambda_table, ["Model", "Lambda"], f)
+    f.write("</div>\n")
     f.write("</div>\n")
 
-    if start_positions:
-        f.write('<div id="startpositions">\n')
-        f.write('<img src="start_positions.svg" />\n')
-        f.write("</div>\n")
 
-#print '<div id="background">'
-#print '<p><em>Note.</em> Background model is a multinomial distribution for mononucleotides. In the below logo each position gives the background distribution of the corresponding EM-iteration.</p>'
-#print '<img src="background.svg"\>'
-#print '</div>'
+    ###################
+    #
+    # Print the factors
 
-citation="""Jarkko Toivonen, Teemu Kivioja, Arttu Jolma, Yimeng Yin, Jussi Taipale, Esko Ukkonen (2018) Modular discovery of monomeric and dimeric
-transcription factor binding motifs for large data sets, <i>Nucleic Acids Research</i>,
-Volume 46, Issue 8, 4 May 2018, Pages e44."""
-
-bibtex=""
-moder_doi="https://doi.org/10.1093/nar/gky027"
-
-f.write('<div id="programinfo">\n')
-f.write("<ul>\n")
-f.write("<li>Command line was: %s</li>\n" % command)
-f.write("<li>Program started at: %s</li>\n" % start_time)
-f.write("<li>MODER version: %s</li>\n" % version)
-f.write("<li>MODER was run on host: %s</li>\n" % hostname)
-f.write("<li>Number of simultaneous threads: %s</li>\n" % threads)
-f.write("<li>MODER is available from <a href='https://github.com/jttoivon/MODER'>GitHub</a></li>")
-f.write("<li>If you use MODER in your research, please cite: %s <a href='%s'>Link to article.</a>\n</li>" % (citation,moder_doi))
-f.write("</ul>\n")
-f.write("</div>")
-
-f.write("</body>")
-
-f.write("</html>")
+    monomer_lambdas=[ y for x,y in lambda_table][0:number_of_factors]
+    # These are for the title attribute of the images
+    monomer_titles=[ "Lambda: %f&#010;IC: %.2f&#010;Length: %i" % (l,i, length) for l, i, length in zip(monomer_lambdas, monomer_ics, monomer_lengths)]
+    f.write('<div id="factors">')
+    f.write('<h2>Monomer motifs</h2>')
+    make_table_h(f, logo_files, factors, motif_ending, monomer_titles)
+    f.write("</div>")
 
 
+    ###################
+    #
+    # Print the cob tables and the best case from each cob table
 
-
-
-##################################################################################################################
-#
-# Print the cob.x-y.array.html files that contain the observed, expected and deviation logos for all dimeric cases
-#
-
-# dmin=[0]*number_of_cobs
-# dmax=[0]*number_of_cobs
-# cob_tables=[0]*number_of_cobs
-
-for i, cob_factor in enumerate(cob_factors):
-    number_of_orientations = 1 if use_rna else 3
-    if cob_factor[0] != cob_factor[1]:
-        number_of_orientations += 1
-
-
-    link_table = []
-    link_expected_table = []
-    link_deviation_table = []
-    link_flank_table = []
-    for row in range(0, number_of_orientations):
-        temp_list=[]
-        temp_list2=[]
-        temp_list3=[]
-        temp_list4=[]
-        for d in range(dmin[i], dmax[i]+1):
-            if cob_tables[i][row,d-dmin[i]] > 0.00000:
-                title=cob_titles[i][row, d-dmin[i]]
-                ending="%s.%s.%i" % (cob_codes[i], orients[row], d)
-                html="three.%s.html" % ending
-                # temp_list.append('<a href="three.%s.html"><img src="observed.%s.svg"\></a>' % (ending, ending))
-                temp_list.append(logo_container(html, "observed.%s.svg" % ending, ".html", title))
-                temp_list2.append(logo_container(html, "expected.%s.svg" % ending, ".html", title))
-                temp_list3.append(logo_container(html, "deviation.%s.svg" % ending, ".html", title))
-                temp_list4.append(logo_container(html, "flank.%s.svg" % ending, ".html", title))
-            else:
-                temp_list.append('<p>-</p>')
-                temp_list2.append('<p>-</p>')
-                temp_list3.append('<p>-</p>')
-                temp_list4.append('<p>-</p>')
-        link_table.append(temp_list)
-        link_expected_table.append(temp_list2)
-        link_deviation_table.append(temp_list3)
-        link_flank_table.append(temp_list4)
-    with open("cob.%s.array.html" % cob_codes[i], "w") as f:
-        f.write("<title>%s PPMs - %s</title>\n" % (name, inputfile))
-        f.write('<link rel="stylesheet" href="style.css" type="text/css" />\n')
-        f.write(javascript)
-        f.write('<a href="cob.%s.cob" type="text/plain"><img src="cob.%s.svg"\></a>\n' % (cob_codes[i], cob_codes[i]))
-
-        # Display the logos involved in the cob table
-        f.write('<div id="factors">')
-        index_set=set(cob_factor)  # If both indices are the same, then return just one
-        make_table_h(f, [logo_files[i1] for i1 in index_set], [factors[i2] for i2 in index_set], [monomer_titles[i3] for i3 in index_set])
+    if number_of_cobs > 0:
+        f.write('<div id="cobs">')
+        f.write('<h2>COB tables</h2>')
+        make_table_v2(f, cob_files, [""]*number_of_cobs, cob_links)
+        f.write('<h2>Strongest dimeric case from each cob table</h2>')
+        make_table_v3(f, best_cases, best_cases_headers, best_cases_links, ".html", best_cases_titles)
         f.write("</div>")
 
-        f.write('<h3 class="tableheading">Observed Matrices</h3>\n')
-        make_better_table(f, link_table, [""]+list(range(dmin[i], dmax[i]+1)), orients, htmlclass="ppmtable")
-        f.write('<h3 class="tableheading">Expected Matrices</h3>\n')
-        make_better_table(f, link_expected_table, [""]+list(range(dmin[i], dmax[i]+1)), orients, htmlclass="ppmtable")
-        f.write('<h3 class="tableheading">Deviation Matrices</h3>\n')
-        make_better_table(f, link_deviation_table, [""]+list(range(dmin[i], dmax[i]+1)), orients, htmlclass="ppmtable")
-        if get_flanks:
-            for j in range(len(factors)):
-                f.write('<h3 class="tableheading">Flanked Monomer Matrix %i</h3>\n' % j)
+    ###############################
+    #
+    # Print the factors with flanks
 
-                f.write(logo_container("flank-%i.%s" % (j,motif_ending), "flank-%i.svg" % j, ".%s"%motif_ending, monomer_titles[j]))
-                #f.write('<img src="flank-%i.svg"\>\n' % j)
-            f.write('<h3 class="tableheading">Flanked Dimer Matrices</h3>\n')
-            make_better_table(f, link_flank_table, [""]+list(range(dmin[i], dmax[i]+1)), orients, htmlclass="ppmtable")
+    if get_flanks:
+        f.write('<div id="flankfactors">')
+        f.write('<h2>Monomer motifs with flanks</h2>')
+        flank_logo_files=["flank-%i.svg" % i for i in range(number_of_factors)]
+        make_table_v3(f, flank_logo_files, factors, [x.replace(".svg", ".%s"%motif_ending) for x in flank_logo_files], ".%s"%motif_ending, monomer_titles)
+        f.write("</div>")
 
-#myrun("cp %s/style.css ." % execdir)
+    ###################
+    #
+    # Print behaviour as function of iterations
 
-with open("monomer_weights.txt", "w") as f:
-    f.write("%s\n" % (",".join(factors)))
-    f.write("%s\n" % (",".join(map(str, monomer_lambdas))))
-    
-with open("style.css", "w") as f:
-    f.write(css)
-    
-print("The report is in file %s" % reportfile)
+    if debug:
+        f.write('<div id="iterations">\n')
+        #(files, headers=[], links=[], f, titles=[])
+        make_table_v(["distances.svg", "ics.svg", "lambdas.svg", "mll.svg", "parameters.svg"], f=f)
+        f.write("</div>\n")
+
+        if start_positions:
+            f.write('<div id="startpositions">\n')
+            f.write('<img src="start_positions.svg" />\n')
+            f.write("</div>\n")
+
+    #print '<div id="background">'
+    #print '<p><em>Note.</em> Background model is a multinomial distribution for mononucleotides. In the below logo each position gives the background distribution of the corresponding EM-iteration.</p>'
+    #print '<img src="background.svg"\>'
+    #print '</div>'
+
+    citation="""Jarkko Toivonen, Teemu Kivioja, Arttu Jolma, Yimeng Yin, Jussi Taipale, Esko Ukkonen (2018) Modular discovery of monomeric and dimeric
+    transcription factor binding motifs for large data sets, <i>Nucleic Acids Research</i>,
+    Volume 46, Issue 8, 4 May 2018, Pages e44."""
+
+    bibtex=""
+    moder_doi="https://doi.org/10.1093/nar/gky027"
+
+    f.write('<div id="programinfo">\n')
+    f.write("<ul>\n")
+    f.write("<li>Command line was: %s</li>\n" % command)
+    f.write("<li>Program started at: %s</li>\n" % start_time)
+    f.write("<li>MODER version: %s</li>\n" % version)
+    f.write("<li>MODER was run on host: %s</li>\n" % hostname)
+    f.write("<li>Number of simultaneous threads: %s</li>\n" % threads)
+    f.write("<li>MODER is available from <a href='https://github.com/jttoivon/MODER'>GitHub</a></li>")
+    f.write("<li>If you use MODER in your research, please cite: %s <a href='%s'>Link to article.</a>\n</li>" % (citation,moder_doi))
+    f.write("</ul>\n")
+    f.write("</div>")
+
+    f.write("</body>")
+
+    f.write("</html>")
+
+
+
+
+
+    ##################################################################################################################
+    #
+    # Print the cob.x-y.array.html files that contain the observed, expected and deviation logos for all dimeric cases
+    #
+
+    # dmin=[0]*number_of_cobs
+    # dmax=[0]*number_of_cobs
+    # cob_tables=[0]*number_of_cobs
+
+    for i, cob_factor in enumerate(cob_factors):
+        number_of_orientations = 1 if use_rna else 3
+        if cob_factor[0] != cob_factor[1]:
+            number_of_orientations += 1
+
+
+        link_table = []
+        link_expected_table = []
+        link_deviation_table = []
+        link_flank_table = []
+        for row in range(0, number_of_orientations):
+            temp_list=[]
+            temp_list2=[]
+            temp_list3=[]
+            temp_list4=[]
+            for d in range(dmin[i], dmax[i]+1):
+                if cob_tables[i][row,d-dmin[i]] > 0.00000:
+                    title=cob_titles[i][row, d-dmin[i]]
+                    ending="%s.%s.%i" % (cob_codes[i], orients[row], d)
+                    html="three.%s.html" % ending
+                    # temp_list.append('<a href="three.%s.html"><img src="observed.%s.svg"\></a>' % (ending, ending))
+                    temp_list.append(logo_container(html, "observed.%s.svg" % ending, ".html", title))
+                    temp_list2.append(logo_container(html, "expected.%s.svg" % ending, ".html", title))
+                    temp_list3.append(logo_container(html, "deviation.%s.svg" % ending, ".html", title))
+                    temp_list4.append(logo_container(html, "flank.%s.svg" % ending, ".html", title))
+                else:
+                    temp_list.append('<p>-</p>')
+                    temp_list2.append('<p>-</p>')
+                    temp_list3.append('<p>-</p>')
+                    temp_list4.append('<p>-</p>')
+            link_table.append(temp_list)
+            link_expected_table.append(temp_list2)
+            link_deviation_table.append(temp_list3)
+            link_flank_table.append(temp_list4)
+        with open("cob.%s.array.html" % cob_codes[i], "w") as f:
+            f.write("<title>%s PPMs - %s</title>\n" % (name, inputfile))
+            f.write('<link rel="stylesheet" href="style.css" type="text/css" />\n')
+            f.write(javascript)
+            f.write('<a href="cob.%s.cob" type="text/plain"><img src="cob.%s.svg"\></a>\n' % (cob_codes[i], cob_codes[i]))
+
+            # Display the logos involved in the cob table
+            f.write('<div id="factors">')
+            index_set=set(cob_factor)  # If both indices are the same, then return just one
+            make_table_h(f, [logo_files[i1] for i1 in index_set], [factors[i2] for i2 in index_set], motif_ending, [monomer_titles[i3] for i3 in index_set])
+            f.write("</div>")
+
+            f.write('<h3 class="tableheading">Observed Matrices</h3>\n')
+            make_better_table(f, link_table, [""]+list(range(dmin[i], dmax[i]+1)), orients, htmlclass="ppmtable")
+            f.write('<h3 class="tableheading">Expected Matrices</h3>\n')
+            make_better_table(f, link_expected_table, [""]+list(range(dmin[i], dmax[i]+1)), orients, htmlclass="ppmtable")
+            f.write('<h3 class="tableheading">Deviation Matrices</h3>\n')
+            make_better_table(f, link_deviation_table, [""]+list(range(dmin[i], dmax[i]+1)), orients, htmlclass="ppmtable")
+            if get_flanks:
+                for j in range(len(factors)):
+                    f.write('<h3 class="tableheading">Flanked Monomer Matrix %i</h3>\n' % j)
+
+                    f.write(logo_container("flank-%i.%s" % (j,motif_ending), "flank-%i.svg" % j, ".%s"%motif_ending, monomer_titles[j]))
+                    #f.write('<img src="flank-%i.svg"\>\n' % j)
+                f.write('<h3 class="tableheading">Flanked Dimer Matrices</h3>\n')
+                make_better_table(f, link_flank_table, [""]+list(range(dmin[i], dmax[i]+1)), orients, htmlclass="ppmtable")
+
+    #myrun("cp %s/style.css ." % execdir)
+
+    with open("monomer_weights.txt", "w") as f:
+        f.write("%s\n" % (",".join(factors)))
+        f.write("%s\n" % (",".join(map(str, monomer_lambdas))))
+
+    with open("style.css", "w") as f:
+        f.write(css)
+
+    print("The report is in file %s" % reportfile)
+
+if __name__ == '__main__':
+    main()
