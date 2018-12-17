@@ -166,16 +166,19 @@ def adm_information_content(adm):
     return result
 
 def matrix_information_content(m):
-    if is_adm(m):
-        ics = adm_information_content(m)
-        return sum(ics)
     columns=m.transpose().tolist()  # l is list of columns
     total_ic = 0.0
     for column in columns:
         total_ic += information_content(column) 
     return total_ic
 
-
+def model_information_content(m):
+    if is_adm(m):
+        ics = adm_information_content(m)
+        return sum(ics)
+    else:
+        return matrix_information_content(m)
+    
 # Normalize a PFM
 def normalize(m):
     for i in range(0,m.shape[1]):
@@ -204,23 +207,27 @@ def reverse_complement_adm(adm):
     return analyze_adm.adm(t,i)
 
 def reverse_complement_pwm(m):
-    if is_adm(m):
-        return reverse_complement_adm(m)
     result=m.copy()
     for c in range(0,m.shape[1]):
         for r in range(0,m.shape[0]):
             result[m.shape[0]-r-1,m.shape[1]-c-1] = m[r,c]
     return result
 
+def reverse_complement_model(m):
+    if is_adm(m):
+        return reverse_complement_adm(m)
+    else:
+        return reverse_complement_pwm(m)
+    
 def matrices_in_orientation(o, p1, p2):
     if o == "HT":
         return (p1, p2)
     elif o == "HH":
-        return (p1, reverse_complement_pwm(p2))
+        return (p1, reverse_complement_model(p2))
     elif o == "TT":
-        return (reverse_complement_pwm(p1), p2)
+        return (reverse_complement_model(p1), p2)
     elif o == "TH":
-        return (reverse_complement_pwm(p1), reverse_complement_pwm(p2))
+        return (reverse_complement_model(p1), reverse_complement_model(p2))
 
 def find_lines(x, str, pos, count):
     resultfile= io.StringIO("".join(x))
@@ -318,6 +325,7 @@ def force_adms_equal(adm1, adm2):
     return analyze_adm.adm(result)
         
 def compute_expected_adm(adm1, adm2, o, d):
+    adm1,adm2 = matrices_in_orientation(o, adm1, adm2)
     k1 = adm1.shape[1]
     k2 = adm2.shape[1]
     dimer_len = k1 + k2 + d
@@ -325,10 +333,8 @@ def compute_expected_adm(adm1, adm2, o, d):
     a2 = left_extend_adm(adm2, dimer_len - k2)
     return force_adms_equal(a1, a2)
     
-def compute_expected(pwm1, pwm2, o, d):
+def compute_expected_pwm(pwm1, pwm2, o, d):
     m1,m2 = matrices_in_orientation(o, pwm1, pwm2)
-    if use_adm:
-        return compute_expected_adm(m1, m2, o, d)
     k1 = m1.shape[1]
     k2 = m2.shape[1]
     dimer_len = k1+k2+d
@@ -349,6 +355,12 @@ def compute_expected(pwm1, pwm2, o, d):
     expected = normalize(result1 * result2)
     return expected
 
+def compute_expected(pwm1, pwm2, o, d):
+    if is_adm(pwm1):
+        return compute_expected_adm(pwm1, pwm2, o, d)
+    else:
+        return compute_expected_pwm(pwm1, pwm2, o, d)
+    
 # Write results for a cob case
 def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_iteration_output, get_flanks, motif_ending):
     k1 = pwm1.shape[1]
@@ -384,11 +396,11 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
     dname_rc="deviation.%s.%s.%i-rc.dev" % (cob, o, d)
     fname_rc="flank.%s.%s.%i-rc.%s" % (cob, o, d, motif_ending)
 
-    observed_rc=reverse_complement_pwm(observed)
-    expected_rc=reverse_complement_pwm(expected)
-    deviation_rc=reverse_complement_pwm(deviation)
+    observed_rc=reverse_complement_model(observed)
+    expected_rc=reverse_complement_model(expected)
+    deviation_rc=reverse_complement_model(deviation)
     if get_flanks:
-        flank_rc=reverse_complement_pwm(flank)
+        flank_rc=reverse_complement_model(flank)
 
     writematrixfile(observed_rc, oname_rc)
     writematrixfile(expected_rc, ename_rc)
@@ -777,17 +789,17 @@ def get_monomers(factors, results_output, last_iteration_output, model_rows, mot
         with open("monomer.%i.%s" % (i,motif_ending), "w") as f:
             f.writelines(lines)
         factor_pwms[i] = pwm = readmodel(lines)
-        pwm_rc=reverse_complement_pwm(pwm)
+        pwm_rc=reverse_complement_model(pwm)
 #        writematrixfile(pwm_rc, "%s-rc.pfm" % factor)
         writematrixfile(pwm_rc, "monomer.%i-rc.%s" % (i,motif_ending))
         factor_lengths[i] = pwm.shape[1]
-        factor_ics[i] = matrix_information_content(pwm)
+        factor_ics[i] = model_information_content(pwm)
         if get_flanks:
             lines=find_lines(last_iteration_output, "Flank monomer matrix %i:" % i, start, model_rows)
             with open("flank-%i.%s" % (i,motif_ending), "w") as f:
                 f.writelines(lines)
             flank_pwm=readmodel(lines)
-            flank_pwm_rc=reverse_complement_pwm(flank_pwm)
+            flank_pwm_rc=reverse_complement_model(flank_pwm)
             writematrixfile(flank_pwm_rc, "flank-%i-rc.%s" % (i,motif_ending))
     return factor_lengths, factor_ics, factor_pwms
 
@@ -842,7 +854,7 @@ def get_dimer_cases(results_output, iterations, last_iteration_output, cob_facto
                     #command="get_cob_case.py %s %i %s %s %i %s" % ("-f" if get_flanks else "", iterations-1, cob_codes[i], orients[row], d, inputfile)
                     #myrun(command)
                     dimer_pwm=get_cob_case(cob_codes[i], orients[row], d, monomer_pwms[tf1], monomer_pwms[tf2], results_output, get_flanks, motif_ending)
-                    ic = matrix_information_content(dimer_pwm)
+                    ic = model_information_content(dimer_pwm)
                     cob_ic_tables[i][row, d-dmin[i]] = ic
                     cob_length_tables[i][row, d-dmin[i]] = dimer_pwm.shape[1]
         with open("cob.%s.cob" % cob_codes[i], "w") as f:

@@ -652,11 +652,11 @@ struct cob_params_t
 	  }
 	}
 	int rows = model_type == ppm ? 4 : 16;
+	dmatrix orep = overlapping_dimer_PWM[o][d]->representation();
+	dmatrix erep = expected_overlapping_dimer_PWMs[o][d]->representation();
 	for (int row = 0; row < rows; ++row) {
 	  for (int column = first - 1; column <= last + 1; ++column) // The overlapping part with flanks of 1bp on both sides
-	    deviation[o][d](row,column) = 
-	      overlapping_dimer_PWM[o][d]->representation()(row,column)
-	      - expected_overlapping_dimer_PWMs[o][d]->representation()(row,column);
+	    deviation[o][d](row,column) = orep(row,column) - erep(row,column);
 	}
       }  // end for d
 	 
@@ -2343,7 +2343,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	// Dimer models
 	for (int r=0; r < my_cob_params.size(); ++r) {
 	  int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
-	  // Overlapping dimer models
+	  // Overlapping and gapped dimer models
 	  for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
 	    for (int d=my_cob_params[r].dmin; d <= max_dist_for_deviation; ++d) {
 	      expectation_Z_dir_j_overlapping(my_cob_params[r].overlapping_dimer_Z, i, o, d, line, line_rev, 
@@ -2853,42 +2853,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      temp.get<0>() += m1;
 	      temp.get<1>() += m2;
 	    }
-	    /*
-	    if (use_rna) {
-	      switch (o) {
-	      case HT:
-		temp.get<0>() += m1;
-		temp.get<1>() += m2;
-		break;
-	      case RNA_TH:
-		temp.get<0>() += m2;
-		temp.get<1>() += m1;
-		break;
-	      default:
-		printf("Unknown orientation. Exiting!\n");
-		exit(1);
-	      }	      
-	    }
-	    else {
-	      switch (o) {
-	      case HT:
-		temp.get<0>() += m1;
-		temp.get<1>() += m2;
-		break;
-	      case HH:
-		temp.get<0>() += m1;
-		temp.get<1>() += reverse_complement(m2);
-		break;
-	      case TT:
-		temp.get<0>() += reverse_complement(m1);
-		temp.get<1>() += m2;
-		break;
-	      case TH:
-		temp.get<0>() += reverse_complement(m1);
-		temp.get<1>() += reverse_complement(m2);
-		break;
-	      }	      
-	      }*/
+
 	    
 	  } // for d, spaced dimer PWMs
 	} // for o, spaced dimer PWMs
@@ -4836,10 +4801,11 @@ int main(int argc, char* argv[])
     printf("Maximum distance for gap learning for cob case %s is %i\n", cp.name().c_str(), max_dist_for_deviation);
 
     for (int o=0; o < cp.number_of_orientations; ++o) {
-      for (int d=cp.dmin; d < std::min(0, cp.dmax+1); ++d) {
+      //      for (int d=cp.dmin; d < std::min(0, cp.dmax+1); ++d) {
+      for (int d=cp.dmin; d <= max_dist_for_deviation; ++d) {
 	write_matrix(stdout, cp.deviation[o][d], 
-		       to_string("Initial deviation matrix %s %s %i:\n", cp.name().c_str(),
-				 orients[o], d).c_str(), "%.6f");
+		       to_string("Initial deviation matrix %s %s %i from seed %s:\n", cp.name().c_str(),
+				 orients[o], d, cp.dimer_seeds[o][d].c_str()).c_str(), "%.6f");
       }
     }
 
