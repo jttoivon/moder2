@@ -130,6 +130,10 @@ almost_equal(double d1, double d2, double threshold = 0.0000001);
 bool
 operator==(const dinuc_model<double>& dm1, const dinuc_model<double>& dm2);
 
+std::ostream&
+operator<<(std::ostream& str, const dinuc_model<double>& adm);
+
+
 std::vector<dmatrix>
 dinucleotide_counts_suffix_array(const std::string& seed, const std::vector<std::string>& sequences,
 				 const suffix_array& sa, int n);
@@ -669,6 +673,9 @@ force_adms_equal(const dinuc_model<double>& adm1, const dinuc_model<double>& adm
 
 dinuc_model<double>
 dinuc_model_product(const dinuc_model<double>& adm1, const dinuc_model<double>& adm2, int d);
+
+dinuc_model<double>
+join_adms(const dinuc_model<double>& left, const dinuc_model<double>& right);
 
 /*
 dinuc_model

@@ -1051,3 +1051,20 @@ adm_from_background(const std::vector<double>& bg, int k)
   return adm;
 }
 */
+
+dinuc_model<double>
+join_adms(const dinuc_model<double>& left, const dinuc_model<double>& right)
+{
+
+  int k1 = left.get_length();
+  int k2 = right.get_length();
+  int k = k1 + k2 - 1;
+  dmatrix result(16, k);
+
+  
+  result.inject(right.representation(), 0, k1-1);
+  result.inject(left.representation(), 0, 0);
+
+  dinuc_model<double> adm(result);
+  return adm;
+}

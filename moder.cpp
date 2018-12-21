@@ -129,7 +129,7 @@ double cob_cutoff = 0.001;  // if an element in a cob table is smaller than this
 bool adjust_seeds = true;
 bool use_multinomial=true;
 bool local_debug = true;
-bool extra_debug = false;   // Even more printing
+bool extra_debug = true;   // Even more printing
 bool allow_extension = false;
 bool use_dimers = true;
 bool seeds_given = false;
@@ -1352,7 +1352,7 @@ get_new_gap_weights(int j1, int dir, double z, int d,
   //typedef myuint128 bitstring_t;
   assert(seed.length() == dimer_len);
   weights.add_gap_sequence<myuint128>(line.substr(j1, dimer_len), seed, d, w1, w2,
-			       force_multinomial, z);
+				      force_multinomial, z);
   //  gap_weight_helper<myuint128>(line.substr(j1, dimer_len), seed, d, w1, w2,
   //			       force_multinomial, z, weights);
   /*
@@ -2408,6 +2408,12 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    for (int d=my_cob_params[r].dmin; d <= max_dist_for_deviation; ++d)
 	      normalize_Z_dir_j(my_cob_params[r].overlapping_dimer_Z, i, o, d, my_cob_params[r].dimer_m[i][d], normalizing_constant);
 
+	  // for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
+	  //   for (int d=0; d <= max_dist_for_deviation; ++d) {
+
+	  //   }
+	  // }
+	      
 	  // Spaced dimer models
 	  for (int o=0; o < my_cob_params[r].number_of_orientations; ++o)
 	    for (int d=1+max_dist_for_deviation; d <= my_cob_params[r].dmax; ++d)
@@ -2902,15 +2908,16 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    count_object m1(model_type, dimer_len);
 
 	    m1.fill_with(0.0);
-	    //	    bool local_use_two_strands;
-	    // if (avoid_palindromes and use_two_strands and (o == HH or o==TT) and
-	    // 	is_almost_palindrome(my_cob_params[r].deviation[o][d])) {
-	    //   local_use_two_strands = false;
-	    //   printf("Avoiding palindrome %s %d iteration %i\n", orients[o], d, round);
-	    // }
-	    // else
-	    //   local_use_two_strands = use_two_strands;
-
+	    int local_maxdir = maxdir;
+	    /*
+	    if (avoid_palindromes and use_two_strands and (o == HH or o==TT) and round == 0) {
+		//	    	is_almost_palindrome(my_cob_params[r].deviation[o][d])) {
+	      local_maxdir = 1;
+	      printf("Avoiding palindrome %s %d iteration %i\n", orients[o], d, round);
+	    }
+	    else
+	      local_maxdir = maxdir;
+	    */
 
 	    int w1 = monomer_w[tf1];
 	    int w2 = monomer_w[tf2];
@@ -2929,7 +2936,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      const std::string& line = sequences[i];
 	      const std::string& line_rev = sequences_rev[i];
 
-	      for (int dir=0; dir < maxdir; ++dir) {
+	      for (int dir=0; dir < local_maxdir; ++dir) {
 		int first = dir == 0 ? w1 : w2;  // in the second strand the binding sites are in different order, first gap pos 
 		int last = first+d;              // last gap pos
 		for (int j1=0; j1 < my_cob_params[r].dimer_m[i][d]; ++j1) {  // iterates through start positions
@@ -3087,7 +3094,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
 	      continue;
 	    double mysum = gap_weights[r][o][d].sum();
-	    if (extra_debug and false) {
+	    if (extra_debug /* and false */) {
 	      gap_weights[r][o][d].write_counts(stdout, 
 						to_string("Observed unnormalized gap matrix %s %s %i:\n",
 							  my_cob_params[r].name().c_str(), orients[o], d).c_str(), "%.6f");
@@ -4801,11 +4808,16 @@ int main(int argc, char* argv[])
     printf("Maximum distance for gap learning for cob case %s is %i\n", cp.name().c_str(), max_dist_for_deviation);
 
     for (int o=0; o < cp.number_of_orientations; ++o) {
-      //      for (int d=cp.dmin; d < std::min(0, cp.dmax+1); ++d) {
-      for (int d=cp.dmin; d <= max_dist_for_deviation; ++d) {
+      int limit = std::min(0, cp.dmax+1);
+      for (int d=cp.dmin; d < limit; ++d) {
 	write_matrix(stdout, cp.deviation[o][d], 
 		       to_string("Initial deviation matrix %s %s %i from seed %s:\n", cp.name().c_str(),
 				 orients[o], d, cp.dimer_seeds[o][d].c_str()).c_str(), "%.6f");
+      }
+      for (int d=limit; d <= max_dist_for_deviation; ++d) {
+	write_matrix(stdout, cp.deviation[o][d], 
+		       to_string("Initial deviation matrix %s %s %i:\n", cp.name().c_str(),
+				 orients[o], d).c_str(), "%.6f");
       }
     }
 
