@@ -106,7 +106,7 @@ int minimum_distance_for_learning = 4;
 int global_dmax = 10;
 //int global_max_dist_for_deviation = -1;
 //int global_max_dist_for_deviation = 4;
-int global_max_dist_for_deviation = 1000;
+int global_max_dist_for_deviation = 3;
 
 double ic_threshold = 0.40;
 double learning_fraction = 0.02;
@@ -129,7 +129,7 @@ double cob_cutoff = 0.001;  // if an element in a cob table is smaller than this
 bool adjust_seeds = true;
 bool use_multinomial=true;
 bool local_debug = true;
-bool extra_debug = true;   // Even more printing
+bool extra_debug = false;   // Even more printing
 bool allow_extension = false;
 bool use_dimers = true;
 bool seeds_given = false;

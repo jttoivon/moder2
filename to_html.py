@@ -432,10 +432,10 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
             oname = "observed.%s.%s.%i%s" % (cob, o, d, rc)
             ename = "expected.%s.%s.%i%s" % (cob, o, d, rc)
             dname = "deviation.%s.%s.%i%s" % (cob, o, d, rc)
-            if use_adm:
-                myrun("mv %s.adm_minus_%s.adm.svg %s.svg" % (oname, ename, dname))
-            else:
-                myrun("mv %s.pfm_minus_%s.pfm.svg %s.svg" % (oname, ename, dname))
+            #if use_adm:
+            #    myrun("mv %s.adm_minus_%s.adm.svg %s.svg" % (oname, ename, dname))
+            #else:
+            #    myrun("mv %s.pfm_minus_%s.pfm.svg %s.svg" % (oname, ename, dname))
             f.write('<h1>%s %s %i</h1>' % (cob, o, d))
             f.write('<figure><figcaption>Observed:</figcaption><a href="%s.%s"><img src="%s.svg"\></a></figure>' % (oname, motif_ending, oname)) 
             f.write('<figure><figcaption>Expected:</figcaption><a href="%s.%s"><img src="%s.svg"\></a></figure>' % (ename,motif_ending,ename)) 
