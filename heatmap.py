@@ -48,6 +48,13 @@ def make_heatmap(data, xlabels, ylabels, fmt, title="", outputfile="", fontsize=
     height=data.shape[0]  # number of orientations
     fig = plt.figure()
     ax = plt.subplot(111)
+
+    ##################
+    #
+    # Numbers in cells
+    #
+    ##################
+    
     if cell_labels:
         for y in range(data.shape[0]):
             for x in range(data.shape[1]):
@@ -68,6 +75,12 @@ def make_heatmap(data, xlabels, ylabels, fmt, title="", outputfile="", fontsize=
     if title:
         plt.title(title, fontsize=fontsize)
 
+    #########################
+    #
+    # Set x and y tick labels
+    #
+    #########################
+
     plt.yticks(fontsize=tickfontsize)
     ax.yaxis.set_ticks(np.arange(0,height,1))
     if isinstance(ylabels[0], int):
@@ -82,14 +95,31 @@ def make_heatmap(data, xlabels, ylabels, fmt, title="", outputfile="", fontsize=
     else:
         ax.set_xticklabels(["%s" % s for s in xlabels])
         
-#    plt.tick_params(axis='both', which='both', bottom='off', top='off', right='off', left='off')
-    plt.tick_params(axis='both', which='both', bottom=False, top=False, right=False, left=False)
+    ###############################
+    #
+    # No major nor minor tick marks
+    #
+    ###############################
 
-    # These lines will create grid in minor tick, that is, between cells
+    plt.tick_params(axis='both', which='both', bottom=False, top=False, right=False, left=False)
+    
+    ###################
+    #
+    # Make grid
+    #
+    ###################
+
+    # These lines will create grid on minor ticks, that is, make cell borders
     ax.set_xticks(np.arange(-0.5, width, 1), minor=True);
     ax.set_yticks(np.arange(-0.5, height, 1), minor=True);
     # Gridlines based on minor ticks
     ax.grid(which='minor', color='black', linestyle='-', linewidth=1, solid_joinstyle='round')
+
+    ##################
+    #
+    # Make colorbar
+    #
+    ##################
 
     cax = divider.append_axes("right", size="5%", pad=0.05)
     try:
@@ -107,11 +137,12 @@ def make_heatmap(data, xlabels, ylabels, fmt, title="", outputfile="", fontsize=
         
         #cb.update_ticks()
         cax.set_yticklabels(temp, fontsize=tickfontsize)
-    except UnicodeEncodeError:   # If labels contain unicode minus, then something went wrong and better not show colorbar
+    except ValueError:   # If labels contain unicode minus, then something went wrong and better not show colorbar
         cb.remove()
         #print "Unicode error!"
         pass
 #    cax.yaxis.set_tick_params(labelright=False)   # No tick labels in colorbar
+
     if outputfile:
         plt.savefig(outputfile, format=fmt, bbox_inches="tight")
     else:
