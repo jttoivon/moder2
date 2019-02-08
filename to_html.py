@@ -415,7 +415,7 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
     myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname, oname.replace(".%s"%motif_ending, ".svg")))
     myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename, ename.replace(".%s"%motif_ending, ".svg")))
     #if not use_adm:         # This does not work for adm models
-    myrun("myspacek40 %s --difflogo %s %s" % (myspacek_flags, oname, ename))          # Deviation logo
+    myrun("myspacek40 %s --difflogo %s %s %s" % (myspacek_flags, oname, ename, dname))          # Deviation logo
     if get_flanks:
         myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k1, k2, d, fname, fname.replace(".%s"%motif_ending, ".svg")))
 
@@ -423,7 +423,7 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
     myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname_rc, oname_rc.replace(".%s"%motif_ending, ".svg")))
     myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename_rc, ename_rc.replace(".%s"%motif_ending, ".svg")))
 #    if not use_adm:         # This does not work for adm models
-    myrun("myspacek40 %s --difflogo %s %s" % (myspacek_flags, oname_rc, ename_rc))          # Deviation logo
+    myrun("myspacek40 %s --difflogo %s %s %s" % (myspacek_flags, oname_rc, ename_rc, dname_rc))          # Deviation logo
     if get_flanks:
         myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k2, k1, d, fname_rc, fname_rc.replace(".%s"%motif_ending, ".svg")))
 
