@@ -4303,9 +4303,8 @@ int main(int argc, char* argv[])
       cob_cutoff = vm["cob-cutoff"].as< double >();
     error(cob_cutoff < 0.0 or cob_cutoff >= 1.0, "cob-cutoff must be between 0 and 1.");
 
-    if (vm.count("minimum-distance-for-learning")) {
+    if (vm.count("minimum-distance-for-learning"))
       minimum_distance_for_learning = vm["minimum-distance-for-learning"].as< int >();
-    }
     error(minimum_distance_for_learning < 0, "minimum-distance-for-learning must be non-negative.");
 
     if (vm.count("min-fraction-for-learning"))
