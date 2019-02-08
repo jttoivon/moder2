@@ -106,7 +106,7 @@ int minimum_distance_for_learning = 4;
 int global_dmax = 10;
 //int global_max_dist_for_deviation = -1;
 //int global_max_dist_for_deviation = 4;
-int global_max_dist_for_deviation = minimum_distance_for_learning - 1;  // This is now fixed to minimum_distance_for_learning-1
+int global_max_dist_for_deviation = 3;
 
 double ic_threshold = 0.40;
 double learning_fraction = 0.02;
@@ -4126,7 +4126,7 @@ int main(int argc, char* argv[])
 
     ("dmin", po::value<std::string>(),   "Smallest negative distance in dimer, comma separated list or a single global value, default: half of the length of the shorter monomer")
     ("dmax", po::value<std::string>(),   m("Maximum positive distance in dimer, comma separated list or a single global value", global_dmax).c_str())
-    //    ("max-gap-learned", po::value<std::string>(),   m("Maximum positive distance in dimer for which the gap is learned, comma separated list or a single global value", global_max_dist_for_deviation).c_str())
+    ("max-gap-learned", po::value<std::string>(),   m("Maximum positive distance in dimer for which the gap is learned, comma separated list or a single global value", global_max_dist_for_deviation).c_str())
     ("minimum-distance-for-learning", po::value<int>(),   m("Minimum distance in dimer cases for a site to be used for monomer model learning", minimum_distance_for_learning).c_str())
     ("ic-threshold", po::value<double>(),   m("Information content threshold for an overlapping dimer to be accepted", ic_threshold).c_str())
     ("min-fraction-for-learning", po::value<double>(),   m("The monomers are learned from the dimeric cases alone, when the fraction of dimeric cases "
@@ -4305,7 +4305,6 @@ int main(int argc, char* argv[])
 
     if (vm.count("minimum-distance-for-learning")) {
       minimum_distance_for_learning = vm["minimum-distance-for-learning"].as< int >();
-      global_max_dist_for_deviation = minimum_distance_for_learning - 1;
     }
     error(minimum_distance_for_learning < 0, "minimum-distance-for-learning must be non-negative.");
 
