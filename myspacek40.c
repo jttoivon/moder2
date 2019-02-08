@@ -1099,8 +1099,8 @@ short int Svg_riverlake_logo(char *filename, long int offset, long int yoffset, 
   char *rivercolor;
   short int max_riverwidth = 20;
   short int max_radius = 20;
-  short int nucleotide_height = max_radius * 1.2;
-  short int nucleotide_width = max_radius * 1.7;
+  short int nucleotide_height = max_radius * 1.56;
+  short int nucleotide_width = max_radius * 2.21;
   short int top_position;
   short int counter;
   short int first;
@@ -1567,8 +1567,8 @@ short int Svg_riverlake_logo_jarkko_diff(char *filename, long int offset, long i
   short int max_radius = 20;
   short int constant_radius = 5;  // Jarkko
  
-  short int nucleotide_height = max_radius * 1.2;
-  short int nucleotide_width = max_radius * 1.7;
+  short int nucleotide_height = max_radius * 1.56;
+  short int nucleotide_width = max_radius * 2.21;
   short int top_position;
   short int counter;
   short int first;
@@ -2295,6 +2295,7 @@ for(counter = 0; counter < Nlength * 2; counter++) total_relative_deviation[coun
     qp.negative_values_allowed = negative_values_allowed;
 
     if (strstr(searchstring + strlen(searchstring) - 4, ".adm") == 0) {
+      /* Visualize a PWM logo */
       Load_pwm(&qp, searchstring, 1);
       strcpy(qp.name, searchstring);
 
@@ -2321,6 +2322,7 @@ for(counter = 0; counter < Nlength * 2; counter++) total_relative_deviation[coun
       Svg_logo(tempstring, 1, np_p, '\0', '\0', '\0', '\0', '\0', '\0', 0, 0);
     }
     else {
+      /* Visualize an ADM logo */
       printf("\nloads ADM\n");
       adjacent_dinucleotide_model_init(&unflanked_adm, "unflanked_adm", Nlength);
       Load_ADM(&unflanked_adm, searchstring);
