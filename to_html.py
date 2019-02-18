@@ -141,15 +141,17 @@ max_logo_width = 500 # This is defined in myspacek40
 
 # Entropy of a probability distribution 'l'
 def entropy(l):
-    sum=0
+    assert sum(l) == 1.0, "The distribution must sum to 1.0"
+    assert 0.0 <= min(l) and max(l) <= 1.0, "The values in the distribution must be between 0.0 and 1.0"
+    s=0
     for f in l:
         if f != 0:
             try:
-                sum+=f*math.log(f,2)
+                s += f*math.log(f,2)
             except ValueError:
                 print(l)
                 raise
-    return -sum;
+    return -s;
 
 def information_content(l):
     return 2-entropy(l)
@@ -469,12 +471,11 @@ def get_cob_case(cob, o, d, pwm1, pwm2, last_iteration_output, get_flanks, motif
     return observed
 
 
-def seconds_to_hms(seconds):
+def seconds_to_hms(seconds, use_si_units = True):
     fraction=seconds-int(seconds)
     seconds=int(seconds)
     m, s = divmod(seconds, 60)
     h, m = divmod(m, 60)
-    use_si_units = True
     if use_si_units:
         if h != 0:
             result = "%dh %02dm %02.2fs" % (h, m, s+fraction)
