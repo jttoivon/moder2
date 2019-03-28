@@ -2301,20 +2301,28 @@ for(counter = 0; counter < Nlength * 2; counter++) total_relative_deviation[coun
 
       if (difference_logo == 1 && argc >= 3 + firstnoncommandposition) {
 	offset = 0;
-	if (argc >= 4 + firstnoncommandposition)
-	  offset = atoi(argv[3 + firstnoncommandposition]);
+	//if (argc >= 4 + firstnoncommandposition)
+	//  offset = atoi(argv[3 + firstnoncommandposition]);
 	strcpy(tempstring, argv[2 + firstnoncommandposition]);
 	Load_pwm(&mfp, tempstring, 1);
 	Subtract_normalized_pwm(&qp, &mfp, offset);
 	qp.negative_values_allowed = 1;
-	strcat(qp.name, "_minus_");
-	strcat(qp.name, tempstring);
+	if (argc >= 4 + firstnoncommandposition) {
+	  strcpy(qp.name, argv[3 + firstnoncommandposition]);
+	}
+	else {
+	  strcat(qp.name, "_minus_");
+	  strcat(qp.name, tempstring);
+	  strcat(qp.name, ".svg");
+	}
       }
+      else
+	strcat(qp.name, ".svg");
 
       np_p[0] = &qp;
       strcpy(tempstring, qp.name);
       strcpy(searchstring, qp.name);
-      strcat(tempstring, ".svg");
+      //strcat(tempstring, ".svg");
       if (argc >= 3 + firstnoncommandposition && difference_logo == 0) {
 	strcpy(tempstring, argv[2 + firstnoncommandposition]);
 	strcpy(searchstring, argv[2 + firstnoncommandposition]);

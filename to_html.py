@@ -141,7 +141,7 @@ max_logo_width = 500 # This is defined in myspacek40
 
 # Entropy of a probability distribution 'l'
 def entropy(l):
-    assert sum(l) == 1.0, "The distribution must sum to 1.0"
+    assert abs(sum(l) - 1.0) < 0.001, "The distribution must sum to 1.0"
     assert 0.0 <= min(l) and max(l) <= 1.0, "The values in the distribution must be between 0.0 and 1.0"
     s=0
     for f in l:
