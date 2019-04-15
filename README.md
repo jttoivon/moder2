@@ -1,16 +1,16 @@
 Installing and pre-requisities
 ==============================
 
-MODER is implemented in C++ and has been tested in Linux platform.
-As the only external dependency, the MODER requires the Boost library, which is normally installed on Linux machines. Relatively recent version
+MODER2 is implemented in C++ and has been tested in Linux platform.
+As the only external dependency, the MODER2 requires the Boost library, which is normally installed on Linux machines. Relatively recent version
 should be used. At least version 1.49 is known to work.
 To get full advantage of parallellism the compiler should support openmp 4.0 which, for instance, gcc 4.9.0 and later supports.
-Running `make` in the directory of the distribution should compile MODER.
-If on macOS/OSX you have problems compiling MODER, it may be due to lack of openmp support. In this case,
+Running `make` in the directory of the distribution should compile MODER2.
+If on macOS/OSX you have problems compiling MODER2, it may be due to lack of openmp support. In this case,
 first run `make clean`, followed by `make NOOPENMP=1`. This option unfortunately prevents running
-MODER with multiple threads simultaneously.
+MODER2 with multiple threads simultaneously.
 
-You can also install MODER by running the command
+You can also install MODER2 by running the command
 
 	sudo make install
 
@@ -19,7 +19,7 @@ If you want to install to a non-standard location, use for example
 	make prefix=$HOME/usr install
 
 which installs the binary to $HOME/usr/bin.
-Running command `moder` should give brief instructions on the command line parameters.
+Running command `moder2` should give brief instructions on the command line parameters.
 The packaged also includes, for internal use, an implementation of suffix array by Juha Kärkkäinen in directory CPM03.
 For visualization of pfm models, the package
 includes a modified version of a program called spacek40 by Jussi Taipale.
@@ -27,12 +27,12 @@ includes a modified version of a program called spacek40 by Jussi Taipale.
 Running
 =======
 
-The generic form of running MODER is as follows
+The generic form of running MODER2 is as follows
 
-    moder [ options ] inputfile monomer0,monomer1,...
+    moder2 [ options ] inputfile monomer0,monomer1,...
 
 If the inputfile has extension `fasta` or `fa`, then it is read as a fasta file.
-Otherwise, the input file to MODER should consist of sequences separated by 'new line' characters.
+Otherwise, the input file to MODER2 should consist of sequences separated by 'new line' characters.
 That is, each sequence should appear on its own line.
 Currently, sequences containing non-base characters, such as `N`, are ignored.
 
@@ -55,7 +55,7 @@ in the case of two monomeric binding motifs, this creates three cob tables: 0-0,
 
 The dimeric cases with non-negative distance between the half-sites, contain position
 that do not belong to either monomer model
-By default, MODER learns also this gap area from the data. It
+By default, MODER2 learns also this gap area from the data. It
 can however be restricted with option `--max-gap-learned` that gaps are learned only
 for gaps of length at most the given limit. With option `--max-gap-learned -1`
 the gaps are not learned. When gap positions are not learned from the data, they are filled
@@ -75,11 +75,11 @@ This option can be used to check that motif is long enough not to leave out any 
 However, the matrices which include the flanks are not dumped to files, even if the option --output is given, but the
 user has to parse these from the program output (or use the `to_html.py` utility described below).
 
-The option `--number-of-threads n` instructs MODER to use 'n' parallel OpenMP threads to speed up execution time.
+The option `--number-of-threads n` instructs MODER2 to use 'n' parallel OpenMP threads to speed up execution time.
 
-**Example of running MODER:**
+**Example of running MODER2:**
 
-	./moder --names TFAP2A --outputdir TFAP2A_models --cob 0-0 data/TFAP2A-head-1000.seq GGGCA > result.txt
+	./moder2 --names TFAP2A --outputdir TFAP2A_models --cob 0-0 data/TFAP2A-head-1000.seq GGGCA > result.txt
 
 The data file data/TFAP2A-head-1000.seq included in this package contains the first 1000 reads from ENA experiment
 ERX168813 (http://www.ebi.ac.uk/ena/data/view/ERX168813).
@@ -92,7 +92,7 @@ In the directory `TFAP2A_models` the following files are stored:
 * \*.dev	     	 Correction table kappa for each detected overlapping/gapped dimeric case
 * monomer_weights.txt	 Weight for each monomer model, separated by commas
 
-Run `moder` without parameters to get description of all possible command line parameters.
+Run `moder2` without parameters to get description of all possible command line parameters.
 
 Visualizing pfms and cob tables
 ===============================
@@ -119,7 +119,7 @@ Run `./heatmap.py` without parameters to get more instructions.
 Creating an html report of the results
 ======================================
 
-If output of the above example of running MODER is stored in file `result.txt`, then
+If output of the above example of running MODER2 is stored in file `result.txt`, then
 an html report can be generated using the command
 
         ./to_html.py TFAP2A result.txt
@@ -129,17 +129,17 @@ in numerical form and also visualized form. The directory also contains the html
 `index.html` that can be viewed using a web browser.
 
 The first parameter to `to_html.py` should be a comma separated list of factor names,
-with as many factor names as there were seeds given to MODER. An exception to this rule
-is when all the seeds given to MODER are just different profiles of the same transcription factor.
+with as many factor names as there were seeds given to MODER2. An exception to this rule
+is when all the seeds given to MODER2 are just different profiles of the same transcription factor.
 Then, if the first parameter is, for example, 'TF', the report generator will automatically create profile names
-TFa,TFb,TFc, etc, for each seed given to MODER.
+TFa,TFb,TFc, etc, for each seed given to MODER2.
 
 All the images in the html page are clickable and reveal more information.
 
 Computing pairwise huddinge distances
 =====================================
 
-This part is not closely related to MODER, but can be useful to
+This part is not closely related to MODER2, but can be useful to
 cluster or otherwise visualize the set of k-mers of a data set.
 
 The program `all_pairs_huddinge` computes all pairwise huddinge distances for
