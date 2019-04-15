@@ -1,5 +1,5 @@
-package = moder
-version = 1.0.1
+package = moder2
+version = 2.0.0
 tarname = $(package)
 distdir = $(tarname)-$(version)
 prefix=/usr/local
@@ -58,7 +58,7 @@ endif
 
 # -I /usr/include/x86_64-linux-gnu/c++/4.7/
 
-PROGRAMS=moder all_pairs_huddinge
+PROGRAMS=moder2 all_pairs_huddinge
 
 
 LDFLAGS=$(BOOSTLIB) $(PROGOPT) #-L$(HOME)/usr/lib #-B/usr/bin/ld.gold
@@ -83,7 +83,7 @@ CPM03:
 install: all
 	install -d $(prefix)/bin
 	install -d $(docdir)
-	install -m 0755 moder $(prefix)/bin
+	install -m 0755 moder2 $(prefix)/bin
 	install -m 0755 heatmap.py $(prefix)/bin
 	install -m 0755 to_html.py $(prefix)/bin
 	install -m 0755 myspacek40 $(prefix)/bin
@@ -111,7 +111,7 @@ distcheck: $(distdir).tar.gz
 	@echo "*** Package $(distdir).tar.gz ready for distribution."
 
 check: all
-	./moder --prior addone --cob 0-0 data/TFAP2A-head-1000.seq GGGCA > /dev/null
+	./moder2 --prior addone --cob 0-0 data/TFAP2A-head-1000.seq GGGCA > /dev/null
 	./all_pairs_huddinge  data/TFAP2A-head-1000.seq  > /dev/null
 	@echo "*** ALL TESTS PASSED ***"
 
@@ -129,7 +129,7 @@ $(distdir):
 	cp heatmap.R $(distdir)
 	cp heatmap.py $(distdir)
 	cp to_html.py $(distdir)
-	cp moder.cpp $(distdir)
+	cp moder2.cpp $(distdir)
 	cp all_pairs_huddinge.cpp $(distdir)
 	cp common.cpp $(distdir)
 	cp probabilities.cpp $(distdir)
@@ -189,10 +189,10 @@ $(distdir):
 # programs
 
 
-MODER_OBJS=moder.o common.o  probabilities.o parameters.o matrix_tools.o my_assert.o combinatorics.o\
+MODER2_OBJS=moder2.o common.o  probabilities.o parameters.o matrix_tools.o my_assert.o combinatorics.o\
 	multinomial_helper.o bndm.o orientation.o data.o iupac.o suffix_array_wrapper.o kmer_tools.o huddinge.o dinucleotide.o
-$(PRGPREFIX)moder: $(addprefix $(OBJDIR)/, $(MODER_OBJS)) | CPM03
-	$(CXX) $(CXXFLAGS) $(addprefix $(OBJDIR)/, $(MODER_OBJS)) CPM03/difference_cover.o -o $@ $(LDFLAGS)
+$(PRGPREFIX)moder2: $(addprefix $(OBJDIR)/, $(MODER2_OBJS)) | CPM03
+	$(CXX) $(CXXFLAGS) $(addprefix $(OBJDIR)/, $(MODER2_OBJS)) CPM03/difference_cover.o -o $@ $(LDFLAGS)
 
 
 ALL_PAIRS_HUDDINGE_OBJS=all_pairs_huddinge.o common.o  probabilities.o parameters.o matrix_tools.o my_assert.o combinatorics.o\
@@ -227,7 +227,7 @@ $(OBJDIR)/%.d: %.cpp
          sed 's,\($*\)\.o[ :]*,'$(OBJDIR)'/\1.o $@ : ,g' < $@.$$$$ > $@; \
          rm -f $@.$$$$
 
--include $(addprefix $(OBJDIR)/, $(MODER_OBJS:.o=.d))
+-include $(addprefix $(OBJDIR)/, $(MODER2_OBJS:.o=.d))
 -include $(addprefix $(OBJDIR)/, $(ALL_PAIRS_HUDDINGE_OBJS:.o=.d))
 
 
