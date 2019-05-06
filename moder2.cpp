@@ -1758,7 +1758,7 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
   std::vector<boost::shared_ptr<binding_model<> > > new_flank_monomer_models;
   for (int k=0; k < monomer_p; ++k) {
     if (use_pseudo_counts)
-      flank_monomer_PWM[k].add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts);
+      flank_monomer_PWM[k].add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts, monomer_seed[k]);
     new_flank_monomer_models.push_back(flank_monomer_PWM[k].normalized(monomer_seed[k]));
     //    write_matrix(stdout, flank_monomer_PWM[k], to_string("Flank monomer matrix %i:\n", k), "%.6f");
   }
@@ -1775,9 +1775,6 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
 	//for (int d=dmin; d < std::min(0, my_cob_params[r].dmax+1); ++d) {
 	if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
 	  continue;
-	if (use_pseudo_counts)
-	  flank_dimer_PWM[r][o][d].add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts);
-	//pseudo_counts.add(flank_dimer_PWM[r][o][d]);
 	std::string seed;
 	if (d < 0)
 	  seed = my_cob_params[r].dimer_seeds[o][d];
@@ -1789,6 +1786,9 @@ get_models_with_flanks(const std::vector<std::string>& sequences,
 	  seed[w1-1] = 'N';  // flanks of the gap are also N
 	  seed[w1+d] = 'N';
 	}
+	if (use_pseudo_counts)
+	  flank_dimer_PWM[r][o][d].add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts, seed);
+	//pseudo_counts.add(flank_dimer_PWM[r][o][d]);
 	new_flank_dimer_models[r][o][d] = flank_dimer_PWM[r][o][d].normalized(seed);
       }
     }
@@ -3042,7 +3042,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	
 	if (use_pseudo_counts)
 	  //	  pseudo_counts.add(new_monomer_weights[k].counts[0]);
-	  new_monomer_weights[k].add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts);
+	  new_monomer_weights[k].add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts, monomer_seed[k]);
 	new_monomer_models[k] = new_monomer_weights[k].normalized(monomer_seed[k]);
 
 	  //assert(is_column_stochastic_matrix(new_monomer_models[k]));
@@ -3076,7 +3076,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    if (my_cob_params[r].dimer_lambdas[o][d] == 0.0)
 	      continue;
 	    if (use_pseudo_counts) {
-	      overlapping_dimer_weights[r][o][d].add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts);
+	      overlapping_dimer_weights[r][o][d].add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts,
+								   my_cob_params[r].dimer_seeds[o][d]);
 	      //	      pseudo_counts.add(overlapping_dimer_weights[r][o][d]);
 	    }
 	    //	    overlapping_dimer_models[r][o][d] = normalize_matrix_columns_copy(overlapping_dimer_weights[r][o][d]);
@@ -3105,7 +3106,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      continue;
 	    }
 	    if (use_pseudo_counts)
-	      gap_weights[r][o][d].add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts);
+	      gap_weights[r][o][d].add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts, "");
 	    gap_models[r][o][d] = gap_weights[r][o][d].normalized("");  // Note! No seed used for gap
 	    //assert(gap_models[r][o][d]->is_probability_model());  // flanks are zero, so it won't be a proper model
 	  }
@@ -3953,7 +3954,7 @@ create_cob(cob_combination_t cob_combination,
 	  //	co.write_counts(stdout, to_string("Unnormalized initial monomer matrix %i from seed %s:\n", 
 	  //					  k, monomerseedlist[k].c_str()), "%.6f");
 	  if (use_pseudo_counts)
-	    co.add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts);
+	    co.add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts, seed);
 	  overlapping_dimer_PWM[o][d] = co.normalized(seed);
 	}
       }
@@ -4720,7 +4721,7 @@ int main(int argc, char* argv[])
 	co.write_counts(stdout, to_string("Unnormalized initial monomer matrix %i from seed %s:\n", 
 					  k, monomerseedlist[k].c_str()), "%.6f");
 	if (use_pseudo_counts)
-	  co.add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts);
+	  co.add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts, monomerseedlist[k]);
 	monomer_M[k] = co.normalized(monomerseedlist[k]);
 	if (use_multinomial and adjust_seeds)
 	  monomerseedlist[k] = monomer_M[k]->string_giving_max_probability(use_rna, use_iupac);

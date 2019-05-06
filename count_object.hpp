@@ -22,6 +22,8 @@ const char* model_type_strings[] = {"ppm", "adm", "adm-fixed"};
 dmatrix
 correct_seed_bias(const std::vector<dmatrix>& grouped_dinucleotide_counts, const std::string& seed, int hamming_radius);
 
+std::map<std::string, std::vector<dmatrix> > pseudo_count_table_cache;
+
 class count_object
 {
 public:
@@ -118,17 +120,97 @@ public:
       counts[r2].fill_with(value);
     }
   }
+  
+  // this creates pseudo count tables for adm-fixed model
+  template <typename BitString>
+  std::vector<dmatrix>
+  //void
+  create_pseudo_count_tables(const std::string& seed)
+  {
+    bool force_multinomial = true;
+    double z = 1.0; // weight of a sequence
+    const int w = seed.length();
+    std::vector<dmatrix> pscounts(hamming_radius, dmatrix(16, length));
+    //pcounts.assign(hamming_radius, dmatrix(16, length));
+    std::vector<std::string> neighbourhood = get_n_neighbourhood(seed, hamming_radius);
+    BOOST_FOREACH(std::string substr, neighbourhood) {
+      BitString mismatches = iupac_mismatch_positions<BitString>(substr, seed);
+      int hd = mypopcount(mismatches);
+      BitString positions = 0;
+      if (not force_multinomial or hd < hamming_radius)
+	positions = ~static_cast<BitString>(0);  // update all
+      else if (hd == hamming_radius)  // update only mismatch positions
+	positions = mismatches;
+      else
+	continue; //positions = 0;   // update nothing
+      //  printf("HD is %i %i %s %s\n", hd, mismatches, print_bitvector(mismatches).c_str(), print_bitvector(positions).c_str());
+      BitString mask = static_cast<BitString>(1)<<(w-1);  // contains 1 in the wth position from right
+      int shift = 2*(w-1);
+      BitString code = dna_to_number<BitString>(substr);
+      int r=0;
+      for (int pos=0; pos < w; ++pos, mask>>=1, shift -= 2) {
+	if (positions & mask) {
+	  pscounts[r]((code>>shift)&15, pos) += z; // update columns of pwm marked by bit vector positions
+	}
+	if (mismatches&mask)
+	  ++r;
+      }
+    }
+
+    // find the average column sum
+    std::vector<double> average_column_sums;
+    int column_counter = 0; // number of nonzero columns
+    for (int r=0; r < hamming_radius; ++r) {
+      for (int pos=0; pos < w; ++pos) {
+	double s = ::sum(pscounts[r].column(pos));
+	if (s > 0.0) {
+	  average_column_sums.push_back(s);
+	  ++column_counter;
+	}
+      }
+    }
+    double average = ::sum(average_column_sums) / (float) column_counter;
+    double scaling_factor = 0.01 / average;
+    assert(scaling_factor > 0.0);
+    for (int r=0; r < hamming_radius; ++r) {
+      pscounts[r] = scaling_factor * pscounts[r];
+    }
+    return pscounts;
+  }
 
   void
-  add_pseudo_counts(const prior<double>& pseudo_counts, const dinucleotide_prior<double>& dinucleotide_pseudo_counts)
+  add_pseudo_counts(const prior<double>& pseudo_counts,
+		    const dinucleotide_prior<double>& dinucleotide_pseudo_counts,
+		    const std::string& seed)
   {
+    bool use_new_pseudo_counts = true;
     if (type == ppm)
       pseudo_counts.add(counts[0]);
-    else 
-      for (int r2=0; r2 < counts.size(); ++r2) {
-	dinucleotide_pseudo_counts.add(counts[r2]);
+    else {
+      if (type == adm_fixed && use_new_pseudo_counts) {
+	auto iter = pseudo_count_table_cache.find(seed);
+	if (iter != pseudo_count_table_cache.end()) {
+	  printf("Found %s in cache\n", seed.c_str());
+	  pcounts = iter->second;
+	}
+	else {
+	  printf("Did not found %s in cache\n", seed.c_str());
+	  std::vector<dmatrix> temp = create_pseudo_count_tables<myuint128>(seed);
+	  pseudo_count_table_cache[seed] = temp;
+	  pcounts = temp;
+	}
+	for (int r2=0; r2 < counts.size(); ++r2) {
+	  counts[r2] += pcounts[r2];
+	}
       }
+      else {
+	for (int r2=0; r2 < counts.size(); ++r2) {
+	  dinucleotide_pseudo_counts.add(counts[r2]);
+	}
+      }
+    }
   }
+
   
   template <typename BitString>
   void
@@ -143,9 +225,9 @@ public:
     else if (hd == hamming_radius)  // update only mismatch positions
       positions = mismatches;
     else
-      positions = 0;   // update nothing
+      positions = 0;   // update nothing, SHOULDN'T THIS JUST RETURN
     //  printf("HD is %i %i %s %s\n", hd, mismatches, print_bitvector(mismatches).c_str(), print_bitvector(positions).c_str());
-    BitString mask = static_cast<BitString>(1)<<(w-1);
+    BitString mask = static_cast<BitString>(1)<<(w-1);  // contains 1 in the wth position from right
     if (type == ppm) {
       for (int pos=0; pos < w; ++pos, mask>>=1) {
 	if (positions & mask)
@@ -162,7 +244,7 @@ public:
 	  }
 	}
       }
-      else {
+      else {  // type == adm_fixed
 	int r=0;
 	for (int pos=0; pos < w; ++pos, mask>>=1, shift -= 2) {
 	  if (positions & mask) {
@@ -188,7 +270,7 @@ public:
     if (not force_multinomial or hd <= hamming_radius)
       positions = ~static_cast<BitString>(0);  // update all
     else
-      positions = 0;   // update nothing
+      positions = 0;   // update nothing, SHOULDN'T THIS JUST RETURN
     int first = w1-1;  // last position of the first half-site
     int last = w1+d;   // first position of the second half-site
     BitString mask = static_cast<BitString>(1)<<(d+w2);  // 1-bit is in the 'first' position
@@ -240,6 +322,7 @@ public:
   
   //private:
   std::vector<dmatrix> counts;
+  std::vector<dmatrix> pcounts;  // pseudo counts
   model_type type;
   int length;
 };
