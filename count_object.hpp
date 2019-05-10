@@ -128,8 +128,8 @@ public:
   create_pseudo_count_tables(const std::string& seed)
   {
     bool force_multinomial = true;
-    double z = 1.0; // weight of a sequence
     const int w = seed.length();
+    double z = pow(0.25, w); // weight of a sequence
     std::vector<dmatrix> pscounts(hamming_radius, dmatrix(16, length));
     //pcounts.assign(hamming_radius, dmatrix(16, length));
     std::vector<std::string> neighbourhood = get_n_neighbourhood(seed, hamming_radius);
@@ -156,7 +156,7 @@ public:
 	  ++r;
       }
     }
-
+    /*
     // find the average column sum
     std::vector<double> average_column_sums;
     int column_counter = 0; // number of nonzero columns
@@ -175,6 +175,7 @@ public:
     for (int r=0; r < hamming_radius; ++r) {
       pscounts[r] = scaling_factor * pscounts[r];
     }
+    */
     return pscounts;
   }
 
