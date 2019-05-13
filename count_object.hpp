@@ -125,15 +125,16 @@ public:
   template <typename BitString>
   std::vector<dmatrix>
   //void
-  create_pseudo_count_tables(const std::string& seed)
+  create_pseudo_count_tables(const std::string& seed, const std::vector<double>& background_probabilities)
   {
     bool force_multinomial = true;
     const int w = seed.length();
-    double z = pow(0.25, w); // weight of a sequence
+    //double z = pow(0.25, w); // weight of a sequence
     std::vector<dmatrix> pscounts(hamming_radius, dmatrix(16, length));
     //pcounts.assign(hamming_radius, dmatrix(16, length));
     std::vector<std::string> neighbourhood = get_n_neighbourhood(seed, hamming_radius);
     BOOST_FOREACH(std::string substr, neighbourhood) {
+      double z = compute_bernoulli_probability<double>(substr, background_probabilities);
       BitString mismatches = iupac_mismatch_positions<BitString>(substr, seed);
       int hd = mypopcount(mismatches);
       BitString positions = 0;
@@ -196,7 +197,7 @@ public:
 	}
 	else {
 	  printf("Did not found %s in cache\n", seed.c_str());
-	  std::vector<dmatrix> temp = create_pseudo_count_tables<myuint128>(seed);
+	  std::vector<dmatrix> temp = create_pseudo_count_tables<myuint128>(seed, dinucleotide_pseudo_counts.background_probabilities);
 	  pseudo_count_table_cache[seed] = temp;
 	  pcounts = temp;
 	}

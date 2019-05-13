@@ -786,6 +786,7 @@ public:
   void
   use_dirichlet(double b, const std::vector<double>& q)
   {
+    background_probabilities = q;
     assert( q.size() == 4 );
     for (int i=0; i < 4; ++i)
       for (int j=0; j < 4; ++j)
@@ -819,6 +820,7 @@ public:
   {
     return pseudo_counts;
   }
+  std::vector<double> background_probabilities;
 
 private:
   std::vector<double> pseudo_counts;
