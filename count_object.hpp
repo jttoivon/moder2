@@ -134,7 +134,7 @@ public:
     //pcounts.assign(hamming_radius, dmatrix(16, length));
     std::vector<std::string> neighbourhood = get_n_neighbourhood(seed, hamming_radius);
     BOOST_FOREACH(std::string substr, neighbourhood) {
-      double z = compute_bernoulli_probability<double>(substr, background_probabilities);
+      double z = 0.01 * compute_bernoulli_probability<double>(substr, background_probabilities);
       BitString mismatches = iupac_mismatch_positions<BitString>(substr, seed);
       int hd = mypopcount(mismatches);
       BitString positions = 0;
