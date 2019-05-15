@@ -189,7 +189,7 @@ public:
     if (type == ppm)
       pseudo_counts.add(counts[0]);
     else {
-      if (type == adm_fixed && use_new_pseudo_counts) {
+      if (type == adm_fixed && use_new_pseudo_counts && seed != "") {
 	auto iter = pseudo_count_table_cache.find(seed);
 	if (iter != pseudo_count_table_cache.end()) {
 	  printf("Found %s in cache\n", seed.c_str());
