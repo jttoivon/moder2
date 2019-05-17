@@ -141,7 +141,7 @@ max_logo_width = 500 # This is defined in myspacek40
 
 # Entropy of a probability distribution 'l'
 def entropy(l):
-    assert abs(sum(l) - 1.0) < 0.001, "The distribution must sum to 1.0"
+    assert abs(sum(l) - 1.0) < 0.001, "The distribution must sum to 1.0, got %e" % sum(l)
     assert 0.0 <= min(l) and max(l) <= 1.0, "The values in the distribution must be between 0.0 and 1.0"
     s=0
     for f in l:
@@ -163,8 +163,14 @@ def adm_information_content(adm):
     for c in range(cols-1):
         temp = 0.0
         for a in range(4):
-            temp += adm.initial_probabilities[a,c] * information_content(adm.transition_probabilities[4*a:4*(a+1),c])
-        result.append(temp)
+            init = adm.initial_probabilities[a,c]
+            if init > 0.0:
+                try:
+                    temp += init * information_content(adm.transition_probabilities[4*a:4*(a+1),c])
+                except AssertionError as err:
+                    print("Initial probability is %f, %s" % (init, err), file=sys.stderr)
+                    #raise
+                result.append(temp)
     return result
 
 def matrix_information_content(m):
@@ -854,8 +860,13 @@ def get_dimer_cases(results_output, iterations, last_iteration_output, cob_facto
                 if float(temp[1+row,1+d-dmin[i]]) > 0.00000:
                     #command="get_cob_case.py %s %i %s %s %i %s" % ("-f" if get_flanks else "", iterations-1, cob_codes[i], orients[row], d, inputfile)
                     #myrun(command)
-                    dimer_pwm=get_cob_case(cob_codes[i], orients[row], d, monomer_pwms[tf1], monomer_pwms[tf2], results_output, get_flanks, motif_ending)
-                    ic = model_information_content(dimer_pwm)
+                    try:
+                        dimer_pwm=get_cob_case(cob_codes[i], orients[row], d, monomer_pwms[tf1], monomer_pwms[tf2],
+                                               results_output, get_flanks, motif_ending)
+                        ic = model_information_content(dimer_pwm)
+                    except AssertionError as error:
+                        print("Error with o=%s d=%i: %s!" % (orients[row], d, error), file=sys.stderr)
+                        raise
                     cob_ic_tables[i][row, d-dmin[i]] = ic
                     cob_length_tables[i][row, d-dmin[i]] = dimer_pwm.shape[1]
         with open("cob.%s.cob" % cob_codes[i], "w") as f:
