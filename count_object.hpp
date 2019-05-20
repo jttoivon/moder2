@@ -17,7 +17,7 @@ extern bool extra_debug;
 // use_multinomial, hamming_radius, adm, seed_bias
 enum model_type { ppm=0, adm=1, adm_fixed=2};
 
-const char* model_type_strings[] = {"ppm", "adm", "adm-fixed"};
+const char* model_type_strings[] = {"ppm", "adm-unfixed", "adm-fixed"};
 
 dmatrix
 correct_seed_bias(const std::vector<dmatrix>& grouped_dinucleotide_counts, const std::string& seed, int hamming_radius);

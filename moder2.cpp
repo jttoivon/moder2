@@ -4112,7 +4112,7 @@ int main(int argc, char* argv[])
     ("no-adjust-seeds",                    m("Do not adjust seeds in every EM iteration", not adjust_seeds).c_str())
     ("directional-seed",                    m("Are overlapping seeds required to be non-palindromic", require_directional_seed).c_str())
     ("hamming-radius", po::value<int>(),     m("Hamming radius", hamming_radius).c_str())
-    ("model", po::value<std::string>(), m("Model type, either ppm, adm, or adm-fixed.", model_type_strings[model_type]).c_str())
+    ("model", po::value<std::string>(), m("Model type, either ppm, adm-fixed, or adm-unfixed.", model_type_strings[model_type]).c_str())
     ("meme-init",                    m("Derive the initial PWM from the seed using MEME style initialization instead of multinomial style", use_meme_init).c_str())
     ("flanks",  m("Get full flanks for each model", get_full_flanks).c_str())
 
