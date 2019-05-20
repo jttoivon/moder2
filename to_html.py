@@ -201,17 +201,17 @@ transform = [15, 11, 7, 3, 14, 10, 6, 2,
              13, 9, 5, 1, 12, 8, 4, 0]
 
 
-def reverse_complement_adm(adm):
-    k = adm.k
-    i=reverse_complement_pwm(adm.initial_probabilities)
+def reverse_complement_adm(m):
+    k = m.k
+    i=reverse_complement_pwm(m.initial_probabilities)
     t = np.zeros((16, k-1))
     for j in range(k-1):
         for ab in range(16):
             a = ab // 4
             b = ab % 4
-            divisor = adm.initial_probabilities[b, j+1]
+            divisor = m.initial_probabilities[b, j+1]
             if divisor > 0.0:
-                t[transform[ab], k-j-2] = adm.transition_probabilities[ab, j] * adm.initial_probabilities[a, j] / divisor
+                t[transform[ab], k-j-2] = m.transition_probabilities[ab, j] * m.initial_probabilities[a, j] / divisor
     return adm.adm(t,i)
 
 def reverse_complement_pwm(m):
@@ -286,21 +286,21 @@ def readmodel(x):
         result.append(tmp)
     return np.array(result)
 
-def right_extend_adm(adm, extension):
+def right_extend_adm(m, extension):
     assert extension >= 0
-    orig_k = adm.shape[1]
+    orig_k = m.shape[1]
     k = orig_k + extension
     result = np.zeros((16,k))
-    result[:, 0:orig_k] = adm.representation()
+    result[:, 0:orig_k] = m.representation()
     result[:, orig_k:] = 0.25
     return adm.adm(result)
 
-def left_extend_adm(adm, extension):
+def left_extend_adm(m, extension):
     assert extension >= 0
-    orig_k = adm.shape[1]
+    orig_k = m.shape[1]
     k = orig_k + extension
     result = np.zeros((16,k))
-    result[:, extension:] = adm.representation()
+    result[:, extension:] = m.representation()
     result[4:8, extension] = result[8:12, extension] = result[12:16, extension] = result[0:4, extension]
     result[:, :extension] = 0.25
     return adm.adm(result)
