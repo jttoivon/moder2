@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import analyze_adm
+import adm
 import getopt
 import sys
 import re
@@ -195,7 +195,7 @@ def normalize(m):
     return m
 
 def is_adm(m):
-    return type(m) == analyze_adm.adm
+    return type(m) == adm.adm
 
 transform = [15, 11, 7, 3, 14, 10, 6, 2,
              13, 9, 5, 1, 12, 8, 4, 0]
@@ -212,7 +212,7 @@ def reverse_complement_adm(adm):
             divisor = adm.initial_probabilities[b, j+1]
             if divisor > 0.0:
                 t[transform[ab], k-j-2] = adm.transition_probabilities[ab, j] * adm.initial_probabilities[a, j] / divisor
-    return analyze_adm.adm(t,i)
+    return adm.adm(t,i)
 
 def reverse_complement_pwm(m):
     result=m.copy()
@@ -272,7 +272,7 @@ def readarray(lines):
 
 def readmodel(x):
     if len(x)==20:
-        return analyze_adm.read_adm_from_list_of_lines(x)
+        return adm.read_adm_from_list_of_lines(x)
     result=[]
     try:
         rows,cols=x[0].split("x")
@@ -293,7 +293,7 @@ def right_extend_adm(adm, extension):
     result = np.zeros((16,k))
     result[:, 0:orig_k] = adm.representation()
     result[:, orig_k:] = 0.25
-    return analyze_adm.adm(result)
+    return adm.adm(result)
 
 def left_extend_adm(adm, extension):
     assert extension >= 0
@@ -303,7 +303,7 @@ def left_extend_adm(adm, extension):
     result[:, extension:] = adm.representation()
     result[4:8, extension] = result[8:12, extension] = result[12:16, extension] = result[0:4, extension]
     result[:, :extension] = 0.25
-    return analyze_adm.adm(result)
+    return adm.adm(result)
 
 def force_adms_equal(adm1, adm2):
     k = adm1.shape[1]
@@ -330,7 +330,7 @@ def force_adms_equal(adm1, adm2):
                     result[4*a+b, j] = product[a*4+b, j] * r[b, j+1] / r[a, j]
                 else:
                     assert product[a*4+b, j] * r[b, j+1] == 0.0
-    return analyze_adm.adm(result)
+    return adm.adm(result)
         
 def compute_expected_adm(adm1, adm2, o, d):
     adm1,adm2 = matrices_in_orientation(o, adm1, adm2)
@@ -471,7 +471,7 @@ def get_cob_case(cob, o, d, pwm1, pwm2, last_iteration_output, get_flanks, motif
     g = np.vectorize(lambda x : max(x,0)) # This cuts negative values to 0
     observed = normalize(g(observed)) # Because precision of (about) 6 digits is used, some elements can be slightly negative
     if use_adm:
-        observed = analyze_adm.adm(observed)
+        observed = adm.adm(observed)
         
     write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_iteration_output, get_flanks, motif_ending)
     return observed
