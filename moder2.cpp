@@ -1156,6 +1156,7 @@ normalize_Z_dir_j(boost::multi_array<FloatType, 5>& Z, int i, int o, int d, int 
   }
 }
 
+/*
 template <typename BitString>
 void
 weight_helper(const std::string& substr, const std::string& seed, bool force_multinomial, double z, dmatrix& weights)
@@ -1177,6 +1178,7 @@ weight_helper(const std::string& substr, const std::string& seed, bool force_mul
       weights(to_int(substr[pos]), pos) += z; // update columns of pwm marked by bit vector positions
   }
 }
+*/
 
 void
 get_new_weights(int j1, int dir, double z, int w, const std::string& seed,
@@ -1244,6 +1246,7 @@ get_new_spaced_dimer_weights(int j1, int dir, double z, int o, int d,
 
 }
 
+/*
 template <typename BitString>
 void
 gap_weight_helper(const std::string& substr, const std::string& seed, int d, int w1, int w2,
@@ -1267,6 +1270,7 @@ gap_weight_helper(const std::string& substr, const std::string& seed, int d, int
   }
 
 }
+*/
 
 void
 get_new_gap_weights(int j1, int dir, double z, int d,
