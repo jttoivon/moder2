@@ -411,7 +411,7 @@ correct_seed_bias(const std::vector<dmatrix>& grouped_dinucleotide_counts, const
 	    temp *= corrected(to_int(w[i-1])*4+to_int(w[i]), i+j+1);
 	  }
 	  for (int b=0; b < 4; ++b) {
-	    int a = (b << 2) + to_int(w[0]);
+	    int a = (b << 2) + to_int(w[0]);  // bw_0
 	    tau[b][t] += corrected(a, j+1) * temp;
 	    double low_count2 = std::min(low_count, all_counts(a, j+1));
 	    low_counts[b][t] = std::max(low_count2, low_counts[b][t]);

@@ -1193,33 +1193,7 @@ get_new_weights(int j1, int dir, double z, int w, const std::string& seed,
     j1 = L - j1 - w;
 
   weights.add_sequence<bitstring_t>(line.substr(j1, w), seed, force_multinomial, z);
-  //  weight_helper<bitstring_t>(line.substr(j1, w), seed, force_multinomial, z, weights);
-  /*
-  bitstring_t mismatches = iupac_mismatch_positions<bitstring_t>(line.substr(j1, w), seed);
-  int hd = mypopcount(mismatches);
-  bitstring_t positions = 0;
-  if (not force_multinomial or hd < hamming_radius)
-    positions = ~static_cast<bitstring_t>(0);  // update all
-  else if (hd == hamming_radius)  // update only mismatch positions
-    positions = mismatches;
-  else
-    positions = 0;   // update nothing
-  //  printf("HD is %i %i %s %s\n", hd, mismatches, print_bitvector(mismatches).c_str(), print_bitvector(positions).c_str());
-  bitstring_t mask = static_cast<bitstring_t>(1)<<(w-1);
-  for (int pos=0; pos < w; ++pos, mask>>=1) {
-    if (positions & mask)
-      weights(to_int(line[j1+pos]), pos) += z; // update columns of pwm marked by bit vector positions
-  }
-  */
-  
-  /*
-  if (allow_extension and compute_flanks and positions == ~0) {     // If dir == -1, then the caller must swap pred_flank and succ_flank
-    if (j1 != 0)
-      pred_flank[to_int(line[j1-1])] += z;
-    if (j1 + w < L)
-      succ_flank[to_int(line[j1+w])] += z;
-  }
-  */
+
 }
 
 void
@@ -1263,43 +1237,11 @@ get_new_spaced_dimer_weights(int j1, int dir, double z, int o, int d,
 	      
   // first part
   weights1.add_sequence<code_t>(sub1, seed1, force_multinomial, z);
-  //  weight_helper<code_t>(sub1, seed1, force_multinomial, z, weights1);
-  /*
-  code_t mismatches = iupac_mismatch_positions<code_t>(line.substr(j1, w1), seed1);
-  int hd = mypopcount(mismatches);
-  code_t positions = 0;
-  if (not force_multinomial or hd < hamming_radius)
-    positions = ~0;  // update all
-  else if (hd == hamming_radius)  // update only mismatch positions
-    positions = mismatches;
-  else
-    positions = 0;   // update nothing
-  code_t mask = 1ull<<(w1-1);
-  for (int pos=0; pos < w1; ++pos, mask>>=1) {
-    if (positions & mask)
-      weights1(to_int(line[j1+pos]), pos) += z; // update all columns
-  }
-  */
+
 
   // second part
   weights2.add_sequence<code_t>(sub2, seed2, force_multinomial, z);
-  //  weight_helper<code_t>(sub2, seed2, force_multinomial, z, weights2);
-  /*
-  code_t mismatches2 = iupac_mismatch_positions<code_t>(line.substr(j2, w2), seed2);
-  int hd2 = mypopcount(mismatches2);
-  code_t positions2 = 0;
-  if (not force_multinomial or hd2 < hamming_radius)
-    positions2 = ~0;  // update all
-  else if (hd2 == hamming_radius)  // update only mismatch positions
-    positions2 = mismatches2;
-  else
-    positions2 = 0;   // update nothing
-  mask=1ull<<(w2-1);
-  for (int pos=0; pos < w2; ++pos,mask>>=1) {
-    if (positions2 & mask)
-      weights2(to_int(line[j2+pos]), pos) += z; // update all columns
-  }
-  */
+
 }
 
 template <typename BitString>
@@ -1353,24 +1295,7 @@ get_new_gap_weights(int j1, int dir, double z, int d,
   assert(seed.length() == dimer_len);
   weights.add_gap_sequence<myuint128>(line.substr(j1, dimer_len), seed, d, w1, w2,
 				      force_multinomial, z);
-  //  gap_weight_helper<myuint128>(line.substr(j1, dimer_len), seed, d, w1, w2,
-  //			       force_multinomial, z, weights);
-  /*
-  bitstring_t mismatches = iupac_mismatch_positions<bitstring_t>(line.substr(j1, dimer_len), seed);
-  int hd = mypopcount(mismatches);
-  bitstring_t positions = 0;
-  if (not force_multinomial or hd <= hamming_radius)
-    positions = ~static_cast<bitstring_t>(0);  // update all
-  else
-    positions = 0;   // update nothing
-  int first = w1-1;  // last position of the first half-site
-  int last = w1+d;   // first position of the second half-site
-  bitstring_t mask = static_cast<bitstring_t>(1)<<(d+w2);
-  for (int pos=first; pos <= last; ++pos, mask>>=1) {
-    if (positions & mask)
-      weights1(to_int(line[j1+pos]), pos) += z; // update all columns
-  }
-  */
+
 }
 
 
@@ -1466,36 +1391,7 @@ get_new_weights_with_flanks(int j1, int dir, double z, int w, int Lmax, const st
 
   weight_with_flanks_helper<myuint128>(line, seed, Lmax, j1,
 				       force_multinomial, z, weights);
-  /*
-  int motif_pos = Lmax - w;        // Motif pos inside matrix 'weights' which has width 2*Lmax-w
-  int seq_pos = motif_pos - j1; // Position of sequence inside matrix 'weights'
-  typedef myuint128 bitstring_t;
-  bitstring_t mismatches = iupac_mismatch_positions<bitstring_t>(line.substr(j1, w), seed);
-  int hd = mypopcount(mismatches);
-  //  assert(hamming_distance(line.substr(j1, w), seed) == hd);
-  bitstring_t positions = 0;
-  if (not force_multinomial or hd < hamming_radius)
-    positions = ~static_cast<bitstring_t>(0);  // update all
-  else if (hd == hamming_radius)  // update only mismatch positions
-    positions = mismatches;
-  else
-    positions = 0;   // update nothing
-  //  printf("HD is %i %i %s %s\n", hd, mismatches, print_bitvector(mismatches).c_str(), print_bitvector(positions).c_str());
-  bitstring_t mask = static_cast<bitstring_t>(1)<<(w-1);
-  for (int pos=0; pos < w; ++pos, mask>>=1) {
-    if (positions & mask)
-      weights(to_int(line[j1+pos]), motif_pos + pos) += z; // update columns of pwm marked by bit vector positions
-  }
 
-  if (not force_multinomial or hd < hamming_radius) {
-    // Left flank
-    for (int i = 0; i < j1; ++i)
-      weights(to_int(line[i]), seq_pos + i) += z;
-    // Right flank
-    for (int i = j1+w; i < L; ++i)
-      weights(to_int(line[i]), seq_pos + i) += z;
-  }
-  */
 }
 
 
@@ -1530,34 +1426,7 @@ get_new_spaced_dimer_weights_with_flanks(int j1, int dir, double z, int d,
 
   
   
-  /*
-  int motif_pos = Lmax - dimer_len;        // Motif pos inside matrix 'weights' which has width 2*Lmax-w
-  int seq_pos = motif_pos - j1; // Position of sequence inside matrix 'weights'
-  typedef myuint128 bitstring_t;
-  bitstring_t mismatches = iupac_mismatch_positions<bitstring_t>(line.substr(j1, dimer_len), seed);
-  int hd = mypopcount(mismatches);
-  bitstring_t positions = 0;
-  //  bitstring_t gap_positions = ((static_cast<bitstring_t>(1) << d) - 1) << w2;
-  if (not force_multinomial or hd < hamming_radius)
-    positions = ~static_cast<bitstring_t>(0);  // update all, including the gap
-  else if (hd == hamming_radius)  // update only mismatch positions
-    positions = mismatches;
-  else
-    positions = 0;   // update nothing
-  bitstring_t mask = static_cast<bitstring_t>(1)<<(dimer_len-1);
-  for (int pos=0; pos < dimer_len; ++pos, mask>>=1) {
-    if (positions & mask)
-      weights(to_int(line[j1+pos]), motif_pos + pos) += z; // update all columns
-  }
-  if (not force_multinomial or hd < hamming_radius) {
-    // Left flank
-    for (int i = 0; i < j1; ++i)
-      weights(to_int(line[i]), seq_pos + i) += z;
-    // Right flank
-    for (int i = j1+dimer_len; i < L; ++i)
-      weights(to_int(line[i]), seq_pos + i) += z;
-  }
-  */
+
 }
 
 
