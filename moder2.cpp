@@ -1324,7 +1324,7 @@ weight_with_flanks_helper(const std::string& line, const std::string& seed, int 
   else
     positions = 0;   // update nothing
   //  printf("HD is %i %i %s %s\n", hd, mismatches, print_bitvector(mismatches).c_str(), print_bitvector(positions).c_str());
-  BitString mask = static_cast<BitString>(1)<<(w-1);
+  BitString mask = static_cast<BitString>(1)<<(w-1);  // mask in position 0 of the motif
   if (weights.type == ppm) {
     for (int pos=0; pos < w; ++pos, mask>>=1) {
       if (positions & mask)
@@ -1333,10 +1333,13 @@ weight_with_flanks_helper(const std::string& line, const std::string& seed, int 
   }
   else if (weights.type == adm) {
     if (j1 == 0) {   // motif occurrence in the beginning of sequence
-      for (int a=0; a < 4; ++a)
-	weights.counts[0](4*a + to_int(line[0]), 0) += 0.25*z;  // if the motif occurrence is in the beginning of the sequence,
+      if (positions & mask) {
+	for (int a=0; a < 4; ++a)
+	  weights.counts[0](4*a + to_int(line[0]), motif_pos) += 0.25*z;  // if the motif occurrence is in the beginning of the sequence,
                                                                 // then the first column must be handled specially
-      for (int pos=1; pos < w; ++pos, mask>>=1)
+      }
+      mask >>= 1;
+      for (int pos=1; pos < w; ++pos, mask>>=1)  // mask has 1 in index corresponding to motif position 'pos'
 	if (positions & mask)
 	  weights.counts[0](4*to_int(line[pos-1]) + to_int(line[pos]),  motif_pos + pos) += z;
 
@@ -1361,12 +1364,14 @@ weight_with_flanks_helper(const std::string& line, const std::string& seed, int 
 	weights.counts[0](to_int(line[i]), seq_pos + i) += z;
     }
     else if (weights.type == adm) {
-      if (seq_pos == 0) {            // The sequence is in the beginning of the flanked matrix 'weights'
-	weights.counts[0](to_int(line[0]), 0) += z;
-      }
-      else {
-	for (int a=0; a < 4; ++a)
-	  weights.counts[0](4*a + to_int(line[0]), 0) += 0.25*z;
+      if (j1 > 0) {
+	if (seq_pos == 0) {            // The sequence is in the beginning of the flanked matrix 'weights'
+	  weights.counts[0](to_int(line[0]), 0) += z;
+	}
+	else {
+	  for (int a=0; a < 4; ++a)
+	    weights.counts[0](4*a + to_int(line[0]), seq_pos) += 0.25*z;
+	}
       }
       // Left flank
       for (int i = 1; i < j1; ++i)
