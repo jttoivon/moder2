@@ -226,8 +226,10 @@ public:
       positions = ~static_cast<BitString>(0);  // update all
     else if (hd == hamming_radius)  // update only mismatch positions
       positions = mismatches;
-    else
-      positions = 0;   // update nothing, SHOULDN'T THIS JUST RETURN
+    else {
+      return;
+      //positions = 0;   // update nothing, SHOULDN'T THIS JUST RETURN
+    }
     //  printf("HD is %i %i %s %s\n", hd, mismatches, print_bitvector(mismatches).c_str(), print_bitvector(positions).c_str());
     BitString mask = static_cast<BitString>(1)<<(w-1);  // contains 1 in the wth position from right
     if (type == ppm) {
@@ -271,8 +273,10 @@ public:
     BitString positions = 0;
     if (not force_multinomial or hd <= hamming_radius)
       positions = ~static_cast<BitString>(0);  // update all
-    else
-      positions = 0;   // update nothing, SHOULDN'T THIS JUST RETURN
+    else {
+      return;
+      //positions = 0;   // update nothing, SHOULDN'T THIS JUST RETURN
+    }
     int first = w1-1;  // last position of the first half-site
     int last = w1+d;   // first position of the second half-site
     BitString mask = static_cast<BitString>(1)<<(d+w2);  // 1-bit is in the 'first' position
