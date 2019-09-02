@@ -1,6 +1,14 @@
 #ifndef DINUCLEOTIDE_HPP
 #define DINUCLEOTIDE_HPP
 
+/*
+
+  Both in count matrix and in internal representation of the dinucleotide/adm model
+  in the first column there are nonzero values only on the first four rows.
+
+ */
+
+
 #include "type.hpp"
 #include "matrix.hpp"
 #include "common.hpp"

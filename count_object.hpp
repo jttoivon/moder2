@@ -242,6 +242,7 @@ public:
       int shift = 2*(w-1);
       BitString code = dna_to_number<BitString>(substr);
       if (type == adm) {
+	// If pos == 0, then the dinucleotide is (A, substr[0])
 	for (int pos=0; pos < w; ++pos, mask>>=1, shift -= 2) {
 	  if (positions & mask) {
 	    counts[0]((code>>shift)&static_cast<BitString>(15), pos) += z; // update columns of pwm marked by bit vector positions
