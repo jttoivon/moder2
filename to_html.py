@@ -139,6 +139,8 @@ rna_orient_dict = {"HT" : 0, "TH" : 1}
 
 max_logo_width = 500 # This is defined in myspacek40
 
+dont_create_visualizations=True
+
 # Entropy of a probability distribution 'l'
 def entropy(l):
     assert abs(sum(l) - 1.0) < 0.001, "The distribution must sum to 1.0, got %e" % sum(l)
@@ -418,22 +420,22 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
 
 
 
+    if not dont_create_visualizations:
+        # Forward direction
+        myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname, oname.replace(".%s"%motif_ending, ".svg")))
+        myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename, ename.replace(".%s"%motif_ending, ".svg")))
+        #if not use_adm:         # This does not work for adm models
+        myrun("myspacek40 %s --difflogo %s %s %s" % (myspacek_flags, oname, ename, dname.replace(".dev", ".svg")))          # Deviation logo
+        if get_flanks:
+            myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k1, k2, d, fname, fname.replace(".%s"%motif_ending, ".svg")))
 
-    # Forward direction
-    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname, oname.replace(".%s"%motif_ending, ".svg")))
-    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename, ename.replace(".%s"%motif_ending, ".svg")))
-    #if not use_adm:         # This does not work for adm models
-    myrun("myspacek40 %s --difflogo %s %s %s" % (myspacek_flags, oname, ename, dname.replace(".dev", ".svg")))          # Deviation logo
-    if get_flanks:
-        myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k1, k2, d, fname, fname.replace(".%s"%motif_ending, ".svg")))
-
-    # Reverse complement
-    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname_rc, oname_rc.replace(".%s"%motif_ending, ".svg")))
-    myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename_rc, ename_rc.replace(".%s"%motif_ending, ".svg")))
-#    if not use_adm:         # This does not work for adm models
-    myrun("myspacek40 %s --difflogo %s %s %s" % (myspacek_flags, oname_rc, ename_rc, dname_rc.replace(".dev", ".svg")))      # Deviation logo
-    if get_flanks:
-        myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k2, k1, d, fname_rc, fname_rc.replace(".%s"%motif_ending, ".svg")))
+        # Reverse complement
+        myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname_rc, oname_rc.replace(".%s"%motif_ending, ".svg")))
+        myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename_rc, ename_rc.replace(".%s"%motif_ending, ".svg")))
+    #    if not use_adm:         # This does not work for adm models
+        myrun("myspacek40 %s --difflogo %s %s %s" % (myspacek_flags, oname_rc, ename_rc, dname_rc.replace(".dev", ".svg")))      # Deviation logo
+        if get_flanks:
+            myrun("myspacek40 %s -core=%i,%i,%i --logo %s %s" % (myspacek_flags, k2, k1, d, fname_rc, fname_rc.replace(".%s"%motif_ending, ".svg")))
 
     for rc in ["", "-rc"]:
         with open("three.%s.%s.%i%s.html" % (cob, o, d, rc), "w") as f:
@@ -883,12 +885,13 @@ def create_monomer_logos(factors, factor_lengths, motif_ending, get_flanks):
         #os.system("to_logo.sh -n -t %s %s.pfm" % (f, f))
 #        myrun("myspacek40 -noname -paths --logo %s.pfm %s.svg" % (f, f))
 #        myrun("myspacek40 -noname -paths --logo %s-rc.pfm %s-rc.svg" % (f, f))
-        myrun("myspacek40 %s --logo monomer.%i.%s monomer.%i.svg" % (myspacek_flags, i, motif_ending, i))
-        myrun("myspacek40 %s --logo monomer.%i-rc.%s monomer.%i-rc.svg" % (myspacek_flags, i, motif_ending, i))
-        if get_flanks:
-            g="flank-%i" % i
-            myrun("myspacek40 %s -core=%i --logo %s.%s %s.svg" % (myspacek_flags, factor_lengths[i], g, motif_ending, g))
-            myrun("myspacek40 %s -core=%i --logo %s-rc.%s %s-rc.svg" % (myspacek_flags, factor_lengths[i], g, motif_ending, g))
+        if not dont_create_visualizations:
+            myrun("myspacek40 %s --logo monomer.%i.%s monomer.%i.svg" % (myspacek_flags, i, motif_ending, i))
+            myrun("myspacek40 %s --logo monomer.%i-rc.%s monomer.%i-rc.svg" % (myspacek_flags, i, motif_ending, i))
+            if get_flanks:
+                g="flank-%i" % i
+                myrun("myspacek40 %s -core=%i --logo %s.%s %s.svg" % (myspacek_flags, factor_lengths[i], g, motif_ending, g))
+                myrun("myspacek40 %s -core=%i --logo %s-rc.%s %s-rc.svg" % (myspacek_flags, factor_lengths[i], g, motif_ending, g))
 
 
 
@@ -902,8 +905,9 @@ def visualize_cobs(cobs, cob_codes, cob_tables, dmin, dmax, orients):
         vfunc = np.vectorize(lambda x: x if x > 0.0 else -0.0002)
         data=vfunc(data)
         drange = list(range(dmin[i], dmax[i]+1))
-        print("Creating heatmap for %s" % cob)
-        heatmap.make_heatmap(data, drange, orients, "svg", cob, "%s.svg" % f, fontsize=20.0, cell_labels=True)
+        if not dont_create_visualizations:
+            print("Creating heatmap for %s" % cob)
+            heatmap.make_heatmap(data, drange, orients, "svg", cob, "%s.svg" % f, fontsize=20.0, cell_labels=True)
 #        myrun('heatmap.R -z 12 -c -s -i -t %s %s.cob 2> /dev/null > /dev/null' % (cob, f))
 #        myrun("sed -i '/page/d' %s.svg" % f)  # R or its pheatmap package make svg files corrupt. This fixes it.
     #    myrun('heatmap.R -z 8 -c -s -f "%%.3f" -t %s %s.cob' % (f, f))
@@ -1078,7 +1082,7 @@ def main():
     os.putenv("PATH", path+":"+execdir)
 
     usage="""Usage:
-    \tto_html.py tf1name,tf2name,... moderoutputfile
+    \tto_html.py tf1name,tf2name,... moderoutputfile [ moderreportdir ]
 
     Parses the output created by MODER and converts it to a graphical
     html page. The first parameter is a comma separated list
@@ -1119,18 +1123,21 @@ def main():
     if len(args) == 1:
         print(usage)
         sys.exit(0)
-    elif len(args) != 3:
-        sys.stderr.write("Error, give two parameters.\n")
+    elif len(args) < 3:
+        sys.stderr.write("Error, give at least two parameters.\n")
         sys.stderr.write(usage)
         sys.exit(1)
 
     name=args[1]
     orig=inputfile=args[2]
 
-    if inputfile[1:].count(".") > 0:                         # Contains a file extension
-        mydir=re.sub("\.[^.]*?$", ".report", inputfile)
+    if len(args) == 4:   # name of report directory given as third parameter
+        mydir=args[3]
     else:
-        mydir="%s.report" % inputfile
+        if inputfile[1:].count(".") > 0:                         # Contains a file extension
+            mydir=re.sub("\.[^.]*?$", ".report", inputfile)      # Strip the extension, and use .report instead
+        else:
+            mydir="%s.report" % inputfile
     reportfile="%s/index.html" % mydir
 
     inputfile = "../%s" % os.path.basename(inputfile)
