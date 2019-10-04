@@ -84,6 +84,8 @@ install: all
 	install -d $(prefix)/bin
 	install -d $(docdir)
 	install -m 0755 moder2 $(prefix)/bin
+	install -m 0755 adm.py $(prefix)/bin
+	install -m 0755 base.py $(prefix)/bin
 	install -m 0755 heatmap.py $(prefix)/bin
 	install -m 0755 to_html.py $(prefix)/bin
 	install -m 0755 myspacek40 $(prefix)/bin
