@@ -3305,9 +3305,12 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      first = w1;
 	      //last = w1 + d - 1;
 	    }
-	    if (my_cob_params[r].dimer_lambdas[o][d] != 0.0) {
-	      deviation_dist[r][o][d]=gap_models[r][o][d]->cut(first-1, 2+d)->distance(
-						 *(my_cob_params[r].overlapping_dimer_PWM[o][d]->cut(first-1, 2+d)));
+	    if (my_cob_params[r].dimer_lambdas[o][d] != 0.0 and not empty_gap[r][o][d]) {
+	      auto eka = gap_models[r][o][d]->cut(first-1, 2+d);
+	      auto toka = my_cob_params[r].overlapping_dimer_PWM[o][d]->cut(first-1, 2+d);
+	      deviation_dist[r][o][d] = eka->distance(*(toka));
+	      //	      deviation_dist[r][o][d]=gap_models[r][o][d]->cut(first-1, 2+d)->distance(
+	      //				 *(my_cob_params[r].overlapping_dimer_PWM[o][d]->cut(first-1, 2+d)));
 	      //overlapping_dimer_models[r][o][d] = my_cob_params[r].expected_overlapping_dimer_PWMs[o][d];
 
 	      // The next line is doing a little too much, since the flanks of overlapping_dimer_PWM aren't used anywhere

@@ -20,7 +20,7 @@ CXX=g++
 #CXX=clang++
 #CXX=$(HOME)/usr/bin/g++
 
-CXXFLAGS= -fdiagnostics-color=always -std=gnu++11 -DPACKAGE_VERSION=\"$(version)\" -Wall -Wno-sign-compare -g $(BOOSTINC)
+CXXFLAGS= -fdiagnostics-color=always -std=gnu++11 -DPACKAGE_VERSION=\"$(version)\" -Wall -Wno-sign-compare -Wno-unused-function -g $(BOOSTINC)
 CFLAGS= -Wall -Wno-sign-compare -g
 
 ifeq ($(CXX), clang++)
