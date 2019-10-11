@@ -1,2 +1,8 @@
 *.o
 *.d
+CPM03/test-suffixsort
+__pycache__
+all_pairs_huddinge
+debug_moder2
+moder2
+myspacek40
