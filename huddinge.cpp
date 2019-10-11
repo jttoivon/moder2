@@ -275,6 +275,8 @@ public:
   std::ostream&
   print(std::ostream& f) const=0;
 
+  virtual ~operation() { };
+  
 };
 
 std::ostream&
