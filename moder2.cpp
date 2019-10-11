@@ -1894,7 +1894,7 @@ print_background_sequences(const std::vector<std::string>& sequences,
 
 
 int
-get_number_of_parameters(std::vector<cob_params_t>& my_cob_params, std::vector<boost::shared_ptr<binding_model<> > > monomer_PWM)
+get_number_of_parameters(const std::vector<cob_params_t>& my_cob_params, const std::vector<boost::shared_ptr<binding_model<> > > monomer_PWM)
 {
   int monomer_p=monomer_PWM.size();                // Number of monomer models
   int number_of_parameters = 0;
@@ -2491,7 +2491,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    my_cob_params[r].dimer_lambdas[ boost::indices[index_range()][(long int)minimum_distance_for_learning <= index_range()] ];
 	  double s = sum(subarray);
 	  monomer_dimer_proportions[my_cob_params[r].tf1] += s;
-	  monomer_dimer_proportions[my_cob_params[r].tf2] += s;
+	  monomer_dimer_proportions[my_cob_params[r].tf2] += s;   // PITÄISKÖ TÄSSÄ OTTAA HUOMIOON HOMODIMEERISYYS? EHKÄ EI
 	}
       }
       for (int k=0; k < monomer_p; ++k) {
@@ -3305,7 +3305,9 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      first = w1;
 	      //last = w1 + d - 1;
 	    }
-	    if (my_cob_params[r].dimer_lambdas[o][d] != 0.0 and not empty_gap[r][o][d]) {
+	    if (my_cob_params[r].dimer_lambdas[o][d] != 0.0
+		and not empty_gap[r][o][d]
+		and sum(my_cob_params[r].overlapping_dimer_PWM[o][d]->representation()) > 0.0) {
 	      auto eka = gap_models[r][o][d]->cut(first-1, 2+d);
 	      auto toka = my_cob_params[r].overlapping_dimer_PWM[o][d]->cut(first-1, 2+d);
 	      deviation_dist[r][o][d] = eka->distance(*(toka));
@@ -3317,7 +3319,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      // The next line does not work, because representation() does not return a reference, but a copy.
 	      //overlapping_dimer_models[r][o][d]->representation().inject(gap_models[r][o][d]->cut(first-1, 2+d)->representation(),
 	      // 0, first-1);
-	      overlapping_dimer_models[r][o][d] = gap_models[r][o][d];
 
 	      // overlapping_dimer_models[r][o][d]->print(
 	      // 					       to_string("Test %s %s %i:\n", 
@@ -3326,6 +3327,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    }
 	    else
 	      deviation_dist[r][o][d]=0.0;
+	    overlapping_dimer_models[r][o][d] = gap_models[r][o][d];
 	  } // for d
 	}
 	if (local_debug and my_cob_params[r].dmin < 0) {     ///// TÄMÄ PITÄÄ KORJATA!!!!!!!!!!!!!!!!!!
