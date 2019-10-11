@@ -39,13 +39,13 @@ OBJDIR=.
 PRGPREFIX=
 ifeq ($(DEBUG),1)
 #    CFLAGS =-g3 -gdwarf2 -DDEBUG
-	CXXFLAGS +=-O0 # -D_GLIBCXX_DEBUG does not work because of BOOST
+	CXXFLAGS +=-Og # -D_GLIBCXX_DEBUG does not work because of BOOST
 	OBJDIR=debug
 	PRGPREFIX=debug_
 	RESULT:=$(shell mkdir -p $(OBJDIR))
 else
 ifeq ($(DEBUG),2)
-	CXXFLAGS+=-O0 -pg
+	CXXFLAGS+=-Og -pg
 	OBJDIR=debug
 	PRGPREFIX=debug_
 	RESULT:=$(shell mkdir -p $(OBJDIR))
