@@ -785,11 +785,28 @@ def myrun(command):
 def myargmax(a):
     return np.unravel_index(np.argmax(a), a.shape)
 
+def add_pseudo_counts(model, pseudo_count):
+    if use_adm:
+        a = model.representation()
+        k = model.shape[1]
+        for col in range(k):
+            for row in range(4):
+                idx = np.s_[row*4:(row+1)*4, col]  # this could be used instead of repeating the slicing notation
+                s = np.sum(a[row*4:(row+1)*4, col])
+                if s > 0.0:
+                    a[row*4:(row+1)*4, col] += pseudo_count
+                    s = s + 4*pseudo_count
+                    a[row*4:(row+1)*4, col] /= s
+        model = adm.adm(a)
+    else:
+        model += pseudo_count
+        model /= model.sum(axis=0)
+    return model
 
 def get_monomers(factors, results_output, last_iteration_output, model_rows, motif_ending, get_flanks):
     factor_lengths = [0]*len(factors)
     factor_ics = [0]*len(factors)
-    factor_pwms = [0]*len(factors)
+    factor_models = [0]*len(factors)
 #    start = 1 if use_adm else 2
     start = 1
     for i, factor in enumerate(factors):
@@ -797,20 +814,22 @@ def get_monomers(factors, results_output, last_iteration_output, model_rows, mot
 #        with open("%s.pfm" % factor, "w") as f:
         with open("monomer.%i.%s" % (i,motif_ending), "w") as f:
             f.writelines(lines)
-        factor_pwms[i] = pwm = readmodel(lines)
-        pwm_rc=reverse_complement_model(pwm)
+        model = readmodel(lines)
+        model = add_pseudo_counts(model, 0.000001) # Because float were stored it the file using only 6 decimals, some entries maybe zero, this fixes it
+        factor_models[i] = model
+        model_rc=reverse_complement_model(model)
 #        writematrixfile(pwm_rc, "%s-rc.pfm" % factor)
-        writematrixfile(pwm_rc, "monomer.%i-rc.%s" % (i,motif_ending))
-        factor_lengths[i] = pwm.shape[1]
-        factor_ics[i] = model_information_content(pwm)
+        writematrixfile(model_rc, "monomer.%i-rc.%s" % (i,motif_ending))
+        factor_lengths[i] = model.shape[1]
+        factor_ics[i] = model_information_content(model)
         if get_flanks:
             lines=find_lines(last_iteration_output, "Flank monomer matrix %i:" % i, start, model_rows)
             with open("flank-%i.%s" % (i,motif_ending), "w") as f:
                 f.writelines(lines)
-            flank_pwm=readmodel(lines)
-            flank_pwm_rc=reverse_complement_model(flank_pwm)
-            writematrixfile(flank_pwm_rc, "flank-%i-rc.%s" % (i,motif_ending))
-    return factor_lengths, factor_ics, factor_pwms
+            flank_model=readmodel(lines)
+            flank_model_rc=reverse_complement_model(flank_model)
+            writematrixfile(flank_model_rc, "flank-%i-rc.%s" % (i,motif_ending))
+    return factor_lengths, factor_ics, factor_models
 
 def get_dimer_cases(results_output, iterations, last_iteration_output, cob_factors, use_rna, cob_codes, dmin, dmax, cob_tables, cob_ic_tables,
                     cob_length_tables, orients, orient_dict, monomer_pwms, get_flanks, motif_ending, cob_titles, best_cases_titles):
@@ -828,8 +847,8 @@ def get_dimer_cases(results_output, iterations, last_iteration_output, cob_facto
         dmax[i] = int(temp[0,-1])
         cob_tables[i] = temp[1:,1:].astype(float)  # Remove column and row names
         #print cob_tables[i]
-        cob_ic_tables[i]=np.zeros(cob_tables[i].shape)
-        cob_length_tables[i]=np.zeros(cob_tables[i].shape)  # Lengths of corresponding dimeric WPM
+        cob_ic_tables[i]=np.zeros(cob_tables[i].shape)      # Information contents of corresponding dimeric PWM
+        cob_length_tables[i]=np.zeros(cob_tables[i].shape)  # Lengths of corresponding dimeric PWM
         #print len(cob_ic_tables)
         #print cob_ic_tables[i].shape
         #overlap_table = cob_tables[i][:,0:-dmin[i]] # Only the overlap area of the cob table
@@ -857,12 +876,15 @@ def get_dimer_cases(results_output, iterations, last_iteration_output, cob_facto
             os.system("ln -f -s three.%s.%s.%s.html best.%s.html" % (cob_codes[i], best_o, best_d, cob_codes[i]))
             os.system("ln -f -s three.%s.%s.%s-rc.html best.%s-rc.html" % (cob_codes[i], best_o, best_d, cob_codes[i]))
 
+        # Compute IC and length of each dimeric PPM model related to cob_tables[i].
+        # They are used in the hovering tool tip in the resulting html page.
         for row in range(0, number_of_orientations):
             for d in range(dmin[i], dmax[i]+1):
                 if float(temp[1+row,1+d-dmin[i]]) > 0.00000:
                     #command="get_cob_case.py %s %i %s %s %i %s" % ("-f" if get_flanks else "", iterations-1, cob_codes[i], orients[row], d, inputfile)
                     #myrun(command)
                     try:
+                        # The following return the observed model, but also computes and stores the expectations and deviations
                         dimer_pwm=get_cob_case(cob_codes[i], orients[row], d, monomer_pwms[tf1], monomer_pwms[tf2],
                                                results_output, get_flanks, motif_ending)
                         ic = model_information_content(dimer_pwm)
@@ -871,11 +893,13 @@ def get_dimer_cases(results_output, iterations, last_iteration_output, cob_facto
                         raise
                     cob_ic_tables[i][row, d-dmin[i]] = ic
                     cob_length_tables[i][row, d-dmin[i]] = dimer_pwm.shape[1]
+
+        # Write the cob table to a file
         with open("cob.%s.cob" % cob_codes[i], "w") as f:
             for row in range(temp.shape[0]):
                 f.write("\t".join(temp[row,:]))
                 f.write("\n")
-        g = np.vectorize(lambda x,y,z : "Lambda %f&#010;IC: %f&#010;Length: %i" % (x,y,z))
+        g = np.vectorize(lambda x,y,z : "Lambda %f&#010;IC: %f&#010;Length: %i" % (x,y,z)) # The hex number 0x10 is the new line character
         cob_titles[i] = g(cob_tables[i], cob_ic_tables[i], cob_length_tables[i])
         best_cases_titles[i]=cob_titles[i][oi, di]
 
@@ -1034,17 +1058,12 @@ def create_graphs(full_output, factors, cobs, cob_codes, name):
         printmatrix(d, f, headers=[], colheaders=[], format="%s", sep="\t")
         lambdas_data=d.tolist()
 
-    myplot(mll_data, "%s log likelihood" % name, "iterations", "mll", headers=lambdas_header, outputfile="mll.svg")
-    myplot(parameters_data, "%s number of parameters" % name, "iterations", "params", headers=parameters_header, outputfile="parameters.svg")
-    myplot(ics_data, "%s information content" % name, "iterations", "IC", ymax=2.0, headers=ics_header, outputfile="ics.svg")
-    myplot(distances_data, "%s convergence" % name, "iterations", "distance", ymax=1.0, headers=distances_header, outputfile="distances.svg")
-    myplot(lambdas_data, "%s lambdas" % name, "iterations", "lambda", ymax=1.0, headers=lambdas_header, outputfile="lambdas.svg")
+    myplot(mll_data,        "%s log likelihood" % name,       "iterations", "mll",                headers=lambdas_header,    outputfile="mll.svg")
+    myplot(parameters_data, "%s number of parameters" % name, "iterations", "params",             headers=parameters_header, outputfile="parameters.svg")
+    myplot(ics_data,        "%s information content" % name,  "iterations", "IC", ymax=2.0,       headers=ics_header,        outputfile="ics.svg")
+    myplot(distances_data,  "%s convergence" % name,          "iterations", "distance", ymax=1.0, headers=distances_header,  outputfile="distances.svg")
+    myplot(lambdas_data,    "%s lambdas" % name,              "iterations", "lambda", ymax=1.0,   headers=lambdas_header,    outputfile="lambdas.svg")
 
-    # myrun('plot.R -c -s -x iterations -y mll -t "%s log likelihood" mll.txt' % name)
-    # myrun('plot.R -c -s -x iterations -y params -t "%s number of parameters" parameters.txt' % name)
-    # myrun('plot.R -c -s -b 2.0 -x iterations -y IC -t "%s information content" ics.txt' % name)
-    # myrun('plot.R -c -s -b 1.0 -h 0.01 -x iterations -y distance -t "%s distances" distances.txt' % name)
-    # myrun('plot.R -c -s -b 1.0 -x iterations -y lambda -t "%s lambdas" lambdas.txt' % name)
 
 def get_start_positions(last_iteration_output, factors):
     lines = last_iteration_output.split('\n')
@@ -1207,7 +1226,7 @@ def main():
     cob_codes=[ "-".join(map(str,x)) for x in cob_factors ]                # cob_codes=["0-0", "1-1", "0-1"]
 
 
-    command="sed -n '/Results/,$p' %s" % inputfile
+    command="sed -n '/Results/,$p' %s" % inputfile                         # KORJAA TÄMÄ!!!!!!!!!! MUUALLAKIN KÄYTETÄÄN SEDIÄ, POISTA NE
     (ret_val, results_output, error) = mycommand(command)
     assert ret_val == 0
 
