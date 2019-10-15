@@ -77,7 +77,7 @@
 
 namespace po = boost::program_options;
 
-typedef long double FloatType;
+//typedef long double FloatType;
 
 
 typedef std::vector<boost::tuple<int, int, int, int, std::string> > overlapping_dimer_cases_t;
