@@ -2336,7 +2336,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       std::vector<count_object> new_monomer_weights2;   // These are not used to learn new PWMs
 
       std::vector<boost::shared_ptr<binding_model<> > > new_monomer_models;
-      std::vector<boost::shared_ptr<binding_model<> > > new_monomer_models2;   // These are not used to learn new PWMs
+      //      std::vector<boost::shared_ptr<binding_model<> > > new_monomer_models2;   // These are not used to learn new PWMs
 
       typedef boost::multi_array<boost::shared_ptr<binding_model<> >, 2> cob_of_binding_models;
 
@@ -2362,11 +2362,11 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       for (int k=0; k < monomer_p; ++k) {
 	if (model_type == ppm) {
 	  new_monomer_models.push_back(boost::make_shared<pwm_model<> >(monomer_w[k]));
-	  new_monomer_models2.push_back(boost::make_shared<pwm_model<> >(monomer_w[k]));
+	  //new_monomer_models2.push_back(boost::make_shared<pwm_model<> >(monomer_w[k]));
 	}
 	else {
 	  new_monomer_models.push_back(boost::make_shared<dinuc_model<> >(monomer_w[k]));
-	  new_monomer_models2.push_back(boost::make_shared<dinuc_model<> >(monomer_w[k]));
+	  //new_monomer_models2.push_back(boost::make_shared<dinuc_model<> >(monomer_w[k]));
 	}
 	// new_monomer_weights.push_back(dmatrix(4, monomer_w[k]));
 	// new_monomer_weights2.push_back(dmatrix(4, monomer_w[k]));
