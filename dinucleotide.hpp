@@ -33,7 +33,8 @@ public:
 
 
   // n tells the size of the hamming neighbourhood
-  dinuc_model(const std::vector<std::string>& sequences, const std::string& seed, int n=2); 
+  
+  //dinuc_model(const std::vector<std::string>& sequences, const std::string& seed, int n=2); 
   dinuc_model(const std::string& filename);
 
   dinuc_model(int k_);
@@ -456,10 +457,12 @@ dinuc_model<T>::dinuc_model(const std::string& filename)
   read(filename);
 }
 
+/*
 template<typename T>
 dinuc_model<T>::dinuc_model(const std::vector<std::string>& sequences, const std::string& seed, int n) 
 {
-  typedef std::vector<dmatrix> (*func_ptr_t)(const std::string&, const std::vector<std::string>&, int);
+  typedef std::vector<dmatrix> (*func_ptr_t)(const std::string&, const std::vector<std::string>&,
+					     const suffix_array&, int);
   int k = seed.length();
   func_ptr_t func_ptr;
   if (k >= 20 or n >= 4) 
@@ -470,6 +473,7 @@ dinuc_model<T>::dinuc_model(const std::vector<std::string>& sequences, const std
 
   init(func_ptr(seed, sequences, n)[0]);
 }
+*/
 
 template<typename T>
 // i refers to the index of the second character 'c2'
