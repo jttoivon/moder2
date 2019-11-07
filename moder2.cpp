@@ -1949,6 +1949,16 @@ is_almost_palindrome(const dmatrix& m)
   return distance(m, m_rev) < 0.001;
 }
 
+bool
+only_N(const std::string& s)
+{
+  for (int i=0; i < s.length(); ++i) {
+    if (s[i] != 'N')
+      return false;
+  }
+  return true;
+}
+
 // uses the zoops model (zero or one occurrence per sequence)
 // the error rate lambda[p] equals the quantity 1-gamma of the paper
 //std::vector<dmatrix>
@@ -3020,15 +3030,23 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	  int dmax = my_cob_params[r].dmax;
 	  int tf1 = my_cob_params[r].tf1;
 	  int tf2 = my_cob_params[r].tf2;
-	  for (int o=0; o < number_of_orientations; ++o) {
-	    std::string seed1, seed2;
-	    boost::tie(seed1, seed2) = //my_cob_params[r].oriented_dimer_seeds[0]; 
-	      get_seeds_according_to_hetero_orientation(o, monomer_seed[tf1], monomer_seed[tf2], use_rna);
-	    for (int d=dmin; d < std::min(0, dmax+1); ++d) {
-	      my_cob_params[r].dimer_seeds[o][d] = create_overlapping_seed(seed1, seed2, d, my_gapped_kmer_context);
-	    }  // end for d
-
-	  }  // end for o
+	  if (only_N(monomer_seed[tf1]) or only_N(monomer_seed[tf2])) { // set the lambdas to zero if one of the related seeds consists only of N's
+	    for (int o=0; o < number_of_orientations; ++o) {
+	      for (int d=dmin; d <= my_cob_params[r].dmax; ++d) {
+		my_cob_params[r].dimer_lambdas[o][d] = 0.0;
+	      }
+	    }
+	  }
+	  else {
+	    for (int o=0; o < number_of_orientations; ++o) {
+	      std::string seed1, seed2;
+	      boost::tie(seed1, seed2) = //my_cob_params[r].oriented_dimer_seeds[0]; 
+		get_seeds_according_to_hetero_orientation(o, monomer_seed[tf1], monomer_seed[tf2], use_rna);
+	      for (int d=dmin; d < std::min(0, dmax+1); ++d) {
+		my_cob_params[r].dimer_seeds[o][d] = create_overlapping_seed(seed1, seed2, d, my_gapped_kmer_context);
+	      }  // end for d
+	    }  // end for o
+	  }
 	} // end for r
 
       } // end if use_multinomial
