@@ -21,7 +21,7 @@ CXX=g++
 #CXX=$(HOME)/usr/bin/g++
 
 CXXFLAGS= -fdiagnostics-color=always -std=gnu++11 -DPACKAGE_VERSION=\"$(version)\" -Wall -Wno-sign-compare -Wno-unused-function -g $(BOOSTINC)
-CFLAGS= -Wall -Wno-sign-compare -g
+CFLAGS= -Wall -Wno-sign-compare -g3
 
 ifeq ($(CXX), clang++)
 	CXXFLAGS += -Wno-unused-function
