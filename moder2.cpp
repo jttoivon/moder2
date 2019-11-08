@@ -3043,7 +3043,10 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      boost::tie(seed1, seed2) = //my_cob_params[r].oriented_dimer_seeds[0]; 
 		get_seeds_according_to_hetero_orientation(o, monomer_seed[tf1], monomer_seed[tf2], use_rna);
 	      for (int d=dmin; d < std::min(0, dmax+1); ++d) {
-		my_cob_params[r].dimer_seeds[o][d] = create_overlapping_seed(seed1, seed2, d, my_gapped_kmer_context);
+		if (my_cob_params[r].dimer_lambdas[o][d] > 0.0)
+		  my_cob_params[r].dimer_seeds[o][d] = create_overlapping_seed(seed1, seed2, d, my_gapped_kmer_context);
+		else
+		  my_cob_params[r].dimer_seeds[o][d] = std::string(seed1.length() + seed2.length() + d, 'N');
 	      }  // end for d
 	    }  // end for o
 	  }
