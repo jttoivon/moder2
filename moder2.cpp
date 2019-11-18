@@ -302,9 +302,21 @@ public:
   }
   */
   
-  gapped_kmer_context(const suffix_array& sa_) : sa(sa_)
+  gapped_kmer_context(const suffix_array& sa_,
+		      const std::vector<std::string>& sequences_,
+		      const std::vector<std::string>& sequences_rev_,
+		      int max_kmer_length		      
+		      ) : sa(sa_), sequences(sequences_), sequences_rev(sequences_rev_), number_of_sites(max_kmer_length+1)
   {
     timer = 0.0;
+    int n=sequences.size();
+    for (int i=0; i < n; ++i) {
+      const int L = sequences[i].length();
+      const int len = std::min(max_kmer_length, L);
+      for (int k=1; k <= len; ++k) {
+	number_of_sites[k] += 2*(L-k+1);
+      }
+    }
   }
 
 
@@ -314,17 +326,86 @@ public:
     return sa.count_iupac(pattern);
   }
 
+
+  
   // Finds a string with maximum count from a set of strings.
   // The set of strings is specified by an iupac sequence 's'
   boost::tuple<std::string,int>
-  max(const std::string& s) const
+  max_scan(const std::string& s, int begin, int len) const
   {
     TIME_START(s);
     int k = s.length();
     assert(is_iupac_string(s));
+    timer += TIME_GET(s);
+    typedef unsigned int code_t;
+    typedef unsigned long int count_t;
+    assert(sizeof(code_t)*8/2 >= len);
 
+    int size=pow(4, len);
+    std::vector<count_t> overlapping_part_count(size);
+
+    int n=sequences.size();
+    for (int i=0; i < n; ++i) {
+      const std::string& line = sequences[i];
+      const std::string& line_rev = sequences_rev[i];
+      int L = line.length();
+      for (int j=0; j < L-k+1; ++j) {
+	const std::string& ss=line.substr(j, k);
+	const std::string& ss_rev=line_rev.substr(j, k);
+	if (iupac_string_match(ss, s)) {
+	  std::string overlapping_part = ss.substr(begin, len);
+	  overlapping_part_count[dna_to_number<code_t>(overlapping_part)] += 1;
+	}
+	if (iupac_string_match(ss_rev, s)) {
+	  std::string overlapping_part = ss_rev.substr(begin, len);
+	  overlapping_part_count[dna_to_number<code_t>(overlapping_part)] += 1;
+	}
+      }
+    }
+    
+    std::multimap<count_t, code_t> kmers;
+    for (code_t code=0; code < size; ++code) {
+      count_t count = overlapping_part_count[code];
+      if (count > 0)
+	kmers.insert(std::make_pair(count, code));
+    }
+    count_t number_of_occurrences=0;
+    code_t code;
+    std::string pattern;
+    BOOST_REVERSE_FOREACH(boost::tie(number_of_occurrences, code), kmers) {
+      pattern = s;
+      pattern.replace(begin, len, number_to_dna(code, len));
+      if (require_directional_seed and palindromic_index(pattern) <= 1) //is_palindromic(pattern))
+	;
+      else {
+	break;
+      }
+	
+    }
+    timer += TIME_GET(s);
+    if (pattern == "")
+      return s;
+    return boost::make_tuple(pattern, number_of_occurrences);
+    //    return boost::make_tuple(arg_max, max_count);
+  }
+
+  
+  // Finds a string with maximum count from a set of strings.
+  // The set of strings is specified by an iupac sequence 's'
+  boost::tuple<std::string,int>
+  max_sa(const std::string& s, int begin, int len) const
+  {
+    TIME_START(s);
+    int k = s.length();
+    assert(is_iupac_string(s));
+    typedef unsigned int code_t;
+    typedef unsigned long int count_t;
+    assert(sizeof(code_t)*8/2 >= len);
+    
+    code_t size=pow(4, len);
+    std::vector<count_t> overlapping_part_count(size);
     //int max_count = 0;
-    std::string arg_max=s;
+    //    std::string arg_max=s;
 
     std::vector<int> v(k, 0);  // helper array
 
@@ -332,21 +413,21 @@ public:
     //    std::vector<const char*> iupac_classes(k);
     std::vector<std::string> iupac_classes(k);
     std::string pattern(k, '-');
-    int number_of_combinations = 1;
+    unsigned long long number_of_combinations = 1;
     for (int i=0; i < k; ++i) {
       iupac_classes[i] = iupac_class(s[i]);
       if (use_rna)
 	std::replace(iupac_classes[i].begin(), iupac_classes[i].end(), 'T', 'U');
-      int size = iupac_classes[i].length();
-      base[i] = size - 1;
+      int size2 = iupac_classes[i].length();
+      base[i] = size2 - 1;
       pattern[i] = iupac_classes[i][0];            // Initialize pattern to the first sequence of iupac string
-      number_of_combinations *= size;
+      number_of_combinations *= size2;
     }
+    printf("s=%s begin=%i len=%i number_of_combinations=%llu\n", s.c_str(), begin, len, number_of_combinations);
     v[k-1]=-1;  // Initialize
     // The loop goes through nucleotide sequences that belong to
     //given iupac sequence in alphabetical order
-    std::multimap<unsigned long int, std::string> kmers;
-    for (int j=0; j < number_of_combinations; ++j) {
+    for (unsigned long long j=0; j < number_of_combinations; ++j) {
       
       int i;
       for (i=k-1; v[i] == base[i]; --i) {
@@ -359,17 +440,27 @@ public:
     /* Writes in numocc the number of occurrences of the substring 
        pattern[0..length-1] found in the text indexed by index. */
 
-      unsigned long int number_of_occurrences;
-      number_of_occurrences = count(pattern);
-      kmers.insert(std::make_pair(number_of_occurrences, pattern));
+      count_t number_of_occurrences = count(pattern);
+      std::string overlapping_part = pattern.substr(begin, len);
+      overlapping_part_count[dna_to_number<code_t>(overlapping_part)] += number_of_occurrences;
       
       // if (number_of_occurrences > max_count) {
       // 	max_count = number_of_occurrences;
       // 	arg_max = pattern;
       // }
     }
-    unsigned long int count=0;
-    BOOST_REVERSE_FOREACH(boost::tie(count, pattern), kmers) {
+    std::multimap<count_t, code_t> kmers;
+    for (code_t code=0; code < size; ++code) {
+      count_t count = overlapping_part_count[code];
+      if (count > 0)
+	kmers.insert(std::make_pair(count, code));
+    }
+    count_t number_of_occurrences=0;
+    code_t code;
+    pattern = "";
+    BOOST_REVERSE_FOREACH(boost::tie(number_of_occurrences, code), kmers) {
+      pattern = s;
+      pattern.replace(begin, len, number_to_dna(code, len));
       if (require_directional_seed and palindromic_index(pattern) <= 1) //is_palindromic(pattern))
 	;
       else {
@@ -378,11 +469,29 @@ public:
 	
     }
     timer += TIME_GET(s);
-
-    return boost::make_tuple(pattern, count);
+    if (pattern == "")
+      return s;
+    
+    return boost::make_tuple(pattern, number_of_occurrences);
     //    return boost::make_tuple(arg_max, max_count);
+  } // end max_sa
+
+  // Finds a string with maximum count from a set of strings.
+  // The set of strings is specified by an iupac sequence 's'
+  boost::tuple<std::string,int>
+  max(const std::string& s, int begin, int len) const {
+    const int k = s.length();
+    sequences_of_iupac_string strings(s);
+    //return max_scan(s, begin, len);
+    return max_sa(s, begin, len);
+    // if (strings.number_of_strings() >= number_of_sites[k])
+    //   return max_scan(s, begin, len);
+    // else
+    //   return max_sa(s, begin, len);
   }
 
+    
+  /*
   // Allow mismatch ('N') in 'errors' positions in the subsequence s_orig[begin,begin+len)
   boost::tuple<std::string,int>
   max(const std::string& s_orig, int errors, int begin=0, int len=-1) const
@@ -437,7 +546,7 @@ public:
     }
     return boost::make_tuple(std::string(""), 0);
   }
-
+  */
 
 
   ~gapped_kmer_context() 
@@ -447,7 +556,10 @@ public:
 
 private:
   const suffix_array& sa;
+  const std::vector<std::string>& sequences;
+  const std::vector<std::string>& sequences_rev;
   mutable double timer;
+  std::vector<int> number_of_sites;
 };
 
 
@@ -1752,8 +1864,7 @@ create_overlapping_seed(const std::string& seed1, const std::string& seed2, int 
   int k2 = seed2.length();
 
   std::string pattern;
-  int hd;
-  hd = hamming_distance_overlapping_seeds_N;   // this is zero
+  //int hd = hamming_distance_overlapping_seeds_N;   // this is zero
   pattern = combine_seeds_func(seed1, seed2, d);
 
   assert(pattern.size() == k1 + k2 + d);
@@ -1761,7 +1872,7 @@ create_overlapping_seed(const std::string& seed1, const std::string& seed2, int 
   if (maximize_overlapping_seeds) {
     int begin = k1 + d;
     int len = -d;
-    overlapping_seed = my_gapped_kmer_context.max(pattern, hd, begin, len).get<0>();
+    overlapping_seed = my_gapped_kmer_context.max(pattern, begin, len).get<0>();
   }
   else
     overlapping_seed = pattern;
@@ -1964,6 +2075,7 @@ only_N(const std::string& s)
 //std::vector<dmatrix>
 void
 multi_profile_em_algorithm(const std::vector<std::string>& sequences,
+			   const std::vector<std::string>& sequences_rev,
 			   std::vector<boost::shared_ptr<binding_model<> > > monomer_PWM,
 			   const std::vector<bool>& keep_monomer_fixed,
 			   dmatrix& bg_model_markov, 
@@ -1992,9 +2104,9 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
   typedef boost::multi_array<FloatType, 4> array_4d_type;  // for Z variable, indices are (i,k,dir,j)
 
-  std::vector<std::string> sequences_rev(sequences.size());
-  for (int i=0; i < sequences.size(); ++i)
-    sequences_rev[i] = reverse_complement(sequences[i]);
+  // std::vector<std::string> sequences_rev(sequences.size());
+  // for (int i=0; i < sequences.size(); ++i)
+  //   sequences_rev[i] = reverse_complement(sequences[i]);
   
   
   double first_maximum_log_likelihood = 0; //maximum_log_likelihood(monomer_PWM, bg_model, monomer_lambda, 
@@ -4620,9 +4732,9 @@ int main(int argc, char* argv[])
 	else
 	  temp = get_meme_init_pwm(monomerseedlist[k]);
 	monomer_M[k].reset(new pwm_model<double>(temp));
-	if (use_multinomial and adjust_seeds) {
-	  monomerseedlist[k] = monomer_M[k]->string_giving_max_probability(use_rna, use_iupac);
-	}
+	// if (use_multinomial and adjust_seeds) {
+	//   monomerseedlist[k] = monomer_M[k]->string_giving_max_probability(use_rna, use_iupac);
+	// }
       } else {
 	count_object co = dinucleotide_counts_suffix_array(monomerseedlist[k], sequences, sa, 2);
 	co.write_counts(stdout, to_string("Unnormalized initial monomer matrix %i from seed %s:\n", 
@@ -4630,15 +4742,15 @@ int main(int argc, char* argv[])
 	if (use_pseudo_counts)
 	  co.add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts, monomerseedlist[k]);
 	monomer_M[k] = co.normalized(monomerseedlist[k]);
-	if (use_multinomial and adjust_seeds)
-	  monomerseedlist[k] = monomer_M[k]->string_giving_max_probability(use_rna, use_iupac);
       }
+      if (use_multinomial and adjust_seeds)
+	monomerseedlist[k] = monomer_M[k]->string_giving_max_probability(use_rna, use_iupac);
       monomer_M[k]->print(to_string("Initial monomer matrix %i from seed %s:\n", 
 						 k, monomerseedlist[k].c_str()), "%.6f");
       // write_matrix(stdout, monomer_M[k], to_string("Initial monomer matrix %i from seed %s:\n", 
       // 						 k, monomerseedlist[k].c_str()), "%.6f");
     }
-  } else {
+  } else { // seeds not given
     monomerseedlist.resize(monomer_p);
     for (int k=0; k < monomer_p; ++k) {
       if (model_type == ppm) {
@@ -4665,8 +4777,21 @@ int main(int argc, char* argv[])
   }
 
 
+  std::vector<std::string> sequences_rev(sequences.size());
+  for (int i=0; i < sequences.size(); ++i)
+    sequences_rev[i] = reverse_complement(sequences[i]);
 
-  gapped_kmer_context my_gapped_kmer_context(sa);
+
+  // Compute the length of the longest overlapping dimer
+  int max_kmer_length = 0;
+  BOOST_FOREACH(cob_combination_t cob_combination, cob_combinations) {
+    int tf1, tf2;
+    boost::tie(tf1, tf2) = cob_combination;
+    int k1 = monomerseedlist[tf1].length();
+    int k2 = monomerseedlist[tf2].length();
+    max_kmer_length = std::max(max_kmer_length, k1+k2-1);
+  }
+  gapped_kmer_context my_gapped_kmer_context(sa, sequences, sequences_rev, max_kmer_length);
 
   if (outputdir != ".")
     mkdir(outputdir.c_str(), S_IRWXU);
@@ -4754,9 +4879,8 @@ int main(int argc, char* argv[])
   printf("Initial background lambda is %.4f\n", background_lambda);
 
 
-
   // run the algorithm
-  multi_profile_em_algorithm(sequences, 
+  multi_profile_em_algorithm(sequences, sequences_rev,
 			     monomer_M,
 			     keep_monomer_fixed,
 			     background_probability_matrix, background_probabilities, 
