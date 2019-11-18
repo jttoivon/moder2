@@ -3010,6 +3010,56 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       }
 
       
+      //////////////////////
+      //
+      // Prune dimeric cases
+      //
+      //////////////////////
+            
+      for (int r = 0; r < number_of_cobs; ++r) {
+	const int& w1 = my_cob_params[r].k1;
+	//	const int& w2 = my_cob_params[r].k2;
+	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
+	  for (int d=my_cob_params[r].dmin; d < std::min(0, my_cob_params[r].dmax+1); ++d) {
+	    if (my_cob_params[r].dimer_lambdas[o][d] != 0.0) {
+	      double ic = average_information_content(*(overlapping_dimer_models[r][o][d]->cut(w1+d-1, 2-d)));
+	      double lambda = my_cob_params[r].dimer_lambdas[o][d];
+	      bool too_weak = ic < ic_threshold;
+	      // bool too_faraway = hamming_distance(my_cob_params[r].dimer_seeds[o][d], 
+	      // 					  string_giving_max_score(overlapping_dimer_weights[r][o][d])) >= hamming_threshold;
+	      bool too_small = lambda < cob_cutoff;
+	      //	      if (too_weak or (use_multinomial and too_faraway) or too_small) {
+	      if (too_weak or too_small) {
+		my_cob_params[r].dimer_lambdas[o][d] = 0.0;
+		if (local_debug) {
+		  printf("Excluded dimer case %s %s %i:", my_cob_params[r].name().c_str(), orients[o], d);
+		  if (too_weak)
+		    printf(" Too weak (ic=%f)", ic);
+		  if (too_small)
+		    printf(" Too small (lambda=%f)", lambda);
+		  printf("\n");
+		  //			 too_faraway ? "Too far away" : "");
+		}
+	      }
+	    }
+	  }  // end for d
+	 for (int d=0; d <= my_cob_params[r].dmax; ++d) {
+	   if (my_cob_params[r].dimer_lambdas[o][d] != 0.0) {
+	     double lambda = my_cob_params[r].dimer_lambdas[o][d];
+	     bool too_small = lambda < cob_cutoff;
+	     if (too_small) {
+		my_cob_params[r].dimer_lambdas[o][d] = 0.0;
+		if (local_debug) {
+		  printf("Excluded dimer case %s %s %i: Too small (%f)\n", my_cob_params[r].name().c_str(), orients[o], d, lambda);
+		}
+	     }
+	   }
+	 } // end for d
+	 
+	}  // end for o
+      }  // end for r
+
+
       ///////////////
       //
       // Adjust seeds
@@ -3068,54 +3118,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	my_cob_params[r].compute_expected_matrices(new_monomer_models);
       }
       
-      //////////////////////
-      //
-      // Prune dimeric cases
-      //
-      //////////////////////
-            
-      for (int r = 0; r < number_of_cobs; ++r) {
-	const int& w1 = my_cob_params[r].k1;
-	//	const int& w2 = my_cob_params[r].k2;
-	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
-	  for (int d=my_cob_params[r].dmin; d < std::min(0, my_cob_params[r].dmax+1); ++d) {
-	    if (my_cob_params[r].dimer_lambdas[o][d] != 0.0) {
-	      double ic = average_information_content(*(overlapping_dimer_models[r][o][d]->cut(w1+d-1, 2-d)));
-	      double lambda = my_cob_params[r].dimer_lambdas[o][d];
-	      bool too_weak = ic < ic_threshold;
-	      // bool too_faraway = hamming_distance(my_cob_params[r].dimer_seeds[o][d], 
-	      // 					  string_giving_max_score(overlapping_dimer_weights[r][o][d])) >= hamming_threshold;
-	      bool too_small = lambda < cob_cutoff;
-	      //	      if (too_weak or (use_multinomial and too_faraway) or too_small) {
-	      if (too_weak or too_small) {
-		my_cob_params[r].dimer_lambdas[o][d] = 0.0;
-		if (local_debug) {
-		  printf("Excluded dimer case %s %s %i:", my_cob_params[r].name().c_str(), orients[o], d);
-		  if (too_weak)
-		    printf(" Too weak (ic=%f)", ic);
-		  if (too_small)
-		    printf(" Too small (lambda=%f)", lambda);
-		  printf("\n");
-		  //			 too_faraway ? "Too far away" : "");
-		}
-	      }
-	    }
-	  }  // end for d
-	 for (int d=0; d <= my_cob_params[r].dmax; ++d) {
-	   if (my_cob_params[r].dimer_lambdas[o][d] != 0.0) {
-	     double lambda = my_cob_params[r].dimer_lambdas[o][d];
-	     bool too_small = lambda < cob_cutoff;
-	     if (too_small) {
-		my_cob_params[r].dimer_lambdas[o][d] = 0.0;
-		if (local_debug) {
-		  printf("Excluded dimer case %s %s %i: Too small (%f)\n", my_cob_params[r].name().c_str(), orients[o], d, lambda);
-		}
-	     }
-	   }
-	 } // end for d
-	 
-	}  // end for o
-      }  // end for r
+
       
       
       /////////////////////////////////
