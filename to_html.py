@@ -139,7 +139,7 @@ rna_orient_dict = {"HT" : 0, "TH" : 1}
 
 max_logo_width = 500 # This is defined in myspacek40
 
-dont_create_visualizations=True
+create_visualizations=True
 
 # Entropy of a probability distribution 'l'
 def entropy(l):
@@ -420,7 +420,7 @@ def write_results(cob, o, d, pwm1, pwm2, observed, expected, deviation, last_ite
 
 
 
-    if not dont_create_visualizations:
+    if create_visualizations:
         # Forward direction
         myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, oname, oname.replace(".%s"%motif_ending, ".svg")))
         myrun("myspacek40 %s --logo %s %s" % (myspacek_flags, ename, ename.replace(".%s"%motif_ending, ".svg")))
@@ -909,7 +909,7 @@ def create_monomer_logos(factors, factor_lengths, motif_ending, get_flanks):
         #os.system("to_logo.sh -n -t %s %s.pfm" % (f, f))
 #        myrun("myspacek40 -noname -paths --logo %s.pfm %s.svg" % (f, f))
 #        myrun("myspacek40 -noname -paths --logo %s-rc.pfm %s-rc.svg" % (f, f))
-        if not dont_create_visualizations:
+        if create_visualizations:
             myrun("myspacek40 %s --logo monomer.%i.%s monomer.%i.svg" % (myspacek_flags, i, motif_ending, i))
             myrun("myspacek40 %s --logo monomer.%i-rc.%s monomer.%i-rc.svg" % (myspacek_flags, i, motif_ending, i))
             if get_flanks:
@@ -929,7 +929,7 @@ def visualize_cobs(cobs, cob_codes, cob_tables, dmin, dmax, orients):
         vfunc = np.vectorize(lambda x: x if x > 0.0 else -0.0002)
         data=vfunc(data)
         drange = list(range(dmin[i], dmax[i]+1))
-        if not dont_create_visualizations:
+        if create_visualizations:
             print("Creating heatmap for %s" % cob)
             heatmap.make_heatmap(data, drange, orients, "svg", cob, "%s.svg" % f, fontsize=20.0, cell_labels=True)
 #        myrun('heatmap.R -z 12 -c -s -i -t %s %s.cob 2> /dev/null > /dev/null' % (cob, f))
@@ -1113,7 +1113,7 @@ def main():
     """
 
     try:
-        optlist, args = getopt.getopt(sys.argv[1:], 'hd', ["help", "debug"])
+        optlist, args = getopt.getopt(sys.argv[1:], 'hdn', ["help", "debug", "no-visualizations"])
     except getopt.GetoptError as e:
         print(e)
         sys.stderr.write(usage)
@@ -1132,6 +1132,9 @@ def main():
             elif o in ("-d", "--debug"):
                 debug=True
                 print("Debugging on")
+            elif o in ("-n", "--no-visualizations"):
+                create_visualizations=False
+                print("Visalizations off")
             else:
                 sys.stderr.write("Unknown option: %s\n" % o)
                 sys.stderr.write(usage)
