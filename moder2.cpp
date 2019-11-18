@@ -412,9 +412,9 @@ public:
     std::vector<int> base(k, 0); 
     //    std::vector<const char*> iupac_classes(k);
     std::vector<std::string> iupac_classes(k);
-    std::string pattern(k, '-');
+    std::string pattern = s;
     unsigned long long number_of_combinations = 1;
-    for (int i=0; i < k; ++i) {
+    for (int i=begin; i < begin+len; ++i) {
       iupac_classes[i] = iupac_class(s[i]);
       if (use_rna)
 	std::replace(iupac_classes[i].begin(), iupac_classes[i].end(), 'T', 'U');
@@ -423,14 +423,14 @@ public:
       pattern[i] = iupac_classes[i][0];            // Initialize pattern to the first sequence of iupac string
       number_of_combinations *= size2;
     }
-    printf("s=%s begin=%i len=%i number_of_combinations=%llu\n", s.c_str(), begin, len, number_of_combinations);
-    v[k-1]=-1;  // Initialize
+    //printf("s=%s begin=%i len=%i number_of_combinations=%llu\n", s.c_str(), begin, len, number_of_combinations);
+    v[begin+len-1]=-1;  // Initialize
     // The loop goes through nucleotide sequences that belong to
     //given iupac sequence in alphabetical order
     for (unsigned long long j=0; j < number_of_combinations; ++j) {
       
       int i;
-      for (i=k-1; v[i] == base[i]; --i) {
+      for (i=begin+len-1; v[i] == base[i]; --i) {
 	v[i]=0;
 	pattern[i] = iupac_classes[i][v[i]];
       }
