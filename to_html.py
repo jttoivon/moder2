@@ -15,6 +15,7 @@ import matplotlib
 import heatmap
 from matplotlib import ticker
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib.ticker import MaxNLocator
 
 css="""
 
@@ -957,6 +958,8 @@ def myplot(data, title="", xlab="", ylab="", ymax=None, headers=[], outputfile="
 #    else:
     plt.ylabel(ylab, fontsize=labelfontsize)
     plt.xlabel(xlab, fontsize=labelfontsize)
+    #ax = plt.figure().gca()
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     plt.xticks(fontsize=tickfontsize)
     plt.yticks(fontsize=tickfontsize)
     if not ymax is None:
@@ -1122,6 +1125,7 @@ def main():
     optdict = dict(optlist)
     args = [sys.argv[0]]+ args
     debug=False
+    global start_positions
     start_positions = False
 
     #print optdict
