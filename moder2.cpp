@@ -340,7 +340,7 @@ public:
     typedef unsigned int code_t;
     typedef unsigned long int count_t;
     assert(sizeof(code_t)*8/2 >= len);
-
+    int begin2 = k - (begin+len);
     int size=pow(4, len);
     std::vector<count_t> overlapping_part_count(size);
 
@@ -357,7 +357,7 @@ public:
 	  overlapping_part_count[dna_to_number<code_t>(overlapping_part)] += 1;
 	}
 	if (iupac_string_match(ss_rev, s)) {
-	  std::string overlapping_part = ss_rev.substr(begin, len);
+	  std::string overlapping_part = ss_rev.substr(begin2, len);
 	  overlapping_part_count[dna_to_number<code_t>(overlapping_part)] += 1;
 	}
       }
@@ -384,7 +384,7 @@ public:
     }
     timer += TIME_GET(s);
     if (pattern == "")
-      return s;
+      return boost::make_tuple(s, 0);
     return boost::make_tuple(pattern, number_of_occurrences);
     //    return boost::make_tuple(arg_max, max_count);
   }
@@ -470,7 +470,7 @@ public:
     }
     timer += TIME_GET(s);
     if (pattern == "")
-      return s;
+      return boost::make_tuple(s, count(pattern));
     
     return boost::make_tuple(pattern, number_of_occurrences);
     //    return boost::make_tuple(arg_max, max_count);
