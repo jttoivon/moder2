@@ -199,9 +199,11 @@ normalize_matrix_rows(matrix<double>& m)
     double sum = 0;
     for (int j=0; j < m.get_columns(); ++j)
       sum += m(i,j);
-    
-    for (int j=0; j < m.get_columns(); ++j)
-      m(i,j) /= sum;
+
+    if (sum != 0.0) {
+      for (int j=0; j < m.get_columns(); ++j)
+	m(i,j) /= sum;
+    }
   }
 }
 
