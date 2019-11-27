@@ -231,6 +231,8 @@ get_ranges(const boost::multi_array<T, 2>& a)
 }
 
 
+
+
 void
 normalize_vector(std::vector<double>& v);
 
