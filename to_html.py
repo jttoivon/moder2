@@ -706,6 +706,16 @@ def get_info(results_output, full_output, cob_codes):
     return iterations, maxiter, Lmin, Lmax, lines, epsilon, excluded, command, start_time, version, hostname, threads
 
 
+def html_mark_changed_nucleotides(seed1, seed2):
+    assert len(seed1) == len(seed2)
+    result=[]
+    for x,y in zip(seed1, seed2):
+        if x == y:
+            result.append(y)
+        else:
+            result.append("""<span style="color: red;">%s</span>""" % y)
+    return "".join(result)
+
 def get_seeds(full_output, number_of_factors):
     temp=extract_list(r"Monomer seeds are \[(.+)\]", full_output)
     temp2=[x.split(", ") for x in temp]
@@ -717,20 +727,28 @@ def get_seeds(full_output, number_of_factors):
     except IndexError:
         seeds_end=seeds_begin
 
-    with open("seeds.txt", "w") as f:
+    with open("seeds.txt", "w") as f, open("seeds.html", "w") as fh:
         f.write("Initial %s\n" % " ".join(seeds_begin))
+        fh.write("<pre>")
+        fh.write("Initial %s\n" % " ".join(seeds_begin))
         try:
             prev=temp2[0]
         except IndexError:
             pass
         for i, t in enumerate(temp2): 
-            ch=[" "] * number_of_factors
-            for j in range(number_of_factors): 
-                ch[j] = str(j+1) if prev[j] != t[j] else " "
-            f.write("Round %02i %s\t%s\n" % (i, " ".join(t), " ".join(ch))) # Third field contains a number for each factor that had its seed changes
+            #ch=[" "] * number_of_factors
+            #for j in range(number_of_factors): 
+            #    ch[j] = str(j+1) if prev[j] != t[j] else " "
+            ch = [ str(j+1) if prev[j] != t[j] else " " for j in range(number_of_factors) ]
+            colored_seeds = [ html_mark_changed_nucleotides(seed1, seed2) for seed1, seed2 in zip(prev, t) ]
+            f.write("Round %02i %s\t%s\n" % (i, " ".join(t), " ".join(ch))) # Third field contains a number for each factor that had its seed changed
                                                                             # compared to the one from the previous iteration
+            fh.write("Round %02i %s\t%s\n" % (i, " ".join(colored_seeds), " ".join(ch)))
+                                                                            
 
             prev = t
+        fh.write("</pre>")
+
     return seeds_begin, seeds_end
 
 
@@ -1381,7 +1399,7 @@ def main():
     f.write("<li>Convergence criterion cutoff is %g</li>" % epsilon)
     f.write("<li>Excluded cob cases: %i</li>" % excluded)
     f.write("<li>Are monomers learnt modularly: %s</li>" % " ".join(monomer_modularity))
-    f.write('<li>Initial and final <a href="seeds.txt">consensus sequences</a> of lengths %s:</li>' % (" ".join([str(len(x)) for x in seeds_begin])))
+    f.write('<li>Initial and final <a href="seeds.html">consensus sequences</a> of lengths %s:</li>' % (" ".join([str(len(x)) for x in seeds_begin])))
     f.write("<ul>")
     f.write('<li style="font-family: monospace;">%s</s>' % (" ".join(seeds_begin)))
     f.write('<li style="font-family: monospace;">%s</s>' % (" ".join(seeds_end)))
