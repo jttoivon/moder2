@@ -2476,8 +2476,10 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       if (local_debug)
 	printf("Log likelihood is %f\n", mll);
 
-      new_print_array(std::cout, monomer_Z);
-      std::cout << std::endl;
+      if (extra_debug) {
+	new_print_array(std::cout, monomer_Z);
+	std::cout << std::endl;
+      }
 
       
 
@@ -4150,6 +4152,7 @@ int main(int argc, char* argv[])
 
   std::vector<std::string> sequences;
   std::vector<bool> keep_monomer_fixed;
+  std::vector<double> given_bg_freqs;
   
   combine_seeds_func = combine_seeds_methods[default_combine_method].function;
 
@@ -4174,7 +4177,8 @@ int main(int argc, char* argv[])
   nonhidden.add_options()
     ("help",                           "Produce help message")
     ("matrices",                          "Matrix filenames are given as parameters instead of seeds")
-    ("keep-monomer-fixed",            po::value<std::string>(), "A list of indices of monomers to keep fixed during EM algorithms. You can also specify 'all' as parameter, default: no monomers are fixed.")
+    ("freqs", po::value<std::string>(),  "Zeroth order bg model (comma separated).")
+("keep-monomer-fixed",            po::value<std::string>(), "A list of indices of monomers to keep fixed during EM algorithms. You can also specify 'all' as parameter, default: no monomers are fixed.")
     ("disable-multinomial",                    m("Use plain alignment of sequences instead of the multinomial model", not use_multinomial).c_str())
     ("no-adjust-seeds",                    m("Do not adjust seeds in every EM iteration", not adjust_seeds).c_str())
     ("directional-seed",                    m("Are overlapping seeds required to be non-palindromic", require_directional_seed).c_str())
@@ -4221,6 +4225,7 @@ int main(int argc, char* argv[])
     ("rna", m("Assume input sequences are RNA (experimental)", use_rna).c_str())
     ("unique", po::value<std::string>(), "Uniqueness of sequences. Either off, unique, 1, 2, 3, ..., default: off")
     ("quiet", m("Don't print intermediate results", not local_debug).c_str())
+    ("extra-debug", m("Print extra debugging information", extra_debug).c_str())
     ;
 
   po::options_description desc("Allowed options");
@@ -4313,6 +4318,9 @@ int main(int argc, char* argv[])
 
     if (vm.count("quiet")) 
       local_debug = false;
+
+    if (vm.count("extra-debug")) 
+      extra_debug = true;
 
     if (vm.count("flanks")) 
       get_full_flanks = true;
@@ -4556,6 +4564,17 @@ int main(int argc, char* argv[])
       error(extension_threshold <= 0.0, "Epsilon must be positive real number.");
     }
 
+    if (vm.count("freqs")) {
+      std::string freqs = vm["freqs"].as< string >();
+      given_bg_freqs.resize(4);
+      int ret = sscanf(freqs.c_str(), "%lg,%lg,%lg,%lg", 
+                       &given_bg_freqs[0], 
+                       &given_bg_freqs[1],
+                       &given_bg_freqs[2],
+                       &given_bg_freqs[3]);
+      assert(ret == 4);
+    }
+
   }
   catch (std::exception& e) {
     std::cerr << e.what() << std::endl;
@@ -4692,7 +4711,8 @@ int main(int argc, char* argv[])
   printf("Epsilon is %g\n", epsilon);
   printf("Maximum number of iterations is %i\n", max_iter);
   std::vector<int> character_frequencies;
-  
+
+
   boost::tie(background_frequencies, background_frequency_matrix, character_frequencies) = count_background(sequences, use_rna);
   int CG = background_frequencies[1] + background_frequencies[2];
   printf("CG content: %lg\n", (double)CG/sum(background_frequencies));
@@ -4711,6 +4731,8 @@ int main(int argc, char* argv[])
 
   // normalize background vector
   background_probabilities = background_frequencies;
+  //  if (use_pseudo_counts)
+  //    pseudo_counts.add(background_probabilities);
   normalize_vector(background_probabilities);
   
   printf("Empirical background probability: ");
@@ -4718,6 +4740,8 @@ int main(int argc, char* argv[])
 	 background_probabilities[0],background_probabilities[1],
 	 background_probabilities[2],background_probabilities[3]);
 
+  if (given_bg_freqs.size() == 4)
+    background_probabilities = given_bg_freqs;
   printf("Using background probability: ");
   printf("[%g,%g,%g,%g]\n", background_probabilities[0],background_probabilities[1],
 	 background_probabilities[2],background_probabilities[3]);
