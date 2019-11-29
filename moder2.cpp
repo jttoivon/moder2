@@ -1092,7 +1092,7 @@ expectation_Z_dir_j(boost::multi_array<FloatType, 4>& Z, int i, int k,
 		    const std::vector<FloatType>& log_bg_model_rev,
 		    const dmatrix& bg_model_markov, const dmatrix& bg_model_markov_rev)
 {
-  FloatType log_m = log2l((long double)m);
+  FloatType log_m = log2l((FloatType)m);
   FloatType log_lambda_per_pos = log_lambda - log_m;
   if (use_two_strands)
     log_lambda_per_pos -= log2l(2.0);
