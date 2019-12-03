@@ -508,7 +508,7 @@ public:
     }
     timer += TIME_GET(s);
     if (pattern == "")
-      return boost::make_tuple(s, count(pattern));
+      return boost::make_tuple(s, count(s));
     
     return boost::make_tuple(pattern, number_of_occurrences);
     //    return boost::make_tuple(arg_max, max_count);
