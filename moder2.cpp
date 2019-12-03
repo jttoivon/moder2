@@ -2140,7 +2140,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
   assert(monomer_p == monomer_lambda.size());
   assert(monomer_p == keep_monomer_fixed.size());
-
+  int last_round_when_parameters_were_pruned = 0;
 
   typedef BinOp<int>::type func_ptr;
   //typedef const int& (*func_ptr)(const int&, const int&);
@@ -3192,6 +3192,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      bool too_small = lambda < cob_cutoff;
 	      //	      if (too_weak or (use_multinomial and too_faraway) or too_small) {
 	      if (too_weak or too_small) {
+		last_round_when_parameters_were_pruned = round;
 		my_cob_params[r].dimer_lambdas[o][d] = 0.0;
 		if (local_debug) {
 		  printf("Excluded dimer case %s %s %i:", my_cob_params[r].name().c_str(), orients[o], d);
@@ -3210,6 +3211,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	     double lambda = my_cob_params[r].dimer_lambdas[o][d];
 	     bool too_small = lambda < cob_cutoff;
 	     if (too_small) {
+		last_round_when_parameters_were_pruned = round;
 		my_cob_params[r].dimer_lambdas[o][d] = 0.0;
 		if (local_debug) {
 		  printf("Excluded dimer case %s %s %i: Too small (%f)\n", my_cob_params[r].name().c_str(), orients[o], d, lambda);
@@ -3245,6 +3247,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	  if (only_N(monomer_seed[tf1]) or only_N(monomer_seed[tf2])) { // set the lambdas to zero if one of the related seeds consists only of N's
 	    for (int o=0; o < number_of_orientations; ++o) {
 	      for (int d=dmin; d <= my_cob_params[r].dmax; ++d) {
+		last_round_when_parameters_were_pruned = round;
 		my_cob_params[r].dimer_lambdas[o][d] = 0.0;
 	      }
 	    }
