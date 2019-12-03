@@ -96,6 +96,8 @@ public:
   int 
   count_iupac(const std::string& pattern) const
   {
+    if (pattern == "")
+      return text.length();
     std::vector<offset_type> dummy;
     return count_iupac_helper(pattern, 0, 0, text.length(), dummy, false);
   }

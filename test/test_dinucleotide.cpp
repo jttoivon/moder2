@@ -8,6 +8,7 @@
 #include <boost/test/test_case_template.hpp>
 #include <boost/mpl/list.hpp>
 
+#include <random>
 #include <cassert>
 #include <vector>
 #include <ostream>
@@ -82,14 +83,21 @@ namespace boost
 {
     namespace test_tools
     {
-        template<typename T,typename U>
-        struct print_log_value<std::pair<T, U> >
-        {
-            void operator()(std::ostream& os, std::pair<T, U> const& pr)
-            {
-                os << "<" << std::get<0>(pr) << "," << std::get<1>(pr) << ">";
-            }
-        };
+#if BOOST_VERSION >= 105900
+      namespace tt_detail
+      {
+#endif
+	template<typename T,typename U>
+	struct print_log_value<std::pair<T, U> >
+	{
+	  void operator()(std::ostream& os, std::pair<T, U> const& pr)
+	  {
+	    os << "<" << std::get<0>(pr) << "," << std::get<1>(pr) << ">";
+	  }
+	};
+#if BOOST_VERSION >= 105900
+      }
+#endif 
     }
 }
 
