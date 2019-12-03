@@ -27,6 +27,7 @@ test_clean:
 test/%.o: test/%.cpp
 	$(CXX) $(TESTCXXFLAGS) -c $< -o $@
 
+test/test_suffix_array_wrapper.o: suffix_array_wrapper.hpp
 
 ##########################################
 #
@@ -40,7 +41,7 @@ test/%.o: test/%.cpp
 # 	$(CXX) $(TESTCXXFLAGS) $+ -o test/test_main  $(TESTLDFLAGS)
 
 TEST_ALL_OBJS=dinucleotide.o iupac.o common.o data.o parameters.o probabilities.o my_assert.o multinomial_helper.o suffix_array_wrapper.o matrix_tools.o orientation.o kmer_tools.o CPM03/difference_cover.o combinatorics.o huddinge.o bndm.o
-TEST_ALL_SOURCES=test/test_main.cpp test/test_dinucleotide.cpp
+TEST_ALL_SOURCES=test/test_main.cpp test/test_dinucleotide.cpp test/test_probabilities.cpp test/test_suffix_array_wrapper.cpp
 test/test_main: $(TEST_ALL_OBJS) $(TEST_ALL_SOURCES:.cpp=.o)
 	$(CXX) $(TESTCXXFLAGS) $+ -o test/test_main  $(TESTLDFLAGS)
 
