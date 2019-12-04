@@ -31,6 +31,8 @@
 
 #include <string>
 #include <vector>
+#include <queue>
+
 #include <boost/tuple/tuple.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/foreach.hpp>
@@ -305,7 +307,7 @@ compute_bernoulli_probability(const std::string& line, const std::vector<double>
   T prob = 1.0;
   for (int i=0; i < line.length(); ++i) {
     prob *= q[to_int(line[i])];
-    assert(prob > 0);
+    //assert(prob > 0);
   }
 
   return prob;
@@ -883,5 +885,40 @@ public:
 private:
   std::vector<double> iupac_probabilities;
 };
+
+template <typename T>
+T
+log_sum(std::priority_queue<T, std::vector<T>, std::greater<T> >& queue)
+{
+  while (queue.size() > 1 and std::isinf(queue.top()))
+    queue.pop();
+  if (queue.size() == 1)
+    return queue.top();
+      
+  do {
+    T q = queue.top(); queue.pop();
+    T p = queue.top(); queue.pop();
+    assert (p >= q);
+    queue.push(p + log2l(1+exp2l(q-p)));
+  } while (queue.size() > 1);
+  
+  return queue.top();
+}
+
+template <typename T>
+T
+log_sum(std::vector<T>& v)
+{
+  T p = v.back(); v.pop_back();
+  do {
+    T q = v.back(); v.pop_back();
+    if (q > q)
+      std::swap(p, q);
+    p = p + log2l(1+exp2l(q-p));
+  } while (v.size() > 0);
+  
+  return p;
+}
+
 
 #endif // PROBABILITIES_HPP

@@ -91,6 +91,47 @@ BOOST_AUTO_TEST_CASE(test_compute_bernoulli_probability_code)
   BOOST_CHECK_EQUAL(total, 1.0);
 }
 
+BOOST_AUTO_TEST_CASE(test_compute_bernoulli_probability_overflow)
+{
+  std::vector<double> bg(4, 0.25);
+  std::string s(4000, 'A');
+  double p = compute_bernoulli_probability<double>(s, bg);
+  BOOST_CHECK_EQUAL(p, 0.0);
+
+  std::string s2(40, 'A');
+  double p2 = compute_bernoulli_probability<double>(s2, bg);
+  BOOST_CHECK_NE(p2, 0.0);
+  
+}
+
+BOOST_AUTO_TEST_CASE(test_log_sum)
+{
+  std::priority_queue<FloatType, std::vector<FloatType>, std::greater<FloatType> > queue;
+  std::vector<double> probabilities {0.5, 0.2, 0.05, 0.005, 0.001};
+  double sum = 0.0;
+  for (double p : probabilities) {
+    sum += p;
+    queue.push(log2(p));
+    log_sum(queue);
+    BOOST_CHECK_EQUAL(exp2(log_sum(queue)), sum);
+  }
+  
+  while(not queue.empty())
+        queue.pop();
+
+  
+  std::vector<double> probabilities2;
+  for (int i=0; i < 100; ++i)
+    probabilities2.push_back(1.0/200);
+  sum = 0.0;
+  for (double p : probabilities2) {
+    sum += p;
+    queue.push(log2(p));
+    log_sum(queue);
+    BOOST_CHECK_CLOSE(exp2(log_sum(queue)), sum, 1.0e-10);
+  }
+}
+
 
 //____________________________________________________________________________//
 
