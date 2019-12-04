@@ -885,7 +885,8 @@ complete_data_log_likelihood(const std::vector<boost::shared_ptr<binding_model<>
   //  int L=sequences[0].length();
   int number_of_cobs = my_cob_params.size();
 
-  FloatType l2 = log2l(2);
+  const FloatType l2 = log2l(2);
+  const FloatType extra_term = use_two_strands ? l2 : 0.0;   // subtract log2(2) or not
   FloatType log_lambda_bg = log2l(lambda_bg);
   std::vector<FloatType> log_q(4);
   std::vector<FloatType> log_q_rev(4);
@@ -936,21 +937,21 @@ complete_data_log_likelihood(const std::vector<boost::shared_ptr<binding_model<>
     // Monomer models
     
     for (int k=0; k < p; ++k) {
+      FloatType lambda_term = log_lambda[k] - log2l(monomer_m[i][k]) - extra_term;
       for (int j=0; j < monomer_m[i][k]; ++j) {
 	feclearexcept(FE_ALL_EXCEPT);
 	FloatType z = monomer_Z[i][k][0][j];
-	FloatType extra_term = use_two_strands ? l2 : 0.0;   // subtract log2(2) or not
 	if (z > 0.0) 
 	  likelihood2 +=
 	    (compute_log_probability<FloatType>(line, line_rev, j, 1, *log_PWM[k], log_q, q2)
-	     + log_lambda[k] - log2l(monomer_m[i][k]) - extra_term)
+	     + lambda_term)
 	    * z;
 	if (use_two_strands) {
 	  FloatType z2 = monomer_Z[i][k][1][j];
 	  if (z2 > 0.0)
 	    likelihood2 +=
 	      (compute_log_probability<FloatType>(line, line_rev, j, -1, *log_PWM[k], log_q_rev, q2_rev)
-	       + log_lambda[k] - log2l(monomer_m[i][k]) - extra_term)
+	       + lambda_term)
 	      * z2;
 	}
 	int retval = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
@@ -979,11 +980,11 @@ complete_data_log_likelihood(const std::vector<boost::shared_ptr<binding_model<>
 	  if (m <= 0)
 	    continue;
 	  FloatType log_m = log2l(m);
+	  FloatType lambda_term = log2l(my_cob_params[r].dimer_lambdas[o][d]) - log_m - extra_term;
 	  for (int j=0; j < m; ++j) {
 	    if (my_cob_params[r].dimer_lambdas[o][d] > 0.0) {
 	      feclearexcept(FE_ALL_EXCEPT);
 	      FloatType z = my_cob_params[r].spaced_dimer_Z[i][o][d][0][j];
-	      FloatType extra_term = use_two_strands ? l2 : 0.0;   // subtract log2(2) or not
 	      if (z > 0.0)
 		likelihood2 +=
 		  (compute_log_dimer_probability<FloatType>(line, line_rev,
@@ -991,7 +992,7 @@ complete_data_log_likelihood(const std::vector<boost::shared_ptr<binding_model<>
 							    *log_oriented_dimer_matrices[r][o][0], 
 							    *log_oriented_dimer_matrices[r][o][1], 
 							    d, log_q, q2)
-		   + log2l(my_cob_params[r].dimer_lambdas[o][d]) - log_m - extra_term)
+		   + lambda_term)
 		  * z;
 	      if (use_two_strands) {
 		FloatType z2 = my_cob_params[r].spaced_dimer_Z[i][o][d][1][j];
@@ -1002,7 +1003,7 @@ complete_data_log_likelihood(const std::vector<boost::shared_ptr<binding_model<>
 							    *log_oriented_dimer_matrices[r][o][0], 
 							      *log_oriented_dimer_matrices[r][o][1], 
 							      d, log_q_rev, q2_rev)
-		     + log2l(my_cob_params[r].dimer_lambdas[o][d]) - log_m - extra_term)
+		     + lambda_term)
 		    * z2;
 	      }
 	      int retval = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
@@ -1022,23 +1023,23 @@ complete_data_log_likelihood(const std::vector<boost::shared_ptr<binding_model<>
 	  if (m <= 0)
 	    continue;
 	  FloatType log_m = log2l(m);
+	  FloatType lambda_term = log2l(my_cob_params[r].dimer_lambdas[o][d]) - log_m - extra_term;
 	  const binding_model<FloatType>& model = *overlapping_models[r][o][d];
 	  for (int j=0; j < m; ++j) {
 	    if (my_cob_params[r].dimer_lambdas[o][d] > 0.0) {
 	      feclearexcept(FE_ALL_EXCEPT);
 	      FloatType z = my_cob_params[r].overlapping_dimer_Z[i][o][d][0][j];
-	      FloatType extra_term = use_two_strands ? l2 : 0.0;   // subtract log2(2) or not
 	      if (z > 0.0) 
 		likelihood2 +=
 		  (compute_log_probability<FloatType>(line, line_rev, j, +1, model, log_q, q2)
-		   + log2l(my_cob_params[r].dimer_lambdas[o][d]) - log_m - extra_term)
+		   + lambda_term)
 		  * z;
 	      if (use_two_strands) {
 		FloatType z2 = my_cob_params[r].overlapping_dimer_Z[i][o][d][1][j];
 		if (z2 > 0.0)
 		  likelihood2 +=
 		    (compute_log_probability<FloatType>(line, line_rev, j, -1, model, log_q_rev, q2_rev)
-		     + log2l(my_cob_params[r].dimer_lambdas[o][d]) - log_m - extra_term)
+		     + lambda_term)
 		    * z2;
 	      }
 	      int retval = fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
@@ -2141,7 +2142,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
   assert(monomer_p == monomer_lambda.size());
   assert(monomer_p == keep_monomer_fixed.size());
   int last_round_when_parameters_were_pruned = 0;
-
+  int iteration_window_width=15;
+  std::list<std::tuple<std::string, double> > last_iterations_window;
   typedef BinOp<int>::type func_ptr;
   //typedef const int& (*func_ptr)(const int&, const int&);
 
@@ -2467,14 +2469,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	}
 
       } // for i in lines
-
-      mll = complete_data_log_likelihood(monomer_PWM,
-					 bg_model, bg_model_markov,
-					 bg_model_rev, bg_model_markov_rev,
-					 monomer_lambda, background_lambda, my_cob_params, monomer_Z,
-					 sequences, sequences_rev, monomer_w, monomer_m);
-      if (local_debug)
-	printf("Log likelihood is %f\n", mll);
 
       if (extra_debug) {
 	new_print_array(std::cout, monomer_Z);
@@ -3606,6 +3600,15 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 				   monomer_Z);
 	}
       }
+
+      mll = complete_data_log_likelihood(monomer_PWM,
+					 bg_model, bg_model_markov,
+					 bg_model_rev, bg_model_markov_rev,
+					 monomer_lambda, background_lambda, my_cob_params, monomer_Z,
+					 sequences, sequences_rev, monomer_w, monomer_m);
+      if (local_debug)
+	printf("Log likelihood is %f\n", mll);
+
 
       if (local_debug) {
  	printf("---------------------------------------------------\n");
