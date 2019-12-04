@@ -626,39 +626,6 @@ iupac_hamming_dist_helper(const std::string& str, const std::string& pattern)
 
 
 
-template <typename T>
-T
-log_sum(std::priority_queue<T, std::vector<T>, std::greater<T> >& queue)
-{
-  while (queue.size() > 1 and std::isinf(queue.top()))
-    queue.pop();
-  if (queue.size() == 1)
-    return queue.top();
-      
-  do {
-    T q = queue.top(); queue.pop();
-    T p = queue.top(); queue.pop();
-    assert (p >= q);
-    queue.push(p + log2l(1+exp2l(q-p)));
-  } while (queue.size() > 1);
-  
-  return queue.top();
-}
-
-template <typename T>
-T
-log_sum(std::vector<T>& v)
-{
-  T p = v.back(); v.pop_back();
-  do {
-    T q = v.back(); v.pop_back();
-    if (q > q)
-      std::swap(p, q);
-    p = p + log2l(1+exp2l(q-p));
-  } while (v.size() > 0);
-  
-  return p;
-}
 
 typedef boost::multi_array<FloatType, 4> array_4d_type; // for Z variable, indices are (i,k,dir,j)
 typedef boost::multi_array<FloatType, 5> array_5d_type; // for Z variable, indices are (i,o,d,dir,j)
@@ -2143,7 +2110,9 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
   assert(monomer_p == keep_monomer_fixed.size());
   int last_round_when_parameters_were_pruned = 0;
   int iteration_window_width=15;
-  std::list<std::tuple<std::string, double> > last_iterations_window;
+  int iteration_to_start_watching_for_oscillation=50;
+  std::list<std::tuple<std::vector<std::string>, double> > last_iterations_window;
+  
   typedef BinOp<int>::type func_ptr;
   //typedef const int& (*func_ptr)(const int&, const int&);
 
@@ -3277,8 +3246,6 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	my_cob_params[r].compute_expected_matrices(new_monomer_models);
       }
       
-
-      
       
       /////////////////////////////////
       //
@@ -3546,7 +3513,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
       bg_model_rev = std::vector<double>(bg_model.rbegin(), bg_model.rend()); // use this model when considering the reverse strand
       bg_model_markov_rev = reverse_complement_markov_model(bg_model_markov);
-
+      my_assert2(bg_model[i], bg_model_rev[3-i], ==);
 
       bool deviation_converged = true;
       for (int r=0; r < my_cob_params.size(); ++r) {
@@ -3609,7 +3576,43 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       if (local_debug)
 	printf("Log likelihood is %f\n", mll);
 
-
+      last_iterations_window.push_back(std::make_tuple(monomer_seed, mll));
+      if (last_iterations_window.size() > iteration_window_width)
+	last_iterations_window.pop_front();
+      printf("The iteration window contains %zu elements\n", last_iterations_window.size());
+      // Freeze the seeds to stop oscillation
+      if (use_multinomial and adjust_seeds and
+	  not (convergence_criterion_reached or round+1 >= max_iter) and
+	  (round >= iteration_to_start_watching_for_oscillation) and
+	  (round - last_round_when_parameters_were_pruned >= iteration_window_width)) {
+	auto it = std::max_element(last_iterations_window.begin(), last_iterations_window.end());
+	int max_arg_round = round - (std::distance(it, last_iterations_window.end()) - 1);
+	monomer_seed = std::get<0>(*it);
+	double max_ll = std::get<1>(*it);
+	printf("Fixing seeds from iteration %i that gave log likelihood %f\n", max_arg_round, max_ll);
+	adjust_seeds = false;
+	// set the overlapping seeds
+	for (int r = 0; r < number_of_cobs; ++r) {
+	  int number_of_orientations = my_cob_params[r].number_of_orientations;
+	  int dmin = my_cob_params[r].dmin;
+	  int dmax = my_cob_params[r].dmax;
+	  int tf1 = my_cob_params[r].tf1;
+	  int tf2 = my_cob_params[r].tf2;
+	  
+	  for (int o=0; o < number_of_orientations; ++o) {
+	    std::string seed1, seed2;
+	    boost::tie(seed1, seed2) = //my_cob_params[r].oriented_dimer_seeds[0]; 
+	      get_seeds_according_to_hetero_orientation(o, monomer_seed[tf1], monomer_seed[tf2], use_rna);
+	    for (int d=dmin; d < std::min(0, dmax+1); ++d) {
+	      if (my_cob_params[r].dimer_lambdas[o][d] > 0.0)
+		my_cob_params[r].dimer_seeds[o][d] = create_overlapping_seed(seed1, seed2, d, my_gapped_kmer_context);
+	      else
+		my_cob_params[r].dimer_seeds[o][d] = std::string(seed1.length() + seed2.length() + d, 'N');
+	    }  // end for d
+	  }  // end for o
+	} // end for r
+      }
+      
       if (local_debug) {
  	printf("---------------------------------------------------\n");
         fflush(stdout);
