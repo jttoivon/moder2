@@ -2257,7 +2257,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	  MY_FOREACH(d, cp.dimer_seeds[0]) {
 	    int dimer_len = cp.dimer_w[d];
 	    for (int i = 0; i < lines; ++i)
-		sites[d] += L[i] - dimer_len + 1;
+	      sites[d] += L[i] - dimer_len + 1;
 	  }
 	  MY_FOREACH(o, cp.dimer_seeds) {
 	    MY_FOREACH(d, cp.dimer_seeds[o]) {
@@ -2292,7 +2292,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       std::vector<FloatType> log_bg_model(4);
       std::vector<FloatType> log_bg_model_rev(4);
       for (int i=0; i < 4; ++i) {
-	log_bg_model[i] = log2l(bg_model[i]);
+	log_bg_model[i]     = log2l(bg_model[i]);
 	log_bg_model_rev[i] = log2l(bg_model_rev[i]);
       }
 
@@ -2335,7 +2335,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	  }
 	  for (int d=dmin; d <= dmax; ++d)
 	    //	    if (my_cob_params[r].dimer_lambdas[o][d] != 0.0)
-	      log_dimer_lambda[r][o][d] = log2l(my_cob_params[r].dimer_lambdas[o][d]);
+	    log_dimer_lambda[r][o][d] = log2l(my_cob_params[r].dimer_lambdas[o][d]);
 	  //else
 	  //   log_dimer_lambda[r][o][d] = 0.0;
 	}
@@ -2606,7 +2606,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       assert(background_lambda <= 1.0);
 
       if (background_lambda < 0) {   // to correct rounding errors
-	assert(fabs(background_lambda - 0.0) < 0.001);
+	assert(fabs(background_lambda - 0.0) < 0.000001);
 	background_lambda=0.0;
       }
 	
@@ -2923,12 +2923,12 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    m1.fill_with(0.0);
 	    int local_maxdir = maxdir;
 	    /*
-	    if (avoid_palindromes and use_two_strands and (o == HH or o==TT) and round == 0) {
-		//	    	is_almost_palindrome(my_cob_params[r].deviation[o][d])) {
+	      if (avoid_palindromes and use_two_strands and (o == HH or o==TT) and round == 0) {
+	      //	    	is_almost_palindrome(my_cob_params[r].deviation[o][d])) {
 	      local_maxdir = 1;
 	      printf("Avoiding palindrome %s %d iteration %i\n", orients[o], d, round);
-	    }
-	    else
+	      }
+	      else
 	      local_maxdir = maxdir;
 	    */
 
@@ -3005,7 +3005,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	printf("gap signal: %s\n", print_vector(gap_signal_sum).c_str());
       
       //      if (use_two_strands)  
-		//	total_signal_sum /= 2.0;  // This should not be used
+      //	total_signal_sum /= 2.0;  // This should not be used
       if (local_debug)
 	printf("Total signal is %s\n", print_vector(total_signal_sum).c_str());
       dvector bg_temp = background_frequencies;    // always counted only in single direction!!!!!
@@ -3058,7 +3058,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	  new_monomer_weights[k].add_pseudo_counts(pseudo_counts, dinucleotide_pseudo_counts, monomer_seed[k]);
 	new_monomer_models[k] = new_monomer_weights[k].normalized(monomer_seed[k]);
 
-	  //assert(is_column_stochastic_matrix(new_monomer_models[k]));
+	//assert(is_column_stochastic_matrix(new_monomer_models[k]));
 
 	if (local_debug) {
 	  //	  write_matrix(stdout, new_monomer_models[k], to_string("Intermediate monomer matrix %i:\n", k).c_str(), "%.6f");
@@ -3169,19 +3169,19 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      }
 	    }
 	  }  // end for d
-	 for (int d=0; d <= my_cob_params[r].dmax; ++d) {
-	   if (my_cob_params[r].dimer_lambdas[o][d] != 0.0) {
-	     double lambda = my_cob_params[r].dimer_lambdas[o][d];
-	     bool too_small = lambda < cob_cutoff;
-	     if (too_small) {
+	  for (int d=0; d <= my_cob_params[r].dmax; ++d) {
+	    if (my_cob_params[r].dimer_lambdas[o][d] != 0.0) {
+	      double lambda = my_cob_params[r].dimer_lambdas[o][d];
+	      bool too_small = lambda < cob_cutoff;
+	      if (too_small) {
 		last_round_when_parameters_were_pruned = round;
 		my_cob_params[r].dimer_lambdas[o][d] = 0.0;
 		if (local_debug) {
 		  printf("Excluded dimer case %s %s %i: Too small (%f)\n", my_cob_params[r].name().c_str(), orients[o], d, lambda);
 		}
-	     }
-	   }
-	 } // end for d
+	      }
+	    }
+	  } // end for d
 	 
 	}  // end for o
       }  // end for r
@@ -3265,8 +3265,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 		printf("\n");
 		
 		overlapping_dimer_models[r][o][d]->print(
-			     to_string("Observed overlapping dimer case matrix %s %s %i:\n", 
-				       my_cob_params[r].name().c_str(), orients[o], d).c_str(), "%.6f");
+							 to_string("Observed overlapping dimer case matrix %s %s %i:\n", 
+								   my_cob_params[r].name().c_str(), orients[o], d).c_str(), "%.6f");
 		printf("Information content of overlapping dimer by columns\n");
 		printf("%s\n", print_vector(ic, "\t", 2).c_str());
 	      }
@@ -3293,8 +3293,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 		// }
 		printf("\n");
 		gap_models[r][o][d]->print(
-					  to_string("Observed gap matrix %s %s %i:\n", 
-						    my_cob_params[r].name().c_str(), orients[o], d).c_str(), "%.6f");
+					   to_string("Observed gap matrix %s %s %i:\n", 
+						     my_cob_params[r].name().c_str(), orients[o], d).c_str(), "%.6f");
 		printf("Information content of gap by columns\n");
 		printf("%s\n", print_vector(ic, "\t", 2).c_str());
 	      }
@@ -3317,9 +3317,9 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	for (int o=0; o < my_cob_params[r].number_of_orientations; ++o) {
 	  for (int d=my_cob_params[r].dmin; d < std::min(0, my_cob_params[r].dmax+1); ++d) {
 	    if (my_cob_params[r].dimer_lambdas[o][d] != 0.0) {
-	     // The interval [first,last] is the overlapping area.
-	     int first = w1+d;
-	     int last = w1 - 1;
+	      // The interval [first,last] is the overlapping area.
+	      int first = w1+d;
+	      int last = w1 - 1;
 	      for (int row = 0; row < rows; ++row) {
 		for (int column = first - 1; column <= last + 1; ++column)// The overlapping part with flanks of 1bp on both sides
 		  new_deviation[r][o][d](row,column) = 
@@ -3328,24 +3328,24 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      }
 	    }
 	  }  // end for d
-	 for (int d=0; d <= my_cob_params[r].max_dist_for_deviation; ++d) {
-	   if (my_cob_params[r].dimer_lambdas[o][d] != 0.0) {
-	     if (empty_gap[r][o][d])
-	       continue;   // The deviation array stays empty
-	     int first, last;
-	     // The interval [first,last] is the gap.
-	     first = w1;
-	     last = w1 + d - 1;
-	     dmatrix temp1 = gap_models[r][o][d]->representation();
-	     dmatrix temp2 = my_cob_params[r].expected_overlapping_dimer_PWMs[o][d]->representation();
-	     for (int row = 0; row < rows; ++row) {
-	       for (int column = first - 1; column <= last + 1; ++column) // The gap part with flanks of 1bp on both sides
-		 new_deviation[r][o][d](row,column) = 
-		   temp1(row,column) -
-		   temp2(row,column);
-	     } 
-	   }
-	 } // end for d
+	  for (int d=0; d <= my_cob_params[r].max_dist_for_deviation; ++d) {
+	    if (my_cob_params[r].dimer_lambdas[o][d] != 0.0) {
+	      if (empty_gap[r][o][d])
+		continue;   // The deviation array stays empty
+	      int first, last;
+	      // The interval [first,last] is the gap.
+	      first = w1;
+	      last = w1 + d - 1;
+	      dmatrix temp1 = gap_models[r][o][d]->representation();
+	      dmatrix temp2 = my_cob_params[r].expected_overlapping_dimer_PWMs[o][d]->representation();
+	      for (int row = 0; row < rows; ++row) {
+		for (int column = first - 1; column <= last + 1; ++column) // The gap part with flanks of 1bp on both sides
+		  new_deviation[r][o][d](row,column) = 
+		    temp1(row,column) -
+		    temp2(row,column);
+	      } 
+	    }
+	  } // end for d
 	}  // end for o
       }  // end for r
 
@@ -3389,7 +3389,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	}
       }
       
-     // Print deviation tables
+      // Print deviation tables
       if (extra_debug) {
 	for (int r = 0; r < number_of_cobs; ++r) {
 	  int max_dist_for_deviation = my_cob_params[r].max_dist_for_deviation;
@@ -3440,7 +3440,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    if (my_cob_params[r].dimer_lambdas[o][d] != 0.0)
 	      //	      deviation_dist[r][o][d]=distance(new_deviation[r][o][d], my_cob_params[r].deviation[o][d]);
 	      deviation_dist[r][o][d]=overlapping_dimer_models[r][o][d]->cut(first-1, 2-d)->distance(
-						     *(my_cob_params[r].overlapping_dimer_PWM[o][d]->cut(first-1, 2-d)));
+												     *(my_cob_params[r].overlapping_dimer_PWM[o][d]->cut(first-1, 2-d)));
 	    else
 	      deviation_dist[r][o][d]=0.0;
 	  } // for d
@@ -3482,7 +3482,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	}
 	if (local_debug and my_cob_params[r].dmin < 0) {     ///// TÄMÄ PITÄÄ KORJATA!!!!!!!!!!!!!!!!!!
 	  print_cob(stdout, deviation_dist[r], to_string("Deviation %s distances are\n", 
-		    my_cob_params[r].name().c_str()), "%f");
+							 my_cob_params[r].name().c_str()), "%f");
 	  printf("Max distance in deviation %s is %f\n", my_cob_params[r].name().c_str(),
 		 max_element(deviation_dist[r]));
 	}
@@ -3613,11 +3613,11 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	} // end for r
       }
       
-      if (local_debug) {
- 	printf("---------------------------------------------------\n");
-        fflush(stdout);
-      }
-    } // for round
+      if (local_debug)} {
+      printf("---------------------------------------------------\n");
+      fflush(stdout);
+    }
+     // for round
     iterations.push_back(round);
 
     if (unbound.length() != 0)
