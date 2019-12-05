@@ -2083,6 +2083,25 @@ only_N(const std::string& s)
   return true;
 }
 
+// difference in exponents between the smallest and largest element in the container
+int
+exponent_difference(std::priority_queue<FloatType, std::vector<FloatType>, std::greater<FloatType> > q)
+{
+  std::vector<FloatType> v;
+  while (not q.empty()) {
+    v.push_back(exp2l(q.top()));
+    q.pop();
+  }
+  FloatType a = *std::min_element(v.begin(), v.end());
+  FloatType b = *std::max_element(v.begin(), v.end());
+  int expa, expb;
+  FloatType manta = frexpl(a, &expa);
+  FloatType mantb = frexpl(b, &expb);
+  return abs(expa - expb);
+}
+
+
+
 // uses the zoops model (zero or one occurrence per sequence)
 // the error rate lambda[p] equals the quantity 1-gamma of the paper
 //std::vector<dmatrix>
@@ -2235,6 +2254,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
     bool convergence_criterion_reached = false;
     for (round = 0; round < max_iter and not convergence_criterion_reached; ++round) {
 
+      std::vector<int> exponent_differences; // TESTING, REMOVE THIS
       if (local_debug)
 	printf("Round %i\n", round);
 
@@ -2406,7 +2426,20 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      sum_Z_dir_j(my_cob_params[r].spaced_dimer_Z, i, o, d, my_cob_params[r].dimer_m[i][d], queue);
 	}
 
+	int difference = exponent_difference(queue);
+	//if (difference != 0)
+	//printf("Exponent difference on line %i is %i\n", i, difference);
+	exponent_differences.push_back(difference);
+	std::vector<FloatType> linear_scale;
+	std::priority_queue<FloatType, std::vector<FloatType>, std::greater<FloatType> > copy_queue = queue;
+	while (not copy_queue.empty()) {
+	  linear_scale.push_back(exp2l(copy_queue.top()));
+	  copy_queue.pop();
+	}
+	FloatType linear_sum = std::accumulate(linear_scale.begin(), linear_scale.end(), 0.0);
 	FloatType normalizing_constant = log_sum(queue);
+	FloatType mytemp=exp2l(normalizing_constant);
+	assert(fabs((mytemp-linear_sum)/mytemp) < 0.000001);  // relative error is smaller thatn 10^-6
 	//	FloatType normalizing_constant = monomer_sum + overlapping_sum + spaced_sum + background;
 	//	printf("Dividing term is %e\n", sum);
 	
@@ -2444,7 +2477,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	std::cout << std::endl;
       }
 
-      
+      printf("Largest exponent difference on round %i was %i\n", round,
+	     *std::max_element(exponent_differences.begin(), exponent_differences.end())); 
 
       ////////////////////////
       //
@@ -3513,7 +3547,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
       bg_model_rev = std::vector<double>(bg_model.rbegin(), bg_model.rend()); // use this model when considering the reverse strand
       bg_model_markov_rev = reverse_complement_markov_model(bg_model_markov);
-      my_assert2(bg_model[i], bg_model_rev[3-i], ==);
+      for (int i=0; i < 4; ++i)
+	my_assert2(bg_model[i], bg_model_rev[3-i], ==);
 
       bool deviation_converged = true;
       for (int r=0; r < my_cob_params.size(); ++r) {
@@ -3613,11 +3648,11 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	} // end for r
       }
       
-      if (local_debug)} {
-      printf("---------------------------------------------------\n");
-      fflush(stdout);
-    }
-     // for round
+      if (local_debug) {
+	printf("---------------------------------------------------\n");
+	fflush(stdout);
+      }
+    } // for round
     iterations.push_back(round);
 
     if (unbound.length() != 0)
