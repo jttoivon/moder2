@@ -54,6 +54,7 @@ std::string
 my_to_string(T t)
 {
   std::ostringstream os;
+  os.precision(20);
   os << t;
   return os.str();
 }
