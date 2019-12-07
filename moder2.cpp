@@ -2101,8 +2101,8 @@ exponent_difference(std::priority_queue<FloatType, std::vector<FloatType>, std::
   FloatType a = *std::min_element(v.begin(), v.end());
   FloatType b = *std::max_element(v.begin(), v.end());
   int expa, expb;
-  FloatType manta = frexpl(a, &expa);
-  FloatType mantb = frexpl(b, &expb);
+  frexpl(a, &expa);
+  frexpl(b, &expb);
   return abs(expa - expb);
 }
 
@@ -2267,7 +2267,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
     bool convergence_criterion_reached = false;
     for (round = 0; round < max_iter and not convergence_criterion_reached; ++round) {
 
-      std::vector<int> exponent_differences; // TESTING, REMOVE THIS
+      //std::vector<int> exponent_differences; // TESTING, REMOVE THIS
       if (local_debug)
 	printf("Round %i\n", round);
 
@@ -2439,6 +2439,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      sum_Z_dir_j(my_cob_params[r].spaced_dimer_Z, i, o, d, my_cob_params[r].dimer_m[i][d], queue);
 	}
 
+	/*
 	int difference = exponent_difference(queue);
 	//if (difference != 0)
 	//printf("Exponent difference on line %i is %i\n", i, difference);
@@ -2450,9 +2451,10 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	  copy_queue.pop();
 	}
 	FloatType linear_sum = std::accumulate(linear_scale.begin(), linear_scale.end(), 0.0);
+	*/
 	FloatType normalizing_constant = log_sum(queue);
-	FloatType mytemp=exp2l(normalizing_constant);
-	assert(fabs((mytemp-linear_sum)/mytemp) < 0.000001);  // relative error is smaller thatn 10^-6
+	//FloatType mytemp=exp2l(normalizing_constant);
+	//assert(fabs((mytemp-linear_sum)/mytemp) < 0.000001);  // relative error is smaller thatn 10^-6
 	//	FloatType normalizing_constant = monomer_sum + overlapping_sum + spaced_sum + background;
 	//	printf("Dividing term is %e\n", sum);
 	
@@ -2490,8 +2492,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	std::cout << std::endl;
       }
 
-      printf("Largest exponent difference on round %i was %i\n", round,
-	     *std::max_element(exponent_differences.begin(), exponent_differences.end())); 
+      //printf("Largest exponent difference on round %i was %i\n", round,
+      //     *std::max_element(exponent_differences.begin(), exponent_differences.end())); 
 
       ////////////////////////
       //
