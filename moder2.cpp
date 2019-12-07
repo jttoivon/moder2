@@ -93,6 +93,7 @@ typedef boost::multi_array<count_object, 2> cob_of_count_objects;
 
 
 
+bool print_ll_for_each_sequence = false;
 
 bool use_palindromic_correction=false;
 bool use_multimer=true;
@@ -844,9 +845,11 @@ complete_data_log_likelihood(const std::vector<boost::shared_ptr<binding_model<>
 			     const std::vector<std::string>& sequences,
 			     const std::vector<std::string>& sequences_rev,
 			     const std::vector<int>& monomer_w,
-			     const boost::multi_array<int, 2>& monomer_m)
+			     const boost::multi_array<int, 2>& monomer_m,
+			     int iteration)
 {
-
+  if (print_ll_for_each_sequence)
+    printf("##%i", iteration);
   double likelihood=0.0;
   int p=PWM.size();
   //  int L=sequences[0].length();
@@ -1034,9 +1037,12 @@ complete_data_log_likelihood(const std::vector<boost::shared_ptr<binding_model<>
       print_math_error(retval);
       printf("Sequence %i, background model\n", i);
     }
+    if (print_ll_for_each_sequence)
+      printf("\t%f", likelihood2);
     likelihood += likelihood2;
   } // end for i
-
+  if (print_ll_for_each_sequence)
+    printf("\n");
   return likelihood;
 }
 
@@ -2149,6 +2155,13 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
   double mll = first_maximum_log_likelihood;
 
   int lines = sequences.size();
+  if (print_ll_for_each_sequence) {
+    printf("##");
+    for (int i=0; i < lines; ++i)
+      printf("\t%i", i);
+    printf("\n");
+  }
+    
   std::vector<int> monomer_w(monomer_p);
   boost::multi_array<int, 2> monomer_m(boost::extents[lines][monomer_p]);
   std::vector<int> L(lines);
@@ -3607,7 +3620,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 					 bg_model, bg_model_markov,
 					 bg_model_rev, bg_model_markov_rev,
 					 monomer_lambda, background_lambda, my_cob_params, monomer_Z,
-					 sequences, sequences_rev, monomer_w, monomer_m);
+					 sequences, sequences_rev, monomer_w, monomer_m, round);
       if (local_debug)
 	printf("Log likelihood is %f\n", mll);
 
