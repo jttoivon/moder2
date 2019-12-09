@@ -2160,6 +2160,11 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
     for (int i=0; i < lines; ++i)
       printf("\t%i", i);
     printf("\n");
+
+    printf("!!");
+    for (int i=0; i < lines; ++i)
+      printf("\t%i", i);
+    printf("\n");
   }
     
   std::vector<int> monomer_w(monomer_p);
@@ -2271,10 +2276,14 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       if (local_debug)
 	printf("Round %i\n", round);
       
-      //array_4d_type monomer_Z(boost::extents[lines][monomer_p][directions][monomer_m_max]);
+      printf("Monomer seeds are %s\n", print_vector(monomer_seed).c_str());
+      if (print_ll_for_each_sequence) {
+	printf("!!%i", round);
+      }
+
+    //array_4d_type monomer_Z(boost::extents[lines][monomer_p][directions][monomer_m_max]);
 
       // Print seeds
-      printf("Monomer seeds are %s\n", print_vector(monomer_seed).c_str());
       if (use_multinomial and local_debug) {
 
 	
@@ -2440,6 +2449,9 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	      sum_Z_dir_j(my_cob_params[r].spaced_dimer_Z, i, o, d, my_cob_params[r].dimer_m[i][d], queue);
 	}
 
+	if (print_ll_for_each_sequence)
+	  printf("\t%zu", queue.size());
+
 	/*
 	int difference = exponent_difference(queue);
 	//if (difference != 0)
@@ -2487,6 +2499,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	}
 
       } // for i in lines
+      if (print_ll_for_each_sequence)
+	printf("\n");
 
       if (extra_debug) {
 	new_print_array(std::cout, monomer_Z);
