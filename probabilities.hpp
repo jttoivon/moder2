@@ -909,6 +909,12 @@ template <typename T>
 T
 log_sum(std::vector<T>& v)
 {
+  if (v.size() == 1) {
+    T ret = v.back();
+    v.pop_back();
+    return ret;
+  }
+    
   T p = v.back(); v.pop_back();
   do {
     T q = v.back(); v.pop_back();

@@ -93,7 +93,7 @@ typedef boost::multi_array<count_object, 2> cob_of_count_objects;
 
 
 
-bool print_ll_for_each_sequence = false;
+bool print_ll_for_each_sequence = true;
 
 bool use_palindromic_correction=false;
 bool use_multimer=true;
@@ -1200,21 +1200,21 @@ expectation_Z_dir_j_spaced(boost::multi_array<FloatType, 5>& Z, int i,
 }
 
 
-typedef std::priority_queue<FloatType, std::vector<FloatType>, std::greater<FloatType> > queue_type;
-//typedef std::vector<FloatType> queue_type;
+//typedef std::priority_queue<FloatType, std::vector<FloatType>, std::greater<FloatType> > queue_type;
+typedef std::vector<FloatType> queue_type;
 
 void
 sum_Z_dir_j(const boost::multi_array<FloatType, 5>& Z, int i, int o, int d, int m, queue_type& queue)
 {
   for (int j=0; j < m; ++j) {
     if (Z[i][o][d][0][j] != -INFINITY) {
-      queue.push(Z[i][o][d][0][j]);
+      queue.push_back(Z[i][o][d][0][j]);
     }
   }
   if (use_two_strands) {
     for (int j=0; j < m; ++j) {
       if (Z[i][o][d][1][j] != -INFINITY) {
-	queue.push(Z[i][o][d][1][j]);
+	queue.push_back(Z[i][o][d][1][j]);
       }
     }
   }
@@ -1226,13 +1226,13 @@ sum_Z_dir_j(const boost::multi_array<FloatType, 4>& Z, int i, int k, int m, queu
 {
   for (int j=0; j < m; ++j) {
     if (Z[i][k][0][j] != -INFINITY) {
-      queue.push(Z[i][k][0][j]);
+      queue.push_back(Z[i][k][0][j]);
     }
   }
   if (use_two_strands) {
     for (int j=0; j < m; ++j) {
       if (Z[i][k][1][j] != -INFINITY) {
-	queue.push(Z[i][k][1][j]);
+	queue.push_back(Z[i][k][1][j]);
       }
     }
   }
@@ -2270,7 +2270,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
       //std::vector<int> exponent_differences; // TESTING, REMOVE THIS
       if (local_debug)
 	printf("Round %i\n", round);
-
+      
+      //array_4d_type monomer_Z(boost::extents[lines][monomer_p][directions][monomer_m_max]);
 
       // Print seeds
       printf("Monomer seeds are %s\n", print_vector(monomer_seed).c_str());
@@ -2416,10 +2417,10 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 
 	// compute the sum
 	
-	std::priority_queue<FloatType, std::vector<FloatType>, std::greater<FloatType> > queue;
-	//std::vector<FloatType> queue;
+	//std::priority_queue<FloatType, std::vector<FloatType>, std::greater<FloatType> > queue;
+	std::vector<FloatType> queue;
 	
-	queue.push(log_background);
+	queue.push_back(log_background);
 	//queue.push_back(log_background);
 	
 	// Monomer models
@@ -3670,8 +3671,8 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
     } // for round
     iterations.push_back(round);
 
-    if (unbound.length() != 0)
-      print_background_sequences(sequences, monomer_Z, my_cob_params, monomer_PWM, bg_model, bg_model_markov);
+    //    if (unbound.length() != 0)
+    //      print_background_sequences(sequences, monomer_Z, my_cob_params, monomer_PWM, bg_model, bg_model_markov);
     
     ++extension_round;
       
