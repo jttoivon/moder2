@@ -23,9 +23,11 @@
 #define SUFFIX_ARRAY_WRAPPER_HPP
 
 #include "CPM03/suffixsort.hpp"
+/*
 #ifndef TIMING
 #define TIMING
 #endif
+*/
 #include "timing.hpp"
 
 #include <string>
