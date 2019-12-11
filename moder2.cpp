@@ -4095,7 +4095,7 @@ create_cob(cob_combination_t cob_combination,
 	else {
 	  count_object co = seed.length() <= 15 ?
 	    dinucleotide_counts_suffix_array(seed, sequences, sa, 2) :
-	    dinucleotide_counts_scan_better(seed, sequences, 2, model_type);
+	    dinucleotide_counts_scan_better(seed, sequences, 2, adm);
 	  //	co.write_counts(stdout, to_string("Unnormalized initial monomer matrix %i from seed %s:\n", 
 	  //					  k, monomerseedlist[k].c_str()), "%.6f");
 	  if (use_pseudo_counts)
