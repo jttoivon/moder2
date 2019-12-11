@@ -93,7 +93,7 @@ typedef boost::multi_array<count_object, 2> cob_of_count_objects;
 
 
 
-bool print_ll_for_each_sequence = true;
+bool print_ll_for_each_sequence = false;
 
 bool use_palindromic_correction=false;
 bool use_multimer=true;
