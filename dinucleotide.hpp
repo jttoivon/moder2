@@ -142,6 +142,9 @@ operator==(const dinuc_model<double>& dm1, const dinuc_model<double>& dm2);
 std::ostream&
 operator<<(std::ostream& str, const dinuc_model<double>& adm);
 
+std::vector<dmatrix>
+dinucleotide_counts_scan_better(const std::string& seed, const std::vector<std::string>& sequences, int n,
+				model_type model_type);
 
 std::vector<dmatrix>
 dinucleotide_counts_suffix_array(const std::string& seed, const std::vector<std::string>& sequences,

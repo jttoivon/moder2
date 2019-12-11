@@ -15,7 +15,7 @@ extern bool use_multinomial;
 extern int hamming_radius;
 extern bool extra_debug;
 // use_multinomial, hamming_radius, adm, seed_bias
-enum model_type { ppm=0, adm=1, adm_fixed=2};
+
 
 const char* model_type_strings[] = {"ppm", "adm-unfixed", "adm-fixed"};
 
@@ -132,9 +132,9 @@ public:
     //double z = pow(0.25, w); // weight of a sequence
     std::vector<dmatrix> pscounts(hamming_radius, dmatrix(16, length));
     //pcounts.assign(hamming_radius, dmatrix(16, length));
-    std::vector<std::string> neighbourhood = get_n_neighbourhood(seed, hamming_radius);
+    std::vector<std::string> neighbourhood = get_n_neighbourhood(seed, hamming_radius, false);
     BOOST_FOREACH(std::string substr, neighbourhood) {
-      double z = 0.01 * compute_bernoulli_probability<double>(substr, background_probabilities);
+      double z = 0.01 * compute_bernoulli_iupac_probability<double>(substr, background_probabilities);
       BitString mismatches = iupac_mismatch_positions<BitString>(substr, seed);
       int hd = mypopcount(mismatches);
       BitString positions = 0;
@@ -368,9 +368,20 @@ lowest_dinucleotide_count(const std::string& w, const dmatrix& all_counts)
 {
   int k = all_counts.get_columns();
   double result = std::numeric_limits<double>::max();
-  int j=k-w.length()-1;
-  for (int i=1; i < w.length(); ++i) {
-    result = std::min(all_counts(to_int(w[i-1])*4+to_int(w[i]), i+j+1), result);
+  int start_pos = k-w.length()-1;
+  if (is_iupac_string(w)) {
+    //    std::vector<double> result(w.length(), std::numeric_limits<double>::max());
+    for (int i=1; i < w.length(); ++i) {
+      for (char a : std::string(iupac_class(w[i-1])))
+	for (char b : std::string(iupac_class(w[i])))
+	  result = std::min(all_counts(to_int(a)*4+to_int(b), start_pos+i+1), result);
+	  //      int size = strlen(iupac_classes[i]);
+    }
+  }
+  else {
+    for (int i=1; i < w.length(); ++i) {
+      result = std::min(all_counts(to_int(w[i-1])*4+to_int(w[i]), start_pos+i+1), result);
+    }
   }
   return result;
 }
@@ -395,7 +406,9 @@ correct_seed_bias(const std::vector<dmatrix>& grouped_dinucleotide_counts, const
     
     int tmax = std::min(hamming_radius-1, k-j-1);          // Compute the correction factors tau[b][t]
     boost::multi_array<double, 2> tau(boost::extents[4][tmax+1]);
+    boost::multi_array<double, 2> tau2(boost::extents[4][tmax+1]);   // testing, REMOVE
     boost::multi_array<double, 2> low_counts(boost::extents[4][tmax+1]);
+    boost::multi_array<double, 2> low_counts2(boost::extents[4][tmax+1]);   // testing, REMOVE
     if (j == k-1) {
       for (int t=0; t <= tmax; ++t)
 	for (int b=0; b < 4; ++b) 
@@ -406,22 +419,54 @@ correct_seed_bias(const std::vector<dmatrix>& grouped_dinucleotide_counts, const
 	for (int b=0; b < 4; ++b) {
 	  tau[b][t] = 0.0;
 	  low_counts[b][t] = std::numeric_limits<double>::lowest();
+	  low_counts2[b][t] = std::numeric_limits<double>::lowest();   // testing, REMOVE
 	}
 	int suffix_len = k-j-1;
-	std::vector<std::string> neighbourhood = get_n_neighbourhood(seed.substr(j+1, suffix_len), t);
+	dmatrix array(4, suffix_len);
+	std::vector<std::string> neighbourhood = get_n_neighbourhood(seed.substr(j+1, suffix_len), t, false);
 	BOOST_FOREACH(std::string w, neighbourhood) {
 	  double low_count = lowest_dinucleotide_count(w, all_counts);
 	  double temp = 1.0;
-	  for (int i=1; i < w.length(); ++i) {
-	    temp *= corrected(to_int(w[i-1])*4+to_int(w[i]), i+j+1);
+	  if (is_iupac_string(w)) {
+	    array.fill_with(0.0);
+	    for (int a=0; a < 4; ++a)
+	      array(a, w.length()-1) = 1.0;
+	    for (int i=w.length()-2; i >= 0; --i) {
+	      for (char a : std::string(iupac_class(w[i]))) {
+		for (char b : std::string(iupac_class(w[i+1]))) {
+		  int ab = to_int(a)*4 + to_int(b);
+		  array(to_int(a), i) += corrected(ab, j+i+2) * array(to_int(b), i+1);
+		}
+	      }
+	    }
+
+	    for (int b=0; b < 4; ++b) {
+	      for (char c : std::string(iupac_class(w[0]))) {
+		int bc = (b << 2) + to_int(c);  // bw_0
+		tau[b][t] += corrected(bc, j+1) * array(to_int(c), 0);
+		double low_count2 = std::min(low_count, all_counts(bc, j+1));
+		low_counts[b][t] = std::max(low_count2, low_counts[b][t]);
+	      }
+	    }
+	  } else {
+	    for (int i=1; i < w.length(); ++i) {
+	      temp *= corrected(to_int(w[i-1])*4+to_int(w[i]), i+j+1);
+	    }
+	    for (int b=0; b < 4; ++b) {
+	      int a = (b << 2) + to_int(w[0]);  // bw_0
+	      tau[b][t] += corrected(a, j+1) * temp;
+	      double low_count2 = std::min(low_count, all_counts(a, j+1));
+	      low_counts[b][t] = std::max(low_count2, low_counts[b][t]);
+	    }
 	  }
+	  /*
 	  for (int b=0; b < 4; ++b) {
-	    int a = (b << 2) + to_int(w[0]);  // bw_0
-	    tau[b][t] += corrected(a, j+1) * temp;
-	    double low_count2 = std::min(low_count, all_counts(a, j+1));
-	    low_counts[b][t] = std::max(low_count2, low_counts[b][t]);
+	    assert(fabs(tau[b][t] - tau2[b][t]) < 0.000001);
+	    assert(low_counts[b][t] == low_counts2[b][t]);
 	  }
-	}
+	  */
+	  
+	}  // end BOOST_FOREACH
       }
     }
 

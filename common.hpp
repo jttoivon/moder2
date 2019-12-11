@@ -1110,7 +1110,7 @@ std::string&
 SSS(const char* s);
 
 std::vector<std::string>
-get_n_neighbourhood(const std::string&seed, int n);
+get_n_neighbourhood(const std::string&seed, int n, bool expand=true);
 
 #endif // COMMON_HPP
 

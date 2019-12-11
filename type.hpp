@@ -21,6 +21,8 @@
 */
 //typedef unsigned long long int big_int;
 
+#ifndef TYPE_HPP
+#define TYPE_HPP
 #include <cstdint>
 
 // The types uint32_t and uint64_t are defined in c++11 so the below definitions are commented out:
@@ -44,4 +46,7 @@ typedef unsigned long long int big_int;
 typedef double FloatType;
 #else
 typedef long double FloatType;
+#endif
+
+enum model_type { ppm=0, adm=1, adm_fixed=2};
 #endif
