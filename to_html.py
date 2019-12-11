@@ -1156,7 +1156,7 @@ def main():
                 print("Debugging on")
             elif o in ("-n", "--no-visualizations"):
                 create_visualizations=False
-                print("Visalizations off")
+                print("Visualizations off")
             else:
                 sys.stderr.write("Unknown option: %s\n" % o)
                 sys.stderr.write(usage)
