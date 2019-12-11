@@ -4078,7 +4078,9 @@ create_cob(cob_combination_t cob_combination,
 	  overlapping_dimer_PWM[o][d] = pwm_model<>(temp).clone();
 	}
 	else {
-	  count_object co = dinucleotide_counts_suffix_array(seed, sequences, sa, 2);
+	  count_object co = seed.length() <= 15 ?
+	    dinucleotide_counts_suffix_array(seed, sequences, sa, 2) :
+	    dinucleotide_counts_scan_better(seed, sequences, 2, model_type);
 	  //	co.write_counts(stdout, to_string("Unnormalized initial monomer matrix %i from seed %s:\n", 
 	  //					  k, monomerseedlist[k].c_str()), "%.6f");
 	  if (use_pseudo_counts)

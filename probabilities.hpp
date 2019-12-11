@@ -313,6 +313,26 @@ compute_bernoulli_probability(const std::string& line, const std::vector<double>
   return prob;
 }
 
+template <typename T>
+T
+compute_bernoulli_iupac_probability(const std::string& line, const std::vector<double>& q)
+{
+  T prob = 1.0;
+  const char* nucs = "ACGT";
+  for (int i=0; i < line.length(); ++i) {
+    T base_prob = 0.0;
+    char c = line[i];
+    for (int j=0; j < 4; ++j) {
+      if (iupac_match(nucs[j], c))
+	base_prob += q[j];
+    }
+    prob *= base_prob;
+    //assert(prob > 0);
+  }
+
+  return prob;
+}
+
 template <typename T, typename S>
 T
 compute_log_bernoulli_probability(const std::string& line, const std::vector<S>& q)
