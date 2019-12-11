@@ -792,7 +792,7 @@ SSS(const char* s)
 
 
 std::vector<std::string>
-get_n_neighbourhood(const std::string&seed, int n)
+get_n_neighbourhood(const std::string&seed, int n, bool expand)
 {
   const int k = seed.length();
   assert(n >= 0);
@@ -854,8 +854,8 @@ get_n_neighbourhood(const std::string&seed, int n)
     } // end foreach subset c
   }  // end for error
 
-  if (is_iupac_string(seed)) {                     // expand iupac strings into nucleic strings
-    std::set<std::string> expanded;                // Tämä on tod. näk. turha, koska eri patternien laajennokset ovat pistevieraita
+  if (is_iupac_string(seed) and expand) {                     // expand iupac strings into nucleic strings
+    std::set<std::string> expanded;                           // Tämä on tod. näk. turha, koska eri patternien laajennokset ovat pistevieraita
     BOOST_FOREACH(std::string pattern, result) {
       sequences_of_iupac_string x(pattern);
       int size = x.number_of_strings();
