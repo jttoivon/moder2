@@ -150,52 +150,6 @@ dinucleotide_counts_scan(const std::string& seed, const std::vector<std::string>
 
 
 
-// this computes the dinucleotide-n matrix counts by scanning all possible windows
-std::vector<dmatrix>
-dinucleotide_counts_scan_better(const std::string& seed, const std::vector<std::string>& sequences, int n,
-				model_type model_type)
-{
-  TIME_START(t);
-  const int k = seed.length();
-  const int L = sequences[0].length();
-  assert(n >= 0);
-  assert(n <= k);
-  //  char nucs[] = "ACGT";
-  std::vector<dmatrix> result;
-  if (model_type==adm_fixed) {
-    for (int i=0; i < n; ++i)
-      result.push_back(dmatrix(16, k));
-  }
-  else
-    result.push_back(dmatrix(16, k));
-  code_t mask = 3;
-  for (int i=0; i < sequences.size(); ++i) {
-    int max_dir = use_two_strands ? 2 : 1;
-    for (int dir=0; dir < max_dir; ++dir) {
-      const std::string& line = dir == 0 ? sequences[i] : reverse_complement(sequences[i]);
-      for (int j=0; j < L-k+1; ++j) {
-	std::string s = line.substr(j, k);
-	int hd = iupac_hamming_dist(s, seed, n);
-	if (hd > n)
-	  continue;
-
-	code_t code = dna_to_number<code_t>(s);
-	int r = 0; // Number of mismatches before position j
-	for (int j=0; j < k; ++j) {      // initial probibilities will be in result(.,0), trans. prop are for j>0
-	  int a = (code >> ((k-j-1)*2)) & mask;              // get dinucleotides
-	  if (not iupac_match(s[j], seed[j]) or hd <= n - 1)
-	    result[r](a, j) += 1;
-	  if (model_type == adm_fixed and not iupac_match(s[j], seed[j]))
-	    ++r;
-	}
-
-      }
-    }
-  }
-
-  TIME_PRINT("Dinucleotide-n scanning algorithm took %.2f seconds\n", t);
-  return result;
-}
 
 
 
@@ -623,7 +577,6 @@ count_all_occurrences(const std::vector<std::string>& neighbourhood, const std::
   // All the following hassle is just to categorize the hits by the sequence they appear in,
   // and to make sure that palindromes are counted correctly.
   BOOST_FOREACH(std::string neighbour, neighbourhood) {
-
     
     std::vector<long int> positions;
     sa.locate_iupac(neighbour, positions);
