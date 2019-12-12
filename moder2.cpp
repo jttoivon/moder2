@@ -519,14 +519,14 @@ public:
   // The set of strings is specified by an iupac sequence 's'
   boost::tuple<std::string,int>
   max(const std::string& s, int begin, int len) const {
-    //const int k = s.length();
+    const int k = s.length();
     sequences_of_iupac_string strings(s);
     //return max_scan(s, begin, len);
-    return max_sa(s, begin, len);
-    // if (strings.number_of_strings() >= number_of_sites[k])
-    //   return max_scan(s, begin, len);
-    // else
-    //   return max_sa(s, begin, len);
+    //return max_sa(s, begin, len);
+    if (strings.number_of_strings() >= number_of_sites[k])
+      return max_scan(s, begin, len);
+    else
+      return max_sa(s, begin, len);
   }
 
     
@@ -2304,10 +2304,15 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	  }
 	  MY_FOREACH(o, cp.dimer_seeds) {
 	    MY_FOREACH(d, cp.dimer_seeds[o]) {
-	      int dimer_len = cp.dimer_w[d];
-	      double p = pow(4, -dimer_len);
-	      seed_counts[o][d] = my_gapped_kmer_context.count(cp.dimer_seeds[o][d]);
-	      exp_counts[o][d] = directions * sites[d] * p;
+	      if (cp.dimer_lambdas[o][d] > 0.0) {
+		int dimer_len = cp.dimer_w[d];
+		double p = pow(4, -dimer_len);
+		seed_counts[o][d] = my_gapped_kmer_context.count(cp.dimer_seeds[o][d]);   // TÄMÄ SAATTAA OLLA HIDAS, KUN SEEDI ON PITKÄ
+		exp_counts[o][d] = directions * sites[d] * p;                             // JA IUPACEJA ON PALJON.
+	      } else {
+		seed_counts[o][d] = 0;
+		exp_counts[o][d] = 0.0;
+	      }
 	    }
 	  }
 
@@ -4095,7 +4100,7 @@ create_cob(cob_combination_t cob_combination,
 	else {
 	  count_object co = seed.length() <= 15 ?
 	    dinucleotide_counts_suffix_array(seed, sequences, sa, 2) :
-	    dinucleotide_counts_scan_better(seed, sequences, 2, adm);
+	    dinucleotide_counts_scan_better<myuint128>(seed, sequences, 2, adm);
 	  //	co.write_counts(stdout, to_string("Unnormalized initial monomer matrix %i from seed %s:\n", 
 	  //					  k, monomerseedlist[k].c_str()), "%.6f");
 	  if (use_pseudo_counts)
