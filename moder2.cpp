@@ -4109,7 +4109,7 @@ create_cob(cob_combination_t cob_combination,
 	}
 	else {
 	  count_object co = seed.length() <= 15 ?
-	    dinucleotide_counts_suffix_array(seed, sequences, sa, 2) :
+	    dinucleotide_counts_suffix_array(seed, sequences, sa, 2, adm) :
 	    dinucleotide_counts_scan_better<myuint128>(seed, sequences, 2, adm);
 	  //	co.write_counts(stdout, to_string("Unnormalized initial monomer matrix %i from seed %s:\n", 
 	  //					  k, monomerseedlist[k].c_str()), "%.6f");
@@ -4899,7 +4899,7 @@ int main(int argc, char* argv[])
 	//   monomerseedlist[k] = monomer_M[k]->string_giving_max_probability(use_rna, use_iupac);
 	// }
       } else {
-	count_object co = dinucleotide_counts_suffix_array(monomerseedlist[k], sequences, sa, 2);
+	count_object co = dinucleotide_counts_suffix_array(monomerseedlist[k], sequences, sa, 2, adm);
 	co.write_counts(stdout, to_string("Unnormalized initial monomer matrix %i from seed %s:\n", 
 					  k, monomerseedlist[k].c_str()), "%.6f");
 	if (use_pseudo_counts)

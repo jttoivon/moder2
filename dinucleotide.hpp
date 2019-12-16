@@ -142,13 +142,13 @@ operator==(const dinuc_model<double>& dm1, const dinuc_model<double>& dm2);
 std::ostream&
 operator<<(std::ostream& str, const dinuc_model<double>& adm);
 
-std::vector<dmatrix>
-dinucleotide_counts_scan_better(const std::string& seed, const std::vector<std::string>& sequences, int n,
-				model_type model_type);
+// std::vector<dmatrix>
+// dinucleotide_counts_scan_better(const std::string& seed, const std::vector<std::string>& sequences, int n,
+// 				model_type model_type);
 
 std::vector<dmatrix>
 dinucleotide_counts_suffix_array(const std::string& seed, const std::vector<std::string>& sequences,
-				 const suffix_array& sa, int n);
+				 const suffix_array& sa, int n, model_type model_type);
 
 
 template <typename T>
@@ -712,7 +712,7 @@ dinucleotide_counts_scan_better(const std::string& seed, const std::vector<std::
   }
   else
     result.push_back(dmatrix(16, k));
-  T mask = 3;
+  T mask = 0xf;
   for (int i=0; i < sequences.size(); ++i) {
     int max_dir = use_two_strands ? 2 : 1;
     for (int dir=0; dir < max_dir; ++dir) {
@@ -725,11 +725,11 @@ dinucleotide_counts_scan_better(const std::string& seed, const std::vector<std::
 
 	T code = dna_to_number<T>(s);
 	int r = 0; // Number of mismatches before position j
-	for (int j=0; j < k; ++j) {      // initial probibilities will be in result(.,0), trans. prop are for j>0
-	  int a = (code >> ((k-j-1)*2)) & mask;              // get dinucleotides
-	  if (not iupac_match(s[j], seed[j]) or hd <= n - 1)
-	    result[r](a, j) += 1;
-	  if (model_type == adm_fixed and not iupac_match(s[j], seed[j]))
+	for (int h=0; h < k; ++h) {      // initial probibilities will be in result(.,0), trans. prop are for j>0
+	  int a = (code >> ((k-h-1)*2)) & mask;              // get dinucleotides
+	  if (not iupac_match(s[h], seed[h]) or hd <= n - 1)
+	    result[r](a, h) += 1;
+	  if (model_type == adm_fixed and not iupac_match(s[h], seed[h]))
 	    ++r;
 	}
 

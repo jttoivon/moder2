@@ -465,7 +465,7 @@ typedef boost::tuple<int, int, std::string> mytuple;
 
 boost::tuple<std::vector<dmatrix>, unsigned long, unsigned long>
 helper(std::vector<std::vector<mytuple > >& hit_info, int k, const std::string& seed, int hamming_radius,
-       bool use_grouped_dinucleotide_method_local = use_grouped_dinucleotide_method)
+       bool use_grouped_dinucleotide_method_local)
 { 
   int lines = hit_info.size();
   int rows = 16;
@@ -540,7 +540,7 @@ helper(std::vector<std::vector<mytuple > >& hit_info, int k, const std::string& 
     
 boost::tuple<std::vector<dmatrix>, unsigned long, unsigned long>
 count_all_occurrences(const std::vector<std::string>& neighbourhood, const std::string& seed, const suffix_array& sa,
-		      const std::vector<std::string>& sequences, int hamming_radius)
+		      const std::vector<std::string>& sequences, int hamming_radius, model_type model_type)
 {
   int k = seed.length();
   int lines = sequences.size();
@@ -549,13 +549,16 @@ count_all_occurrences(const std::vector<std::string>& neighbourhood, const std::
 
   int rows = 16;
   //  const int mask = 15;
+  
+  /*
   std::vector<dmatrix> result;
-  if (use_grouped_dinucleotide_method)
+  if (model_type adm_fixed)
     for (int i=0; i < hamming_radius; ++i)
       result.push_back(dmatrix(rows, k));
   else
     result.push_back(dmatrix(rows, k));
-    
+  */
+  
   //unsigned long seed_count = 0;
   //unsigned long total_count = 0;
   std::string neighbour;
@@ -600,15 +603,11 @@ count_all_occurrences(const std::vector<std::string>& neighbourhood, const std::
 	}
       }
     } // end foreach pos
-
  
 	
   } // end for neighbour
-
-   
-
   
-  return helper(hit_info, k, seed, hamming_radius);
+  return helper(hit_info, k, seed, hamming_radius, model_type == adm_fixed);
 };
 
 
@@ -616,7 +615,7 @@ count_all_occurrences(const std::vector<std::string>& neighbourhood, const std::
 
 std::vector<dmatrix>
 dinucleotide_counts_suffix_array(const std::string& seed, const std::vector<std::string>& sequences,
-				 const suffix_array& sa, int hamming_radius)
+				 const suffix_array& sa, int hamming_radius, model_type model_type)
 {
   TIME_START(t);
   unsigned long seed_count = 0;
@@ -624,18 +623,12 @@ dinucleotide_counts_suffix_array(const std::string& seed, const std::vector<std:
   const int k = seed.length();
   assert(hamming_radius >= 0);
   assert(hamming_radius <= k);
-  //  std::string str1;
-  //  std::string str2;
-
     
   std::vector<std::string> neighbourhood = get_n_neighbourhood(seed, hamming_radius);
-  //  BOOST_FOREACH(std::string s, neighbourhood)
-  //    printf("%s\n", s.c_str());
   std::vector<dmatrix> result;
-  //  suffix_array sa(str1);
   boost::tie(result, seed_count, total_count) =
     count_all_occurrences(neighbourhood, seed, sa,
-			  sequences, hamming_radius);
+			  sequences, hamming_radius, model_type);
   TIME_PRINT("Dinucleotide-n algorithm took %.2f seconds\n", t);
   printf("Seed %s count = %lu\n", seed.c_str(), seed_count);
   printf("Total dinucleotide-n count is %lu\n", total_count);
