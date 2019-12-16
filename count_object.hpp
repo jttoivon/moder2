@@ -366,26 +366,103 @@ esko_count_helper(double count)
 double
 lowest_dinucleotide_count(const std::string& w, const dmatrix& all_counts)
 {
+  assert(is_nucleotide_string(w));
   int k = all_counts.get_columns();
   double result = std::numeric_limits<double>::max();
   int start_pos = k-w.length()-1;
-  if (is_iupac_string(w)) {
-    //    std::vector<double> result(w.length(), std::numeric_limits<double>::max());
-    for (int i=1; i < w.length(); ++i) {
-      for (char a : std::string(iupac_class(w[i-1])))
-	for (char b : std::string(iupac_class(w[i])))
-	  result = std::min(all_counts(to_int(a)*4+to_int(b), start_pos+i+1), result);
-	  //      int size = strlen(iupac_classes[i]);
-    }
-  }
-  else {
-    for (int i=1; i < w.length(); ++i) {
-      result = std::min(all_counts(to_int(w[i-1])*4+to_int(w[i]), start_pos+i+1), result);
-    }
+  for (int i=1; i < w.length(); ++i) {
+    result = std::min(all_counts(to_int(w[i-1])*4+to_int(w[i]), start_pos+i+1), result);
   }
   return result;
 }
 
+
+// computes the maximum of minimum over all sequences defined by the iupac
+std::vector<double>
+lowest_dinucleotide_count_iupac(const std::string& w, const dmatrix& all_counts)
+{
+  assert(is_iupac_string(w));
+  int k = all_counts.get_columns();
+  std::vector<double> result(4, std::numeric_limits<double>::lowest());
+  int start_pos = k-w.length()-1;
+  //    std::vector<double> result(w.length(), std::numeric_limits<double>::max());
+  dmatrix A(4, w.length());
+  A.fill_with(std::numeric_limits<double>::max());
+  for (int i=w.length()-1; i >= 1; --i) {
+    for (char a : std::string(iupac_class(w[i-1]))) {
+      double temp = std::numeric_limits<double>::lowest();
+      for (char b : std::string(iupac_class(w[i]))) {
+	double dcount = all_counts(to_int(a)*4+to_int(b), start_pos+i+1);
+	temp = std::max(std::min(dcount, A(to_int(b), i)),
+			temp);
+      }
+      A(to_int(a), i-1) = temp;
+    }
+  }
+  //int last = w.length()-1;
+  for (char b : std::string(iupac_class(w[0])))
+    result[to_int(b)] = A(to_int(b), 0);
+  return result;
+}
+
+std::tuple<std::vector<double>, std::vector<double> >
+compute_bias_and_low_counts(const std::string& s, int t, int j, const dmatrix& all_counts, const dmatrix& corrected)
+{
+  dmatrix array(4, s.length());
+  std::vector<double> tau(4, 0.0);
+  std::vector<double> low_counts(4, std::numeric_limits<double>::lowest());
+  std::vector<std::string> neighbourhood = get_n_neighbourhood(s, t, true);
+  BOOST_FOREACH(std::string w, neighbourhood) {
+    double low_count = lowest_dinucleotide_count(w, all_counts);
+    double temp = 1.0;
+    for (int i=1; i < w.length(); ++i) {
+      temp *= corrected(to_int(w[i-1])*4+to_int(w[i]), i+j+1);
+    }
+    for (int b=0; b < 4; ++b) {
+      int a = (b << 2) + to_int(w[0]);  // bw_0
+      tau[b] += corrected(a, j+1) * temp;
+      double low_count2 = std::min(low_count, all_counts(a, j+1));
+      low_counts[b] = std::max(low_count2, low_counts[b]);
+    }
+	  
+  }  // end BOOST_FOREACH
+  return std::make_tuple(tau, low_counts);
+}
+
+std::tuple<std::vector<double>, std::vector<double> >
+compute_bias_and_low_counts_iupac(const std::string& s, int t, int j, const dmatrix& all_counts, const dmatrix& corrected)
+{
+  dmatrix array(4, s.length());
+  std::vector<double> tau(4, 0.0);
+  std::vector<double> low_counts(4, std::numeric_limits<double>::lowest());
+  std::vector<std::string> neighbourhood = get_n_neighbourhood(s, t, false);
+  BOOST_FOREACH(std::string w, neighbourhood) {
+    std::vector<double> low_count = lowest_dinucleotide_count_iupac(w, all_counts);
+    //double temp = 1.0;
+    array.fill_with(0.0);
+    for (int a=0; a < 4; ++a)
+      array(a, w.length()-1) = 1.0;
+    for (int i=w.length()-2; i >= 0; --i) {
+      for (char a : std::string(iupac_class(w[i]))) {
+	for (char b : std::string(iupac_class(w[i+1]))) {
+	  int ab = to_int(a)*4 + to_int(b);
+	  array(to_int(a), i) += corrected(ab, j+i+2) * array(to_int(b), i+1);
+	}
+      }
+    }
+
+    for (int b=0; b < 4; ++b) {
+      for (char c : std::string(iupac_class(w[0]))) {
+	int bc = (b << 2) + to_int(c);  // bw_0
+	tau[b] += corrected(bc, j+1) * array(to_int(c), 0);
+	double low_count2 = std::min(all_counts(bc, j+1), low_count[to_int(c)]);
+	low_counts[b] = std::max(low_count2, low_counts[b]);
+      }
+    }
+	  
+  }  // end BOOST_FOREACH
+  return std::make_tuple(tau, low_counts);
+}
 
 dmatrix
 correct_seed_bias(const std::vector<dmatrix>& grouped_dinucleotide_counts, const std::string& seed, int hamming_radius)
@@ -422,51 +499,13 @@ correct_seed_bias(const std::vector<dmatrix>& grouped_dinucleotide_counts, const
 	  low_counts2[b][t] = std::numeric_limits<double>::lowest();   // testing, REMOVE
 	}
 	int suffix_len = k-j-1;
-	dmatrix array(4, suffix_len);
-	std::vector<std::string> neighbourhood = get_n_neighbourhood(seed.substr(j+1, suffix_len), t, false);
-	BOOST_FOREACH(std::string w, neighbourhood) {
-	  double low_count = lowest_dinucleotide_count(w, all_counts);
-	  double temp = 1.0;
-	  if (is_iupac_string(w)) {
-	    array.fill_with(0.0);
-	    for (int a=0; a < 4; ++a)
-	      array(a, w.length()-1) = 1.0;
-	    for (int i=w.length()-2; i >= 0; --i) {
-	      for (char a : std::string(iupac_class(w[i]))) {
-		for (char b : std::string(iupac_class(w[i+1]))) {
-		  int ab = to_int(a)*4 + to_int(b);
-		  array(to_int(a), i) += corrected(ab, j+i+2) * array(to_int(b), i+1);
-		}
-	      }
-	    }
-
-	    for (int b=0; b < 4; ++b) {
-	      for (char c : std::string(iupac_class(w[0]))) {
-		int bc = (b << 2) + to_int(c);  // bw_0
-		tau[b][t] += corrected(bc, j+1) * array(to_int(c), 0);
-		double low_count2 = std::min(low_count, all_counts(bc, j+1));
-		low_counts[b][t] = std::max(low_count2, low_counts[b][t]);
-	      }
-	    }
-	  } else {
-	    for (int i=1; i < w.length(); ++i) {
-	      temp *= corrected(to_int(w[i-1])*4+to_int(w[i]), i+j+1);
-	    }
-	    for (int b=0; b < 4; ++b) {
-	      int a = (b << 2) + to_int(w[0]);  // bw_0
-	      tau[b][t] += corrected(a, j+1) * temp;
-	      double low_count2 = std::min(low_count, all_counts(a, j+1));
-	      low_counts[b][t] = std::max(low_count2, low_counts[b][t]);
-	    }
-	  }
-	  /*
-	  for (int b=0; b < 4; ++b) {
-	    assert(fabs(tau[b][t] - tau2[b][t]) < 0.000001);
-	    assert(low_counts[b][t] == low_counts2[b][t]);
-	  }
-	  */
-	  
-	}  // end BOOST_FOREACH
+	std::vector<double> my_tau;
+	std::vector<double> my_low_counts;
+	std::tie(my_tau, my_low_counts) = compute_bias_and_low_counts_iupac(seed.substr(j+1, suffix_len), t, j, all_counts, corrected);
+	for (int b=0; b < 4; ++b) {
+	  tau[b][t] = my_tau[b];
+	  low_counts[b][t] = my_low_counts[b];
+	}
       }
     }
 
@@ -542,7 +581,7 @@ correct_seed_bias(const std::vector<dmatrix>& grouped_dinucleotide_counts, const
     }
     if (extra_debug)
       write_matrix(stdout, corrected, "Corrected");
-  }
+  } // end for j
   return corrected;
   
 } // correct_seed_bias
