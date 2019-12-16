@@ -127,6 +127,20 @@ public:
   //void
   create_pseudo_count_tables(const std::string& seed, const std::vector<double>& background_probabilities)
   {
+    std::vector<std::string> dinucleotides = {
+      "AA", "AC", "AG", "AT",
+      "CA", "CC", "CG", "CT",
+      "GA", "GC", "GG", "GT",
+      "TA", "TC", "TG", "TT",
+    };
+    std::vector<double> dinucleotide_probability(16);
+    for (int a=0; a < 4; ++a) {
+      for (int b=0; b < 4; ++b) {
+	dinucleotide_probability[4*a+b] = background_probabilities[a] * background_probabilities[b];
+      }
+    }
+    
+    std::string nucs="ACGT";
     bool force_multinomial = true;
     const int w = seed.length();
     //double z = pow(0.25, w); // weight of a sequence
@@ -134,7 +148,8 @@ public:
     //pcounts.assign(hamming_radius, dmatrix(16, length));
     std::vector<std::string> neighbourhood = get_n_neighbourhood(seed, hamming_radius, false);
     BOOST_FOREACH(std::string substr, neighbourhood) {
-      double z = 0.01 * compute_bernoulli_iupac_probability<double>(substr, background_probabilities);
+      std::vector<double> v = compute_bernoulli_iupac_probability<double>(substr, background_probabilities);
+      double z = std::accumulate(v.begin(), v.end(), 1.0, std::multiplies<double>());
       BitString mismatches = iupac_mismatch_positions<BitString>(substr, seed);
       int hd = mypopcount(mismatches);
       BitString positions = 0;
@@ -146,12 +161,27 @@ public:
 	continue; //positions = 0;   // update nothing
       //  printf("HD is %i %i %s %s\n", hd, mismatches, print_bitvector(mismatches).c_str(), print_bitvector(positions).c_str());
       BitString mask = static_cast<BitString>(1)<<(w-1);  // contains 1 in the wth position from right
-      int shift = 2*(w-1);
-      BitString code = dna_to_number<BitString>(substr);
+      //int shift = 2*(w-1);
+      //BitString code = dna_to_number<BitString>(substr);
       int r=0;
-      for (int pos=0; pos < w; ++pos, mask>>=1, shift -= 2) {
+      if (positions & mask) {
+	for (int b=0; b < 4; ++b) {
+	  if (iupac_match(nucs[b], substr[0])) {
+	    pscounts[r](b, 0) += 0.01*z/v[0]*background_probabilities[b];
+	  }
+	}
+	if (mismatches&mask)
+	  ++r;
+      }
+      mask>>=1;
+      for (int pos=1; pos < w; ++pos, mask>>=1) {
 	if (positions & mask) {
-	  pscounts[r]((code>>shift)&15, pos) += z; // update columns of pwm marked by bit vector positions
+	  double z2 = z / (v[pos-1] * v[pos]);
+	  std::string di = substr.substr(pos-1, 2);
+	  for (int ab=0; ab < 16; ++ab) {
+	    if (iupac_string_match(dinucleotides[ab], di))
+	      pscounts[r](ab, pos) += 0.01*z2*dinucleotide_probability[ab]; // update columns of pwm marked by bit vector positions
+	  }
 	}
 	if (mismatches&mask)
 	  ++r;
@@ -179,7 +209,46 @@ public:
     */
     return pscounts;
   }
-
+  
+  // this creates pseudo count tables for adm-fixed model
+  template <typename BitString>
+  std::vector<dmatrix>
+  //void
+  create_pseudo_count_tables_slow(const std::string& seed, const std::vector<double>& background_probabilities)
+  {
+    bool force_multinomial = true;
+    const int w = seed.length();
+    //double z = pow(0.25, w); // weight of a sequence
+    std::vector<dmatrix> pscounts(hamming_radius, dmatrix(16, length));
+    //pcounts.assign(hamming_radius, dmatrix(16, length));
+    std::vector<std::string> neighbourhood = get_n_neighbourhood(seed, hamming_radius, true);
+    BOOST_FOREACH(std::string substr, neighbourhood) {
+      double z = 0.01 * compute_bernoulli_probability<double>(substr, background_probabilities);
+      BitString mismatches = iupac_mismatch_positions<BitString>(substr, seed);
+      int hd = mypopcount(mismatches);
+      BitString positions = 0;
+      if (not force_multinomial or hd < hamming_radius)
+	positions = ~static_cast<BitString>(0);  // update all
+      else if (hd == hamming_radius)  // update only mismatch positions
+	positions = mismatches;
+      else
+	continue; //positions = 0;   // update nothing
+      //  printf("HD is %i %i %s %s\n", hd, mismatches, print_bitvector(mismatches).c_str(), print_bitvector(positions).c_str());
+      BitString mask = static_cast<BitString>(1)<<(w-1);  // contains 1 in the wth position from right
+      int shift = 2*(w-1);
+      BitString code = dna_to_number<BitString>(substr);
+      int r=0;
+      for (int pos=0; pos < w; ++pos, mask>>=1, shift -= 2) {
+	if (positions & mask) {
+	  pscounts[r]((code>>shift)&15, pos) += z; // update columns of pwm marked by bit vector positions
+	}
+	if (mismatches&mask)
+	  ++r;
+      }
+    }
+    return pscounts;
+  }
+  
   void
   add_pseudo_counts(const prior<double>& pseudo_counts,
 		    const dinucleotide_prior<double>& dinucleotide_pseudo_counts,

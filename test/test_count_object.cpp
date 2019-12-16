@@ -20,6 +20,8 @@
 #include "combinatorics.hpp"
 #include "test/helper.hpp"
 
+int hamming_radius=3;
+
 double
 lowest_dinucleotide_count(const std::string& w, const dmatrix& all_counts);
 
@@ -33,6 +35,29 @@ std::tuple<std::vector<double>, std::vector<double> >
 compute_bias_and_low_counts_iupac(const std::string& s, int t, int j, const dmatrix& all_counts, const dmatrix& corrected);
 
 bool extra_debug = false;
+
+// see https://stackoverflow.com/questions/10976130/boost-check-equal-with-pairint-int-and-custom-operator
+namespace boost
+{
+    namespace test_tools
+    {
+#if BOOST_VERSION >= 105900
+      namespace tt_detail
+      {
+#endif
+	template<typename T>
+	struct print_log_value<matrix<T> >
+	{
+	  void operator()(std::ostream& os, matrix<T> const& m)
+	  {
+	    write_matrix(stdout, m, "");
+	  }
+	};
+#if BOOST_VERSION >= 105900
+      }
+#endif 
+    }
+}
 
 void
 normalize_adm(dmatrix& adm)
@@ -51,6 +76,20 @@ normalize_adm(dmatrix& adm)
       }
     }
   }
+}
+
+bool
+almost_equal_matrices(const dmatrix& a, const dmatrix& b)
+{
+  int rows = a.get_rows();
+  int cols = a.get_columns();
+  for (int row=0; row<rows; ++row) {
+    for (int col=0; col<cols; ++col) {
+      if (fabs(a(row, col) - b(row, col)) > 0.0000000001)
+	return false;
+    }
+  }
+  return true;
 }
 
 BOOST_AUTO_TEST_SUITE(test_count_object)
@@ -167,6 +206,27 @@ BOOST_AUTO_TEST_CASE(test_compute_bias_and_low_counts)
     }
   }
 }
+
+BOOST_AUTO_TEST_CASE(test_create_pseudo_count_tables)
+{
+  std::string nucs = "ACGT";
+  int k=10;
+  std::vector<double> bg(4, 0.25);
+  count_object co(adm_fixed, k);
+  random_sequence rand(iupac_chars, 0);
+  //random_sequence rand(nucs, 0);
+  for (int i=0; i < 10; ++i) {
+    std::string seed = rand.get_sequence(k);
+    std::vector<dmatrix> pc1 = co.create_pseudo_count_tables<myuint128>(seed, bg);
+    std::vector<dmatrix> pc2 = co.create_pseudo_count_tables_slow<myuint128>(seed, bg);
+    BOOST_CHECK_EQUAL(pc1.size(), pc2.size());
+    for (int r=0; r<pc1.size(); ++r) {
+      //BOOST_CHECK_EQUAL(pc1[r], pc2[r]);
+      BOOST_CHECK(almost_equal_matrices(pc1[r], pc2[r]));
+    }
+  }
+}
+
 
 //____________________________________________________________________________//
 
