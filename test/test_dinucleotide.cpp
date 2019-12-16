@@ -16,6 +16,7 @@
 #include <libgen.h>
 
 #include "dinucleotide.hpp"
+#include "test/helper.hpp"
 
 
 dinuc_model<double>
@@ -250,6 +251,41 @@ BOOST_AUTO_TEST_CASE(test_cut_and_join)
     BOOST_CHECK_EQUAL(adm, join);
   }
   
+}
+
+BOOST_AUTO_TEST_CASE(test_dinucleotide_counts)
+{
+  bool use_rna = false;
+  use_two_strands = false;
+  std::string nucs ="ACGT";
+  random_sequence rand(nucs, 0);
+  int n = 1000;
+  int hd=2;
+  model_type model_type = adm;
+  std::string seed = "ACGTAAG";
+  int k = seed.length();
+  std::vector<std::string> sequences;
+  for (int i=0; i < n; ++i)
+    sequences.push_back(rand.get_sequence(40));
+  
+  std::string str=join(sequences, '#');
+  if (use_two_strands) {
+    str.append("#");
+    str += join_rev(sequences, '#');
+  }
+  suffix_array sa(str, use_rna);
+  
+  std::vector<dmatrix> v;
+  std::vector<dmatrix> v2;
+  v = dinucleotide_counts_scan_better<myuint128>(seed, sequences, hd, model_type);
+  v2 = dinucleotide_counts_suffix_array(seed, sequences, sa, hd, model_type);
+				      
+  for (int row=0; row < 16; ++row) {
+    for (int col=0; col < k; ++col) {
+      BOOST_CHECK_EQUAL(v[0](row, col), v2[0](row, col));
+    }
+  }
+    
 }
 
 //____________________________________________________________________________//
