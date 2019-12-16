@@ -3165,6 +3165,16 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    //	    overlapping_dimer_models[r][o][d] = normalize_matrix_columns_copy(overlapping_dimer_weights[r][o][d]);
 	    overlapping_dimer_models[r][o][d] = overlapping_dimer_weights[r][o][d].normalized(my_cob_params[r].dimer_seeds[o][d]);
 	    //assert(overlapping_dimer_models[r][o][d]->is_probability_model());
+	    
+
+	    if (o==0 and d==-2) {
+	      overlapping_dimer_weights[r][o][d].write_counts(stdout, to_string("Observed overlapping dimer case matrix count:\n").c_str(), "%.6f");
+	      overlapping_dimer_models[r][o][d]->print(to_string("Observed overlapping dimer case matrix %s %s %i:\n", 
+								 my_cob_params[r].name().c_str(), orients[o], d).c_str(),
+						       "%.6f");
+	      printf("Lambda is %f\n", my_cob_params[r].dimer_lambdas[o][d]);
+	    }
+
 	  }
 	}
       } // end for r

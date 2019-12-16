@@ -854,7 +854,7 @@ get_n_neighbourhood(const std::string&seed, int n, bool expand)
     } // end foreach subset c
   }  // end for error
 
-  if (is_iupac_string(seed) and expand) {                     // expand iupac strings into nucleic strings
+  if (not is_nucleotide_string(seed) and is_iupac_string(seed) and expand) {                     // expand iupac strings into nucleic strings
     std::set<std::string> expanded;                           // Tämä on tod. näk. turha, koska eri patternien laajennokset ovat pistevieraita
     BOOST_FOREACH(std::string pattern, result) {
       sequences_of_iupac_string x(pattern);

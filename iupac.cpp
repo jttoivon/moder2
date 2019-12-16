@@ -74,6 +74,23 @@ iupac_string_match(const std::string& str, const std::string& pattern)
   return true;
 }
 
+
+int
+number_of_iupac_combinations(std::string s)
+{
+  int k = s.length();
+  int number_of_combinations = 1;
+  std::vector<const char*> iupac_classes(k);
+  std::vector<int> base(k);
+  for (int i=0; i < k; ++i) {
+    iupac_classes[i] = iupac_class(s[i]);
+    int size = strlen(iupac_classes[i]);
+    base[i] = size - 1;
+    number_of_combinations *= size;
+  }
+  return number_of_combinations;
+}
+
 std::string
 complement_set(char char_class)
 {

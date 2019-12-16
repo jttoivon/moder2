@@ -128,6 +128,9 @@ iupac_mismatch_positions(const std::string& str, const std::string& pattern)
   return result;
 }
 
+int
+number_of_iupac_combinations(std::string s);
+
 class sequences_of_iupac_string
 {
 public:
