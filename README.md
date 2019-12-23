@@ -36,19 +36,17 @@ Otherwise, the input file to MODER2 should consist of sequences separated by 'ne
 That is, each sequence should appear on its own line.
 Currently, sequences containing non-base characters, such as `N`, are ignored.
 
-By default, MODER2 learns PPM models (order-zero inhomogeneous Markov chains).
-To learn ADM models (order-one inhomogeneous Markov chains) use option `--model adm`.
-
 The second parameter is a comma separated list of initial values for monomer models. These
 can be given either as IUPAC sequences or as matrices. In the latter case, the option
 `--matrices` should be given.
+
+By default, MODER2 learns PPM models (order-zero inhomogeneous Markov chains).
+To learn ADM models (order-one inhomogeneous Markov chains) use option `--model adm`.
 
 By default, dirichlet pseudo counts are used, before the count matrices are normalized. Option
 `--prior dirichlet` uses pseudo count 0.01 times the initial background frequency of the corresponding nucleotide.
 Option `--prior addone` uses pseudo count 0.000001.
 The option `--prior none` disables the use of pseudo counts.
-
-MODER2 learns PPM models by default. If you want to learn ADM models, give parameter `--model adm-fixed` to `moder2`.
 
 Use the option `--cob` to specify which cob tables you want to compute. For instance, if you have given
 seeds for five monomeric binding motifs, then these are referred to with indices 0, 1, 2, 3, and 4.
@@ -100,8 +98,8 @@ In the directory `TFAP2A_models` the following files are stored:
 
 Run `moder2` without parameters to get description of all possible command line parameters.
 
-Visualizing pfms and cob tables
-===============================
+Visualizing pfms, adms and cob tables
+=====================================
 
 Use the program `myspacek40` to visualize a pfm file to an image.
 
