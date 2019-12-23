@@ -48,5 +48,5 @@ typedef double FloatType;
 typedef long double FloatType;
 #endif
 
-enum model_type { ppm=0, adm=1, adm_fixed=2};
+enum model_type { ppm=0, adm_unfixed=1, adm_fixed=2};
 #endif

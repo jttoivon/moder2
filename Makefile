@@ -129,7 +129,7 @@ $(distdir):
 	cp COPYING $(distdir)
 	cp Makefile $(distdir)
 	cp myspacek40.c $(distdir)
-	cp heatmap.R $(distdir)
+#	cp heatmap.R $(distdir)
 	cp heatmap.py $(distdir)
 	cp to_html.py $(distdir)
 	cp moder2.cpp $(distdir)
