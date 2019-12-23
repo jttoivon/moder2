@@ -261,7 +261,7 @@ BOOST_AUTO_TEST_CASE(test_dinucleotide_counts)
   random_sequence rand(nucs, 0);
   int n = 1000;
   int hd=2;
-  model_type model_type = adm;
+  model_type model_type = adm_unfixed;
   std::string seed = "ACGTAAG";
   int k = seed.length();
   std::vector<std::string> sequences;
