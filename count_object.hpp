@@ -50,7 +50,7 @@ public:
     else if (rows==4)
       type = ppm;
     else
-      type = adm;
+      type = adm_unfixed;
     length = cols;
 
       
@@ -68,11 +68,11 @@ public:
   boost::shared_ptr<binding_model<> >
   normalized(const std::string& seed)
   {
-    assert(type == adm or type == adm_fixed or type == ppm);
+    assert(type == adm_unfixed or type == adm_fixed or type == ppm);
     
     if (type==ppm)
       return boost::make_shared<pwm_model<> >(normalize_matrix_columns_copy(counts[0]));
-    else if (type==adm or seed.length()==0)  // for gapped motifs no seed is used.
+    else if (type==adm_unfixed or seed.length()==0)  // for gapped motifs no seed is used.
       return boost::make_shared<dinuc_model<> >(counts[0]);
     else {
       /*
@@ -310,7 +310,7 @@ public:
     else {
       int shift = 2*(w-1);
       BitString code = dna_to_number<BitString>(substr);
-      if (type == adm) {
+      if (type == adm_unfixed) {
 	// If pos == 0, then the dinucleotide is (A, substr[0])
 	for (int pos=0; pos < w; ++pos, mask>>=1, shift -= 2) {
 	  if (positions & mask) {

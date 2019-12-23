@@ -36,6 +36,9 @@ Otherwise, the input file to MODER2 should consist of sequences separated by 'ne
 That is, each sequence should appear on its own line.
 Currently, sequences containing non-base characters, such as `N`, are ignored.
 
+By default, MODER2 learns PPM models (order-zero inhomogeneous Markov chains).
+To learn ADM models (order-one inhomogeneous Markov chains) use option `--model adm`.
+
 The second parameter is a comma separated list of initial values for monomer models. These
 can be given either as IUPAC sequences or as matrices. In the latter case, the option
 `--matrices` should be given.

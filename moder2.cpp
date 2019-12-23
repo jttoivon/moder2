@@ -103,7 +103,7 @@ bool use_rna = false;
 bool use_iupac = true;
 //bool use_iupac = false;
 
-int max_iter = 50;  // was 300
+int max_iter = 150;  // was 300
 int minimum_distance_for_learning = 4;
 int global_dmax = 10;
 //int global_max_dist_for_deviation = -1;
@@ -111,7 +111,8 @@ int global_dmax = 10;
 int global_max_dist_for_deviation = 3;
 
 double ic_threshold = 0.40;
-double learning_fraction = 0.02;
+double learning_fraction = 1.00;
+//double learning_fraction = 0.02;
 
 int character_count=0;
 int digram_count=0;
@@ -145,7 +146,7 @@ bool avoid_palindromes = false; // If tf1==tf2, the orientation is HH or TT and 
                                 // by using temporarily only a single strand.
 int hamming_distance_overlapping_seeds_N=0;
 int hamming_distance_overlapping_seeds_OR=2;
-int hamming_radius = 1; // For learning the model from sequences in the hamming neighbourhood of the seed
+int hamming_radius = 2; // For learning the model from sequences in the hamming neighbourhood of the seed
 
 std::string unbound; // Filename where to store the sequences that had greatest probability under background model
 std::vector<std::string> names;
@@ -1462,7 +1463,7 @@ weight_with_flanks_helper(const std::string& line, const std::string& seed, int 
 	weights.counts[0](to_int(line[j1+pos]), motif_pos + pos) += z; // update columns of pwm marked by bit vector positions
     }
   }
-  else if (weights.type == adm) {
+  else if (weights.type == adm_unfixed) {
     if (j1 == 0) {   // motif occurrence in the beginning of sequence
       if (positions & mask) {
 	for (int a=0; a < 4; ++a)
@@ -1494,7 +1495,7 @@ weight_with_flanks_helper(const std::string& line, const std::string& seed, int 
       for (int i = j1+w; i < L; ++i)
 	weights.counts[0](to_int(line[i]), seq_pos + i) += z;
     }
-    else if (weights.type == adm) {
+    else if (weights.type == adm_unfixed) {
       if (j1 > 0) {
 	if (seq_pos == 0) {            // The sequence is in the beginning of the flanked matrix 'weights'
 	  weights.counts[0](to_int(line[0]), 0) += z;
@@ -2622,7 +2623,7 @@ multi_profile_em_algorithm(const std::vector<std::string>& sequences,
 	    }
 	    else {
 	      // Note! Type is non- fixed adm since no seed is used for gapped area.
-	      enum model_type temp_t = model_type == ppm ? ppm : adm;
+	      enum model_type temp_t = model_type == ppm ? ppm : adm_unfixed;
 	      gap_weights[r][o][d] = count_object(temp_t, my_cob_params[r].dimer_w[d]);
 	      if (model_type == ppm)
 		gap_models[r][o][d] = boost::make_shared<pwm_model<> >(my_cob_params[r].dimer_w[d]);
@@ -4110,8 +4111,8 @@ create_cob(cob_combination_t cob_combination,
 	}
 	else {
 	  count_object co = seed.length() <= 15 ?
-	    dinucleotide_counts_suffix_array(seed, sequences, sa, 2, adm) :
-	    dinucleotide_counts_scan_better<myuint128>(seed, sequences, 2, adm);
+	    dinucleotide_counts_suffix_array(seed, sequences, sa, 2, adm_unfixed) :
+	    dinucleotide_counts_scan_better<myuint128>(seed, sequences, 2, adm_unfixed);
 	  //	co.write_counts(stdout, to_string("Unnormalized initial monomer matrix %i from seed %s:\n", 
 	  //					  k, monomerseedlist[k].c_str()), "%.6f");
 	  if (use_pseudo_counts)
@@ -4270,17 +4271,20 @@ int main(int argc, char* argv[])
     ("help",                           "Produce help message")
     ("matrices",                          "Matrix filenames are given as parameters instead of seeds")
     ("freqs", po::value<std::string>(),  "Zeroth order bg model (comma separated).")
-("keep-monomer-fixed",            po::value<std::string>(), "A list of indices of monomers to keep fixed during EM algorithms. You can also specify 'all' as parameter, default: no monomers are fixed.")
+    ("keep-monomer-fixed",            po::value<std::string>(),
+     "A list of indices of monomers to keep fixed during EM algorithms. "
+     "You can also specify 'all' as parameter, default: no monomers are fixed.")
     ("disable-multinomial",                    m("Use plain alignment of sequences instead of the multinomial model", not use_multinomial).c_str())
     ("no-adjust-seeds",                    m("Do not adjust seeds in every EM iteration", not adjust_seeds).c_str())
     ("directional-seed",                    m("Are overlapping seeds required to be non-palindromic", require_directional_seed).c_str())
     ("hamming-radius", po::value<int>(),     m("Hamming radius", hamming_radius).c_str())
-    ("model", po::value<std::string>(), m("Model type, either ppm, adm-fixed, or adm-unfixed.", model_type_strings[model_type]).c_str())
+    ("model", po::value<std::string>(), m("Model type, either ppm, adm, or adm-unfixed (for testing purposes only).", model_type_strings[model_type]).c_str())
     ("meme-init",                    m("Derive the initial PWM from the seed using MEME style initialization instead of multinomial style", use_meme_init).c_str())
     ("flanks",  m("Get full flanks for each model", get_full_flanks).c_str())
 
     ("max-iter", po::value<int>(),   m("Maximum number of iterations", max_iter).c_str())
-    ("epsilon", po::value<double>(),        m("Epsilon defines convergence of EM (double). Elementwise maximum distance between two consequent matrices", epsilon).c_str())
+    ("epsilon", po::value<double>(),        m("Epsilon defines convergence of EM (double). "
+					      "Elementwise maximum distance between two consequent matrices", epsilon).c_str())
 
     ("cob", po::value<string>(),     "List of cob tables wanted. Example format: --cob '0-0,1-1,0-1', "
                                      "where the numbers refer to the indices of the list of monomers. "
@@ -4288,13 +4292,17 @@ int main(int argc, char* argv[])
                                      "Use option '--cob all' to create all combinations.")
     ("cob-cutoff", po::value<double>(),        m("Cob cutoff constant", cob_cutoff).c_str())
 
-    ("dmin", po::value<std::string>(),   "Smallest negative distance in dimer, comma separated list or a single global value, default: half of the length of the shorter monomer")
+    ("dmin", po::value<std::string>(),
+     "Smallest negative distance in dimer, comma separated list or a single global value, "
+     "default: half of the length of the shorter monomer")
     ("dmax", po::value<std::string>(),   m("Maximum positive distance in dimer, comma separated list or a single global value", global_dmax).c_str())
-    ("max-gap-learned", po::value<std::string>(),   m("Maximum positive distance in dimer for which the gap is learned, comma separated list or a single global value", global_max_dist_for_deviation).c_str())
-    ("minimum-distance-for-learning", po::value<int>(),   m("Minimum distance in dimer cases for a site to be used for monomer model learning", minimum_distance_for_learning).c_str())
+    ("max-gap-learned", po::value<std::string>(),   m("Maximum positive distance in dimer for which the gap is learned, "
+						      "comma separated list or a single global value", global_max_dist_for_deviation).c_str())
+    ("minimum-distance-for-learning", po::value<int>(),   m("Minimum distance in dimer cases for a site to be used for monomer model learning",
+							    minimum_distance_for_learning).c_str())
     ("ic-threshold", po::value<double>(),   m("Information content threshold for an overlapping dimer to be accepted", ic_threshold).c_str())
-    ("min-fraction-for-learning", po::value<double>(),   m("The monomers are learned from the dimeric cases alone, when the fraction of dimeric cases "
-							   "with distance >=minimum-distance-for-learning is at least this threshold", learning_fraction).c_str())
+    // ("min-fraction-for-learning", po::value<double>(),   m("The monomers are learned from the dimeric cases alone, when the fraction of dimeric cases "
+    // 							   "with distance >=minimum-distance-for-learning is at least this threshold", learning_fraction).c_str())
     
     // positional-background is not implemented currently
     //    ("positional-background",        m("Use positional model for background", use_positional_background).c_str())
@@ -4369,16 +4377,16 @@ int main(int argc, char* argv[])
       std::string temp = vm["model"].as< string >();
       if (model_type_strings[ppm] == temp)
 	model_type = ppm;
-      else if (model_type_strings[adm] == temp)
-	model_type = adm;
-      else if (model_type_strings[adm_fixed] == temp)
+      else if (model_type_strings[adm_unfixed] == temp)
+	model_type = adm_unfixed;
+      else if ((model_type_strings[adm_fixed] == temp) || ("adm" == temp))
 	model_type = adm_fixed;
       else {
 	fprintf(stderr, "Unknown parameter %s to --model option\n", temp.c_str());
 	exit(1);
       }
       if (model_type != ppm and vm.count("hamming-radius") == 0)
-	hamming_radius = 2;
+	hamming_radius = 3;
     }
     
     if (vm.count("rna")) 
@@ -4900,7 +4908,7 @@ int main(int argc, char* argv[])
 	//   monomerseedlist[k] = monomer_M[k]->string_giving_max_probability(use_rna, use_iupac);
 	// }
       } else {
-	count_object co = dinucleotide_counts_suffix_array(monomerseedlist[k], sequences, sa, 2, adm);
+	count_object co = dinucleotide_counts_suffix_array(monomerseedlist[k], sequences, sa, 2, adm_unfixed);
 	co.write_counts(stdout, to_string("Unnormalized initial monomer matrix %i from seed %s:\n", 
 					  k, monomerseedlist[k].c_str()), "%.6f");
 	if (use_pseudo_counts)
