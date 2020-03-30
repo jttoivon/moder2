@@ -21,7 +21,7 @@ If you want to install to a non-standard location, use for example
 which installs the binary to $HOME/usr/bin.
 Running command `moder2` should give brief instructions on the command line parameters.
 The packaged also includes, for internal use, an implementation of suffix array by Juha Kärkkäinen in directory CPM03.
-For visualization of pfm models, the package
+For visualization of PPM and ADM models, the package
 includes a modified version of a program called spacek40 by Jussi Taipale.
 
 Running
@@ -42,6 +42,9 @@ To learn ADM models (order-one inhomogeneous Markov chains) use option `--model 
 The second parameter is a comma separated list of initial values for monomer models. These
 can be given either as IUPAC sequences or as matrices. In the latter case, the option
 `--matrices` should be given.
+
+By default, MODER2 learns PPM models (order-zero inhomogeneous Markov chains).
+To learn ADM models (order-one inhomogeneous Markov chains) use option `--model adm`.
 
 By default, dirichlet pseudo counts are used, before the count matrices are normalized. Option
 `--prior dirichlet` uses pseudo count 0.01 times the initial background frequency of the corresponding nucleotide.
@@ -82,7 +85,7 @@ The option `--number-of-threads n` instructs MODER2 to use 'n' parallel OpenMP t
 
 **Example of running MODER2:**
 
-	./moder2 --names TFAP2A --outputdir TFAP2A_models --cob 0-0 data/TFAP2A-head-1000.seq GGGCA > result.txt
+	./moder2 --model adm-fixed --names TFAP2A --outputdir TFAP2A_models --cob 0-0 data/TFAP2A-head-1000.seq GGGCA > result.txt
 
 The data file data/TFAP2A-head-1000.seq included in this package contains the first 1000 reads from ENA experiment
 ERX168813 (http://www.ebi.ac.uk/ena/data/view/ERX168813).
@@ -90,19 +93,23 @@ ERX168813 (http://www.ebi.ac.uk/ena/data/view/ERX168813).
 After the program has run, the full, unparsed result, will be in file 'result.txt'.
 In the directory `TFAP2A_models` the following files are stored:
 
-* \*.pfm	 	 The pfm model of monomer motifs
-* \*.cob	     	 The cob table of a transcription factor pair, or of a pair of binding profiles
+* \*.pfm	 	 The PPM model of motifs
+* \*.adm                 The ADM model of motifs
+* \*.cob	     	 The COB table of a transcription factor pair, or of a pair of binding profiles
 * \*.dev	     	 Correction table kappa for each detected overlapping/gapped dimeric case
 * monomer_weights.txt	 Weight for each monomer model, separated by commas
 
 Run `moder2` without parameters to get description of all possible command line parameters.
 
-Visualizing pfms and cob tables
-===============================
+Visualizing pfms, adms and cob tables
+=====================================
 
 Use the program `myspacek40` to visualize a pfm file to an image.
 
 	./myspacek40 -paths -noname --logo monomer.0.pfm monomer.0.svg
+	or
+        ./myspacek40 -paths -noname --logo monomer.0.adm monomer.0.svg
+	
 	
 The `myspacek40` program only supports svg output, but this format can
 easily be converted to other formats using external tools.
@@ -127,7 +134,7 @@ an html report can be generated using the command
 
         ./to_html.py TFAP2A result.txt
 
-This creates a directory named `result.report` that contains all the model component (\*.pfm, \*.cob, \*.dev)
+This creates a directory named `result.report` that contains all the model component (\*.pfm, \*.adm \*.cob, \*.dev)
 in numerical form and also visualized form. The directory also contains the html report
 `index.html` that can be viewed using a web browser.
 
